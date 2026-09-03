@@ -184,6 +184,12 @@ O que mudou em relação ao roteiro anterior: entradas e o mês entram já no B1
 fixos e planejado × realizado passam a existir; backup sobe de B6 para B4;
 categorias descem e deixam de ser obrigatórias.
 
+> **Esta tabela é o roteiro daquele momento, e ficou para trás.** Na
+> implementação, o B2 e o B3 acima foram fundidos num bloco só, um novo B3
+> apareceu (o valor do fixo com data) e o backup absorveu as configurações. O
+> roteiro que vale está em [conceito.md](conceito.md#roteiro-proposto); esta
+> tabela fica como registro do que se pensava aqui.
+
 ## Detalhes de implementação a não perder
 
 O MVP acertou coisas pequenas que custam tempo para descobrir. Ficam anotadas

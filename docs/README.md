@@ -18,15 +18,19 @@ histórico se perde.
 | [b1-o-mes.md](b1-o-mes.md) | O segundo bloco: as 9 decisões do mês e dos lançamentos, o modelo de dados e o que ficou de fora |
 | [b2-fixos-e-realizado.md](b2-fixos-e-realizado.md) | Os fixos, o planejado × realizado e a volta da tela do MVP: as 9 decisões, e as 3 decisões do B1 que isto reverte |
 | [b3-valor-com-data.md](b3-valor-com-data.md) | O valor do fixo passa a ter linha do tempo, para que editar um aumento não reescreva o passado |
+| [b4-backup.md](b4-backup.md) | O plano do backup: as 10 decisões, o formato do arquivo, e por que este bloco absorveu o antigo B5 |
 | [cache-e-deploy.md](cache-e-deploy.md) | Por que o código do app vem sempre da rede, e o defeito de versão misturada que isso evita |
 | [pendencias.md](pendencias.md) | Ressalvas conhecidas e o que foi para a `main` sem verificação |
 
 ## Estado atual
 
-O B0 (esqueleto), o B1 (o mês e os avulsos) e o B2 (fixos, planejado ×
-realizado e a tela do MVP) estão implementados. O app já planeja um mês de
-verdade: fixos que se repetem, marcação do que já aconteceu, e o resumo
-separando o previsto do realizado.
+O B0 (esqueleto), o B1 (o mês e os avulsos), o B2 (fixos, planejado ×
+realizado e a tela do MVP) e o B3 (o valor do fixo com data) estão
+implementados. O app já planeja um mês de verdade: fixos que se repetem,
+marcação do que já aconteceu, e o resumo separando o previsto do realizado.
 
-Próximo: backup, para que o trabalho investido nos fixos tenha rede de
-segurança. O roteiro está em [conceito.md](conceito.md#roteiro-proposto).
+Em planejamento: o **B4 — backup, Ajustes e apagar tudo**. O plano está escrito
+em [b4-backup.md](b4-backup.md) e aguarda revisão; nada foi implementado ainda.
+O bloco absorveu o antigo B5 (configurações), porque o backup não tem onde morar
+sem a tela — o roteiro em [conceito.md](conceito.md#roteiro-proposto) foi
+atualizado e os blocos seguintes renumerados.
