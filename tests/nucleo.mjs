@@ -32,7 +32,22 @@ import {
   excluirLancamento,
   pularMes,
   encerrarFixo,
+  montarBackup,
+  nomeDoArquivo,
+  resumirEstado,
+  lerBackup,
+  diasEntre,
+  textoDoUltimoBackup,
 } from '../nucleo.js';
+
+/* Fuso fixo, e de proposito um em que a data local difere da UTC por boa parte
+   do dia.
+ *
+ * Sem isto, os testes de data passariam na maquina do Mario (Brasilia) e
+ * falhariam num runner em UTC — ou pior, o contrario: um bug de fuso passaria
+ * despercebido porque local e UTC coincidem. Com America/Sao_Paulo fixado, uma
+ * troca de getDate() por toISOString().slice(0, 10) falha em qualquer lugar. */
+process.env.TZ = 'America/Sao_Paulo';
 
 let passaram = 0;
 const falhas = [];
@@ -481,6 +496,187 @@ conferir(
   'encerrar no mês de início some com o fixo por completo',
   lancamentosDoMes(encerradoNoInicio, '2026-09').map((l) => l.id),
   ['3', '1']
+);
+
+/* ---------- Backup: o envelope ---------- */
+
+const AGORA = new Date('2026-09-03T21:30:00-03:00');
+
+{
+  const estado = estadoVazio();
+  const pacote = montarBackup(estado, AGORA);
+  conferir('o envelope se identifica', pacote.app, 'zenny');
+  conferir('o envelope carrega a versao do esquema', pacote.versao, 3);
+  conferir('o envelope carrega o estado', pacote.estado, estado);
+  conferir('exportadoEm e ISO', pacote.exportadoEm, AGORA.toISOString());
+}
+
+/* O nome usa a data LOCAL. Escrito com uma data cuja hora local no Brasil (21h)
+   ja e o dia seguinte em UTC: se alguem trocar por toISOString().slice(0,10),
+   este teste pega. */
+conferir('nome do arquivo usa o dia local, nao o UTC', nomeDoArquivo(AGORA), 'zenny-2026-09-03.json');
+
+/* ---------- resumirEstado ---------- */
+
+const AVULSO = {
+  id: 'a1',
+  tipo: 'saida',
+  descricao: 'Mercado',
+  fixo: false,
+  valor: 12000,
+  data: '2026-10-15',
+};
+
+const FIXO_ABERTO = {
+  id: 'f1',
+  tipo: 'entrada',
+  descricao: 'Salario',
+  fixo: true,
+  dia: 5,
+  inicio: '2026-09',
+  fim: null,
+  pulados: [],
+  valores: [{ desde: '2026-09', valor: 300000 }],
+};
+
+const FIXO_ENCERRADO = {
+  id: 'f2',
+  tipo: 'saida',
+  descricao: 'Curso',
+  fixo: true,
+  dia: 10,
+  inicio: '2026-11',
+  fim: '2027-03',
+  pulados: [],
+  valores: [{ desde: '2026-11', valor: 25000 }],
+};
+
+conferir('resumo de estado vazio', resumirEstado(estadoVazio()), {
+  total: 0,
+  fixos: 0,
+  avulsos: 0,
+  primeiroMes: null,
+  ultimoMes: null,
+});
+
+conferir(
+  'resumo conta fixos e avulsos, e acha as pontas',
+  resumirEstado({ lancamentos: [AVULSO, FIXO_ABERTO, FIXO_ENCERRADO], realizados: {} }),
+  { total: 3, fixos: 2, avulsos: 1, primeiroMes: '2026-09', ultimoMes: '2027-03' }
+);
+
+/* Um fixo sem fim e aberto. Afirmar um ultimo mes que nao existe seria inventar
+   dado na tela de confirmacao — justo a tela em que a pessoa decide se troca o
+   que tem no aparelho por aquele arquivo. */
+conferir(
+  'fixo aberto nao estica o intervalo para o infinito',
+  resumirEstado({ lancamentos: [FIXO_ABERTO], realizados: {} }),
+  { total: 1, fixos: 1, avulsos: 0, primeiroMes: '2026-09', ultimoMes: '2026-09' }
+);
+
+/* ---------- lerBackup ---------- */
+
+const ESTADO_CHEIO = { versao: 3, lancamentos: [AVULSO, FIXO_ABERTO], realizados: { 'a1|2026-10': true } };
+
+{
+  const texto = JSON.stringify(montarBackup(ESTADO_CHEIO, AGORA));
+  const lido = lerBackup(texto);
+  conferir('le o envelope', lido.ok, true);
+  conferir('a ida e a volta preservam os lancamentos', lido.estado.lancamentos, ESTADO_CHEIO.lancamentos);
+  conferir('a ida e a volta preservam os realizados', lido.estado.realizados, ESTADO_CHEIO.realizados);
+  conferir('nada foi descartado', lido.descartados, 0);
+  conferir('devolve quando o arquivo foi feito', lido.exportadoEm, AGORA.toISOString());
+}
+
+/* Ser liberal na leitura: quem editou o arquivo a mao e tirou o envelope nao
+   pode ficar trancado para fora dos proprios dados. */
+{
+  const lido = lerBackup(JSON.stringify(ESTADO_CHEIO));
+  conferir('aceita o estado cru, sem envelope', lido.ok, true);
+  conferir('estado cru traz os lancamentos', lido.estado.lancamentos.length, 2);
+}
+
+conferir('recusa texto que nao e JSON', lerBackup('isto nao e json').erro, 'nao-e-json');
+conferir('recusa JSON que nao e objeto', lerBackup('42').erro, 'nao-e-json');
+conferir('recusa JSON sem lancamentos', lerBackup('{"algo":1}').erro, 'nao-e-zenny');
+conferir('recusa lancamentos que nao e lista', lerBackup('{"lancamentos":"varios"}').erro, 'nao-e-zenny');
+
+/* Um app ainda vazio tem backup valido. Recusar seria dizer que o arquivo esta
+   quebrado quando ele so esta vazio. */
+{
+  const lido = lerBackup(JSON.stringify(montarBackup(estadoVazio(), AGORA)));
+  conferir('backup de app vazio e valido', lido.ok, true);
+  conferir('backup de app vazio nao descarta nada', lido.descartados, 0);
+}
+
+/* O ponto da decisao 10: o descarte deixa de ser silencioso. */
+{
+  const comLixo = {
+    lancamentos: [
+      AVULSO,
+      { id: '', tipo: 'saida', descricao: 'sem id', fixo: false, valor: 100, data: '2026-10-01' },
+      { id: 'x', tipo: 'saida', descricao: 'sem data', fixo: false, valor: 100 },
+      { id: 'y', tipo: 'saida', descricao: 'fixo sem inicio', fixo: true, dia: 5, valor: 100 },
+    ],
+    realizados: {},
+  };
+  const lido = lerBackup(JSON.stringify(comLixo));
+  conferir('sobrevive ao lixo', lido.ok, true);
+  conferir('mantem o que presta', lido.estado.lancamentos.length, 1);
+  conferir('conta o que jogou fora', lido.descartados, 3);
+}
+
+/* Marcacao apontando para lancamento que nao existe e limpeza, nao perda: nao
+   entra na conta de descartados, que fala de lancamentos. */
+{
+  const lido = lerBackup(
+    JSON.stringify({ lancamentos: [AVULSO], realizados: { 'a1|2026-10': true, 'sumiu|2026-10': true } })
+  );
+  conferir('marcacao orfa nao conta como descarte', lido.descartados, 0);
+  conferir('marcacao orfa e limpa mesmo assim', lido.estado.realizados, { 'a1|2026-10': true });
+}
+
+/* ---------- diasEntre ---------- */
+
+conferir('mesmo dia', diasEntre('2026-09-03T08:00:00', '2026-09-03T23:00:00'), 0);
+conferir('um dia', diasEntre('2026-09-03T23:00:00', '2026-09-04T01:00:00'), 1);
+conferir('quarenta e sete dias', diasEntre('2026-07-18T12:00:00', '2026-09-03T12:00:00'), 47);
+conferir('atravessa o ano', diasEntre('2025-12-31T12:00:00', '2026-01-01T12:00:00'), 1);
+conferir('ano bissexto', diasEntre('2028-02-28T12:00:00', '2028-03-01T12:00:00'), 2);
+conferir('para tras da negativo', diasEntre('2026-09-04T12:00:00', '2026-09-03T12:00:00'), -1);
+conferir('data invalida devolve nulo', diasEntre('nao e data', '2026-09-03'), null);
+
+/* Duas horas distantes dentro do mesmo par de dias continuam sendo um dia so.
+   E o caso que a divisao crua por 86.400.000 erraria: 2h ate 23h do dia
+   seguinte da 1,875 dia, que truncado vira 1 e arredondado vira 2. */
+conferir('a hora do dia nao muda a conta', diasEntre('2026-09-03T02:00:00', '2026-09-04T23:00:00'), 1);
+
+/* ---------- textoDoUltimoBackup ---------- */
+
+conferir(
+  'sem copia nenhuma',
+  textoDoUltimoBackup(null, AGORA),
+  'Você ainda não guardou nenhuma cópia.'
+);
+conferir('hoje', textoDoUltimoBackup('2026-09-03T09:00:00-03:00', AGORA), 'Última cópia: hoje.');
+conferir('ontem', textoDoUltimoBackup('2026-09-02T09:00:00-03:00', AGORA), 'Última cópia: ontem.');
+conferir(
+  'ha muitos dias',
+  textoDoUltimoBackup('2026-07-18T09:00:00-03:00', AGORA),
+  'Última cópia: há 47 dias.'
+);
+
+/* Relogio do aparelho mexido para tras nao pode dizer que a pessoa nunca
+   guardou nada logo depois de ela ter guardado. */
+conferir(
+  'data no futuro vira hoje',
+  textoDoUltimoBackup('2027-01-01T09:00:00-03:00', AGORA),
+  'Última cópia: hoje.'
+);
+conferir(
+  'data invalida nao quebra a frase',
+  textoDoUltimoBackup('qualquer coisa', AGORA),
+  'Você ainda não guardou nenhuma cópia.'
 );
 
 /* ---------- resultado ---------- */

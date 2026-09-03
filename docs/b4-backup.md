@@ -199,6 +199,38 @@ dura.
 - **Restaurar só os fixos.** Escolher pedaços é a complexidade que a decisão 2
   recusou.
 
+## O que a implementação acrescentou ao plano
+
+Cinco decisões que só apareceram com o código na tela. Ficam registradas porque
+nenhuma delas é óbvia lendo o plano:
+
+**11. O botão de apagar virou o único sólido em coral do app.** No diálogo, a
+ação destrutiva e o "Cancelar" ficam uma embaixo da outra — e o app escreve
+*ambos* em texto coral, porque `.apagado` serve tanto para "Excluir" quanto para
+"Cancelar". Lado a lado eles viravam gêmeos, e o botão de escape não pode
+parecer o botão de destruir. Daí a variante `.perigo`.
+
+**12. O botão flutuante some nos Ajustes.** Ele adiciona lançamento, e esta tela
+não é sobre lançamentos — pior, ficava por cima do cartão de apagar tudo. Para o
+CSS poder reagir, `mostrarTela` passou a marcar a tela aberta no `<body>`.
+
+**13. Restaurar termina no Início, e num mês que tem o que mostrar.** Sem isso,
+quem restaura em setembro uma cópia que só tem dados de 2027 volta para a tela,
+encontra um mês vazio e conclui — com razão aparente — que não funcionou. O mês
+atual continua sendo a preferência; só cede quando não há nada para exibir.
+
+**14. "Guardar uma cópia antes" responde no próprio botão.** Um `<dialog>` modal
+vive na *top layer*, então o aviso de sempre apareceria atrás dele. Um clique sem
+resposta visível, na tela em que a pessoa está prestes a apagar tudo, é o pior
+lugar do app para deixar alguém em dúvida. O botão também não mente: desistir do
+menu de compartilhar não vira "Cópia guardada".
+
+**15. Os testes fixam o fuso em `America/Sao_Paulo`.** Escritos sem isso, os
+testes de data passavam na máquina do Mário e falhavam num runner em UTC. Pior
+seria o contrário: num fuso onde local e UTC coincidem, uma troca de `getDate()`
+por `toISOString()` passaria despercebida. Com o fuso fixado, esse erro falha em
+qualquer lugar.
+
 ## Como verificar
 
 No navegador, em 360px, e no celular de verdade:
@@ -218,3 +250,8 @@ No navegador, em 360px, e no celular de verdade:
 7. Trocar o tema pelo cabeçalho e pelos Ajustes: os dois controles ficam em
    sincronia.
 8. Console limpo em todos os passos.
+
+Os passos 1 a 8 foram exercitados em Chromium a 360px e a 1280px, por um roteiro
+de 46 verificações, com o console limpo. O que **não** foi verificado está em
+[pendencias.md](pendencias.md): o menu de compartilhar do Android, que não existe
+no navegador de desktop e por isso caiu sempre na reserva do download.
