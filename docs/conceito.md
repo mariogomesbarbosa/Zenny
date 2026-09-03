@@ -36,13 +36,25 @@ tentar atendê-las é o caminho mais curto para o Zenny virar complicado.
 **Em 30 segundos de uso você sabe mais sobre seu dinheiro do que sabia antes de
 abrir o app.** Sem cadastro, sem configuração, sem tutorial.
 
+O Zenny é um **planejador**, não um diário. A diferença é a pergunta que ele
+responde: um diário conta para onde o dinheiro foi; um planejador diz se dá para
+chegar no fim do mês. É a segunda que tira o sono — e é a única que se sustenta,
+porque um diário exige registro diário e apodrece na primeira semana em que a
+pessoa esquece. O planejador funciona sozinho: você cadastra o que se repete uma
+vez, e o mês seguinte já nasce montado.
+
+O raciocínio completo dessa virada está em
+[mescla-com-o-mvp.md](mescla-com-o-mvp.md).
+
 ## Como isso vira produto
 
 | Princípio | O que significa na prática |
 |---|---|
-| Valor antes de configuração | O app abre útil. Registrar o primeiro gasto não exige criar conta, categoria nem saldo inicial. |
-| Três toques | Registrar um gasto: valor, categoria, pronto. Data e o resto têm padrão inteligente. |
-| Uma pergunta por tela | Cada tela responde a uma coisa. "Quanto eu tenho?" e "para onde foi?" são telas diferentes. |
+| Valor antes de configuração | O app abre útil. O primeiro lançamento não exige criar conta, categoria nem saldo inicial — e já devolve o número da sobra. Nada de tela de configuração inicial. |
+| Dois campos | O que é, quanto é. O resto tem padrão: avulso, data de hoje, ainda não pago. Repetição e data ficam atrás de "mais opções". |
+| Uma pergunta por tela | Cada tela responde a uma coisa. "Dá para chegar no fim do mês?" e "para onde foi?" são telas diferentes. Nada de duas colunas lado a lado como planilha. |
+| O mês é a unidade | Salário no dia 5, aluguel no 10, cartão no 15. A vida financeira desse público é mensal, e o app navega assim. |
+| Planejado e realizado são coisas diferentes | Cada lançamento sabe se já aconteceu. É o que transforma uma lista em um plano. |
 | Linguagem de gente | "O que sobrou", não "saldo disponível". "Guardar para" em vez de "meta de aporte". |
 | Educação no contexto | A explicação nasce onde a dúvida aparece: um toque no número mostra o que ele quer dizer. Nunca uma aba de artigos que ninguém lê. |
 | Sem culpa | Estourar um limite gera informação, não bronca. O tom é de aliado, não de fiscal. |
@@ -63,21 +75,26 @@ Registrar aqui é tão importante quanto registrar o que ele é — cada item ab
   celular, a pergunta está errada.
 - **Não tem login obrigatório.** Dados no aparelho. Se algum dia houver nuvem,
   é opcional e para backup.
+- **Não vira livro-caixa.** Ser um planejador não autoriza a linguagem nem a
+  forma da contabilidade: "lançamento", "livro-caixa", entradas e despesas em
+  duas colunas lado a lado. Essa é a aparência que o público-alvo evita.
 
 ## Roteiro proposto
 
-Proposta em aberto, para revisão do Mário — a ordem existe para que cada bloco
+Revisado depois da mescla com o MVP — o raciocínio de cada mudança está em
+[mescla-com-o-mvp.md](mescla-com-o-mvp.md). A ordem existe para que cada bloco
 entregue algo usável sozinho.
 
 | Bloco | O quê | Por que nesta ordem |
 |---|---|---|
 | B0 | Esqueleto: navegação, tema claro/escuro, instalável no celular | Base para tudo; permite testar no celular de verdade desde o começo |
-| B1 | Registrar um gasto em três toques | É o coração. Se isso não for gostoso, nada mais importa |
-| B2 | O mês em uma tela: entrou, saiu, sobrou | Primeiro momento de "descoberta" — o valor que a promessa vende |
-| B3 | Limites por categoria (sem usar a palavra "orçamento") | Só faz sentido depois de haver dados para limitar |
-| B4 | Guardar para algo (metas com nome e prazo) | Vira motivação positiva; depende de sobrar dinheiro visível no B2 |
-| B5 | Pílulas de educação no contexto | Precisa de telas prontas para se ancorar |
-| B6 | Exportar e trazer de volta os dados | Rede de segurança; sem isso o usuário não confia dados de meses no app |
+| B1 | O mês, e entradas e saídas avulsas, com o número da sobra | É o coração. Entradas entram já aqui: sem elas não existe sobra, e a sobra é o que a promessa vende |
+| B2 | Lançamentos fixos, com as três semânticas de exclusão | O que faz o app trabalhar sozinho a partir do mês 2 — e o que torna a promessa sustentável |
+| B3 | Planejado × realizado: marcar recebi/paguei | Transforma a lista em plano. Depende de haver o que marcar |
+| B4 | Backup: baixar e restaurar | Depois do B2 o usuário tem trabalho investido nos fixos. Rede de segurança não pode chegar por último |
+| B5 | Categorias sugeridas e limites | Só faz sentido depois de haver dados. Opcional de propósito: taxonomia é barreira |
+| B6 | Guardar para algo (metas com nome e prazo) | Motivação positiva; depende de sobrar dinheiro visível |
+| B7 | Pílulas de educação no contexto | Precisa de telas prontas para se ancorar |
 
 ## Identidade
 
