@@ -1,17 +1,17 @@
-/* Zenny — folha de estilo unica.
+/* Zenny — folha de estilo única.
  *
  * Duas regras estruturais que valem para tudo aqui:
  *
- * 1. MOBILE FIRST DE VERDADE. O estado base do CSS e a tela de 360px. Toda
+ * 1. MOBILE FIRST DE VERDADE. O estado base do CSS é a tela de 360px. Toda
  *    media query usa min-width. Nenhuma usa max-width — max-width significa
- *    "o desktop e o padrao e o celular e a excecao", que e o contrario do que
- *    este projeto e.
- * 2. TEMA POR VARIAVEL. Nenhuma cor literal fora do bloco :root. O tema escuro
- *    troca as variaveis, e nada mais precisa saber que ele existe.
+ *    "o desktop é o padrão e o celular é a exceção", que é o contrário do que
+ *    este projeto é.
+ * 2. TEMA POR VARIÁVEL. Nenhuma cor literal fora dos blocos de :root. O tema
+ *    escuro troca as variáveis, e nada mais precisa saber que ele existe.
  *
- * A tipografia e a pilha do sistema, de proposito: o publico-alvo esta em
- * Android de entrada com dado movel limitado, e baixar uma fonte da Google
- * custa tempo de primeira pintura que o app nao tem para dar.
+ * A tipografia é a pilha do sistema, de propósito: o público-alvo está em
+ * Android de entrada com dado móvel limitado, e baixar uma fonte da Google
+ * custa tempo de primeira pintura que o app não tem para dar.
  */
 
 :root {
@@ -21,27 +21,35 @@
   --superficie: #ffffff;
   --tinta: #14181c;
   --tinta-suave: #5c6570;
+  --tinta-fraca: #8b939c;
   --verde: #2e9e70;
-  --coral: #d9603c;
+  --verde-fraco: #cfe4da;
+  --coral: #c8553a;
+  --coral-fraco: #f0d8d1;
   --borda: #e4e0d8;
+  --borda-fraca: #efece5;
   --sombra: 0 1px 2px rgba(20, 24, 28, .06), 0 8px 24px rgba(20, 24, 28, .06);
 
   --raio: 16px;
-  --alvo: 44px;          /* alvo minimo de toque; abaixo disso o dedo erra */
+  --alvo: 44px;          /* alvo mínimo de toque; abaixo disso o dedo erra */
   --respiro: 16px;
-  --largura-maxima: 720px;
+  --largura-maxima: 760px;
 }
 
 @media (prefers-color-scheme: dark) {
-  :root:not([data-tema="claro"]) { color-scheme: dark; }
   :root:not([data-tema="claro"]) {
+    color-scheme: dark;
     --areia: #14181c;
     --superficie: #1c2127;
     --tinta: #f2f0ea;
     --tinta-suave: #98a1ab;
+    --tinta-fraca: #6d7681;
     --verde: #46c489;
+    --verde-fraco: #27473a;
     --coral: #e8845f;
+    --coral-fraco: #4a2e25;
     --borda: #2a3138;
+    --borda-fraca: #232930;
     --sombra: none;
   }
 }
@@ -52,13 +60,23 @@
   --superficie: #1c2127;
   --tinta: #f2f0ea;
   --tinta-suave: #98a1ab;
+  --tinta-fraca: #6d7681;
   --verde: #46c489;
+  --verde-fraco: #27473a;
   --coral: #e8845f;
+  --coral-fraco: #4a2e25;
   --borda: #2a3138;
+  --borda-fraca: #232930;
   --sombra: none;
 }
 
 * { box-sizing: border-box; }
+
+/* O atributo hidden vale menos que qualquer classe que declare display, então
+   um `.aviso { display: flex }` reexibe sozinho o elemento que o JavaScript
+   acabou de esconder. Isso já apareceu como um comprimido branco flutuando na
+   tela. A regra abaixo devolve ao hidden a última palavra. */
+[hidden] { display: none !important; }
 
 html, body { height: 100%; }
 
@@ -70,25 +88,40 @@ body {
   font-size: 16px;
   line-height: 1.5;
   -webkit-font-smoothing: antialiased;
-  /* O app rola no <main>, nao no body: assim a navegacao inferior fica parada
-     e o iOS nao esconde a barra de forma imprevisivel. */
+  /* O app rola no <main>, não no body: assim a navegação inferior fica parada
+     e o iOS não esconde a barra de forma imprevisível. */
   display: flex;
   flex-direction: column;
   overflow: hidden;
 }
 
-svg { width: 24px; height: 24px; fill: none; stroke: currentColor; stroke-width: 1.8; stroke-linecap: round; stroke-linejoin: round; }
+svg {
+  width: 24px; height: 24px;
+  fill: none; stroke: currentColor;
+  stroke-width: 1.8; stroke-linecap: round; stroke-linejoin: round;
+}
+
+/* Dinheiro alinha em coluna: sem isso os dígitos têm larguras diferentes e a
+   lista dança a cada linha. */
+.tabular { font-variant-numeric: tabular-nums lining-nums; }
+
+.oculto-visualmente {
+  position: absolute; width: 1px; height: 1px;
+  margin: -1px; padding: 0; border: 0;
+  clip-path: inset(50%); overflow: hidden; white-space: nowrap;
+}
+
+:focus-visible { outline: 2px solid var(--verde); outline-offset: 2px; border-radius: 6px; }
 
 /* ---------- Barra superior ---------- */
 
 .barra-superior {
   display: flex;
   align-items: center;
-  justify-content: space-between;
-  gap: var(--respiro);
-  padding: max(env(safe-area-inset-top), 8px) var(--respiro) 8px;
+  gap: 2px;
+  padding: max(env(safe-area-inset-top), 6px) 8px 6px;
   background: var(--areia);
-  border-bottom: 1px solid transparent;
+  border-bottom: 1px solid var(--borda);
   flex: none;
 }
 
@@ -96,49 +129,94 @@ svg { width: 24px; height: 24px; fill: none; stroke: currentColor; stroke-width:
   display: inline-flex;
   align-items: center;
   gap: 8px;
+  padding: 0 4px;
   color: inherit;
   text-decoration: none;
   font-weight: 600;
   letter-spacing: -.01em;
+  flex: none;
 }
 
 .marca img { display: block; border-radius: 7px; }
+
+/* O nome cede espaço ao seletor de mês no celular: trocar de mês é o controle
+   mais usado do app, e a marca já está no símbolo ao lado. */
+.marca-nome { display: none; }
+
+.seletor-de-mes {
+  display: flex;
+  align-items: center;
+  flex: 1;
+  min-width: 0;
+  justify-content: center;
+}
+
+.rotulo-do-mes {
+  flex: 0 1 auto;
+  min-width: 0;
+  text-align: center;
+  font-weight: 600;
+  font-size: .9375rem;
+  letter-spacing: -.01em;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
 
 .botao-icone {
   display: grid;
   place-items: center;
   width: var(--alvo);
   height: var(--alvo);
+  flex: none;
   border: 0;
   border-radius: 50%;
   background: transparent;
   color: var(--tinta-suave);
   cursor: pointer;
+  -webkit-tap-highlight-color: transparent;
 }
 
 .botao-icone:hover { background: var(--superficie); color: var(--tinta); }
+.botao-icone:active { background: var(--borda); }
 
-/* ---------- Conteudo ---------- */
+.botao-texto {
+  flex: none;
+  min-height: var(--alvo);
+  padding: 0 10px;
+  border: 0;
+  border-radius: 10px;
+  background: transparent;
+  color: var(--verde);
+  font: inherit;
+  font-size: .8125rem;
+  font-weight: 600;
+  cursor: pointer;
+  -webkit-tap-highlight-color: transparent;
+}
+
+.botao-texto:hover { background: var(--superficie); }
+
+/* ---------- Conteúdo ---------- */
 
 #conteudo {
   flex: 1;
   overflow-y: auto;
   overscroll-behavior: contain;
-  min-height: 0;          /* sem isso um filho alto impede o proprio scroll */
-  padding: 8px var(--respiro) 0;
-  /* Espaco para a navegacao inferior e o botao flutuante nao cobrirem o fim
+  min-height: 0;          /* sem isso um filho alto impede o próprio scroll */
+  padding: 12px var(--respiro) 0;
+  /* Espaço para a navegação inferior e o botão flutuante não cobrirem o fim
      da lista. */
-  padding-bottom: calc(96px + env(safe-area-inset-bottom));
+  padding-bottom: calc(104px + env(safe-area-inset-bottom));
   width: 100%;
   max-width: var(--largura-maxima);
   margin-inline: auto;
 }
 
 h1 { font-size: 1.75rem; line-height: 1.2; letter-spacing: -.02em; margin: 8px 0 2px; }
-h2 { font-size: 1.05rem; margin: 0 0 6px; }
 
 .subtitulo { color: var(--tinta-suave); margin: 0 0 20px; }
-.rotulo { color: var(--tinta-suave); font-size: .875rem; }
+.rotulo { color: var(--tinta-suave); font-size: .8125rem; }
 .nota { color: var(--tinta-suave); font-size: .8125rem; margin: 8px 0 0; }
 
 .cartao {
@@ -146,43 +224,236 @@ h2 { font-size: 1.05rem; margin: 0 0 6px; }
   border: 1px solid var(--borda);
   border-radius: var(--raio);
   box-shadow: var(--sombra);
-  padding: 20px;
-  margin-bottom: 12px;
+  padding: 18px 16px;
 }
 
-.cartao-destaque { display: grid; gap: 4px; }
-
-.valor {
-  font-size: 2.25rem;
-  font-weight: 600;
-  letter-spacing: -.03em;
-  font-variant-numeric: tabular-nums;
-}
-
+.cartao.vazio h2 { font-size: 1.05rem; margin: 0 0 6px; }
 .cartao.vazio p { margin: 0; color: var(--tinta-suave); }
 
-/* ---------- Botao flutuante ---------- */
+/* ---------- Painel do mês ---------- */
+
+.painel { display: grid; gap: 22px; }
+
+.valor {
+  display: block;
+  font-size: clamp(2rem, 9vw, 2.5rem);
+  font-weight: 700;
+  letter-spacing: -.035em;
+  line-height: 1.05;
+  font-variant-numeric: tabular-nums lining-nums;
+  margin-top: 2px;
+}
+
+/* A falta prevista vira coral, não vermelho de erro: é informação, não bronca. */
+.valor.negativo { color: var(--coral); }
+
+.detalhe { margin: 10px 0 0; font-size: .875rem; color: var(--tinta-suave); }
+.detalhe b { font-weight: 600; color: var(--tinta); }
+
+.painel-fluxo { display: grid; gap: 14px; }
+
+.barra {
+  display: grid;
+  grid-template-columns: 1fr auto;
+  gap: 4px 12px;
+  align-items: baseline;
+}
+
+.barra-nome { font-size: .875rem; color: var(--tinta-suave); }
+.barra-valor { font-size: .9375rem; font-weight: 600; }
+
+/* Os dois trechos vivem lado a lado dentro do trilho: o cheio é o que já
+   aconteceu, o claro é o que ainda falta. Somados dão o previsto do lado. */
+.trilho {
+  grid-column: 1 / -1;
+  display: flex;
+  height: 10px;
+  border-radius: 3px;
+  background: var(--borda-fraca);
+  overflow: hidden;
+}
+
+.trecho { height: 100%; width: 0; transition: width .25s ease; }
+.trecho.cheio.entrada { background: var(--verde); }
+.trecho.claro.entrada { background: var(--verde-fraco); }
+.trecho.cheio.saida { background: var(--coral); }
+.trecho.claro.saida { background: var(--coral-fraco); }
+
+.legenda {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px 16px;
+  margin: 2px 0 0;
+  font-size: .75rem;
+  color: var(--tinta-suave);
+}
+
+/* Cada item da legenda quebra inteiro para a linha de baixo, nunca no meio:
+   "preenchido = já / acontece" fica ilegível na coluna estreita do desktop. */
+.legenda span { white-space: nowrap; }
+
+.amostra {
+  display: inline-block;
+  width: 9px; height: 9px;
+  border-radius: 2px;
+  margin-right: 6px;
+}
+
+.amostra.cheia { background: var(--tinta-suave); }
+.amostra.clara { background: var(--borda); }
+
+/* ---------- Grupos: Entradas e Despesas ---------- */
+
+.grupo { margin-top: 26px; }
+
+.grupo-cabeca {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 10px;
+  padding-bottom: 8px;
+  border-bottom: 2px solid var(--tinta);
+}
+
+.grupo-cabeca h2 { font-size: 1rem; margin: 0; letter-spacing: -.01em; }
+
+.grupo-total { font-weight: 600; font-size: .9375rem; }
+.grupo-total.entrada { color: var(--verde); }
+.grupo-total.saida { color: var(--coral); }
+
+.grupo-vazio { color: var(--tinta-suave); font-size: .875rem; padding: 18px 0 4px; margin: 0; }
+
+.grupo-pe {
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+  padding-top: 10px;
+  font-size: .8125rem;
+  color: var(--tinta-suave);
+}
+
+/* ---------- Linha do lançamento ---------- */
+
+.lancamentos { list-style: none; margin: 0; padding: 0; }
+
+.lancamento {
+  display: grid;
+  grid-template-columns: 28px 1fr 32px;
+  align-items: center;
+  gap: 8px;
+  min-height: 56px;
+  border-bottom: 1px solid var(--borda-fraca);
+}
+
+.marcador-realizado {
+  width: 28px; height: 28px;
+  display: grid; place-items: center;
+  padding: 0;
+  border: 1.5px solid var(--borda);
+  border-radius: 50%;
+  background: var(--superficie);
+  cursor: pointer;
+  -webkit-tap-highlight-color: transparent;
+  transition: background .12s ease, border-color .12s ease;
+}
+
+.marcador-realizado svg {
+  width: 13px; height: 13px;
+  stroke: #fff; stroke-width: 2.4;
+  opacity: 0; transform: scale(.7);
+  transition: opacity .12s ease, transform .12s ease;
+}
+
+.marcador-realizado[aria-pressed="true"] svg { opacity: 1; transform: none; }
+.marcador-realizado.entrada[aria-pressed="true"] { background: var(--verde); border-color: var(--verde); }
+.marcador-realizado.saida[aria-pressed="true"] { background: var(--coral); border-color: var(--coral); }
+
+.lancamento-toque {
+  display: grid;
+  grid-template-columns: 24px 1fr auto;
+  align-items: center;
+  gap: 10px;
+  width: 100%;
+  min-height: 48px;
+  padding: 6px 0;
+  border: 0;
+  background: none;
+  color: inherit;
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+  -webkit-tap-highlight-color: transparent;
+}
+
+.lancamento-dia { font-size: .78125rem; color: var(--tinta-fraca); text-align: right; }
+
+.lancamento-descricao {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: .9375rem;
+}
+
+.etiqueta {
+  display: inline-block;
+  padding: 0 7px;
+  border: 1px solid var(--borda);
+  border-radius: 20px;
+  font-size: .6875rem;
+  color: var(--tinta-suave);
+  vertical-align: 1px;
+}
+
+.lancamento-valor { font-weight: 600; font-size: .9375rem; white-space: nowrap; }
+.lancamento-valor.entrada { color: var(--verde); }
+.lancamento-valor.saida { color: var(--coral); }
+
+/* Já aconteceu: recua para o segundo plano, sem sumir. */
+.lancamento.realizado .lancamento-descricao,
+.lancamento.realizado .lancamento-dia { color: var(--tinta-fraca); }
+.lancamento.realizado .lancamento-valor { opacity: .55; }
+
+.lancamento-excluir {
+  width: 32px; height: 32px;
+  display: grid; place-items: center;
+  padding: 0;
+  border: 0; border-radius: 8px;
+  background: none;
+  color: var(--tinta-fraca);
+  cursor: pointer;
+  -webkit-tap-highlight-color: transparent;
+}
+
+.lancamento-excluir svg { width: 16px; height: 16px; }
+.lancamento-excluir:hover { color: var(--coral); background: var(--coral-fraco); }
+
+/* ---------- Botão flutuante ---------- */
 
 .botao-flutuante {
   position: fixed;
   right: var(--respiro);
   bottom: calc(76px + env(safe-area-inset-bottom));
-  width: 56px;
-  height: 56px;
-  display: grid;
-  place-items: center;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  height: 54px;
+  padding: 0 22px 0 18px;
   border: 0;
-  border-radius: 50%;
+  border-radius: 27px;
   background: var(--verde);
   color: #fff;
-  box-shadow: 0 6px 20px rgba(20, 24, 28, .22);
+  font: inherit;
+  font-weight: 600;
+  box-shadow: 0 8px 22px -6px rgba(20, 24, 28, .45);
   cursor: pointer;
+  -webkit-tap-highlight-color: transparent;
 }
 
-.botao-flutuante svg { stroke-width: 2.4; }
-.botao-flutuante:active { transform: scale(.94); }
+.botao-flutuante svg { width: 18px; height: 18px; stroke-width: 2.4; }
+.botao-flutuante:active { transform: translateY(1px); }
 
-/* ---------- Navegacao ---------- */
+/* ---------- Navegação ---------- */
 
 .navegacao {
   flex: none;
@@ -206,15 +477,148 @@ h2 { font-size: 1.05rem; margin: 0 0 6px; }
 
 .navegacao a[aria-current="page"] { color: var(--verde); }
 
-/* ---------- Aviso temporario ---------- */
+/* ---------- Diálogos: folha por baixo no celular ---------- */
+
+dialog {
+  border: 0;
+  padding: 0;
+  margin: 0;
+  position: fixed;
+  inset: auto 0 0 0;
+  width: 100%;
+  max-width: 100%;
+  max-height: 92dvh;
+  overflow-y: auto;
+  background: var(--superficie);
+  color: var(--tinta);
+  border-radius: 20px 20px 0 0;
+  box-shadow: 0 -8px 40px -10px rgba(20, 24, 28, .4);
+}
+
+dialog::backdrop { background: rgba(20, 24, 28, .45); }
+
+.pegador {
+  width: 38px; height: 4px;
+  border-radius: 2px;
+  background: var(--borda);
+  margin: 10px auto 0;
+}
+
+.folha { padding: 12px var(--respiro) calc(20px + env(safe-area-inset-bottom)); }
+.folha h2 { font-size: 1.25rem; margin: 4px 0 16px; letter-spacing: -.01em; }
+
+.alternador {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 4px;
+  padding: 4px;
+  border-radius: 12px;
+  background: var(--areia);
+  margin-bottom: 18px;
+}
+
+.alternador button {
+  min-height: var(--alvo);
+  border: 0;
+  border-radius: 9px;
+  background: none;
+  color: var(--tinta-suave);
+  font: inherit;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.alternador button[aria-pressed="true"] {
+  background: var(--superficie);
+  box-shadow: 0 1px 3px rgba(20, 24, 28, .16);
+}
+
+#tipo-entrada[aria-pressed="true"] { color: var(--verde); }
+#tipo-saida[aria-pressed="true"] { color: var(--coral); }
+
+.campo { margin-bottom: 14px; }
+.campo label { display: block; font-size: .8125rem; color: var(--tinta-suave); margin-bottom: 5px; }
+
+.campo input,
+.campo select {
+  width: 100%;
+  min-height: var(--alvo);
+  padding: 11px 12px;
+  border: 1px solid var(--borda);
+  border-radius: 12px;
+  background: var(--superficie);
+  color: var(--tinta);
+  font-family: inherit;
+  /* 16px exatos: abaixo disso o iOS dá zoom sozinho ao focar o campo, e a tela
+     fica torta pelo resto da sessão. */
+  font-size: 16px;
+}
+
+.campo input:focus,
+.campo select:focus { outline: 2px solid var(--verde); outline-offset: -1px; border-color: var(--verde); }
+
+.dupla { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+
+.dica { font-size: .78125rem; color: var(--tinta-suave); margin: -6px 0 14px; }
+.dica b { color: var(--tinta); font-weight: 600; }
+
+.marcador {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  min-height: var(--alvo);
+  margin-bottom: 8px;
+  font-size: .9375rem;
+  cursor: pointer;
+}
+
+.marcador input { width: 22px; height: 22px; accent-color: var(--verde); }
+
+.erro { color: var(--coral); font-size: .875rem; margin: 0 0 12px; }
+
+.acoes { display: flex; gap: 8px; margin-top: 4px; }
+.pilha { display: flex; flex-direction: column; gap: 8px; }
+
+.botao {
+  flex: 1;
+  min-height: var(--alvo);
+  padding: 11px 16px;
+  border: 1px solid var(--verde);
+  border-radius: 12px;
+  background: var(--verde);
+  color: #fff;
+  font: inherit;
+  font-weight: 600;
+  cursor: pointer;
+  -webkit-tap-highlight-color: transparent;
+}
+
+.botao.contorno { background: transparent; color: var(--tinta); border-color: var(--borda); }
+.botao.contorno:hover { background: var(--areia); }
+
+.botao.apagado {
+  flex: none;
+  background: transparent;
+  color: var(--coral);
+  border-color: transparent;
+  padding-inline: 12px;
+}
+
+.botao.apagado:hover { background: var(--coral-fraco); }
+
+/* ---------- Aviso temporário ---------- */
 
 .aviso {
   position: fixed;
   left: 50%;
   transform: translateX(-50%);
-  bottom: calc(84px + env(safe-area-inset-bottom));
+  bottom: calc(140px + env(safe-area-inset-bottom));
+  z-index: 5;
+  display: flex;
+  align-items: center;
+  gap: 14px;
   max-width: calc(100% - 32px);
-  padding: 10px 16px;
+  padding: 8px 8px 8px 16px;
   border-radius: 999px;
   background: var(--tinta);
   color: var(--areia);
@@ -222,15 +626,31 @@ h2 { font-size: 1.05rem; margin: 0 0 6px; }
   box-shadow: 0 6px 20px rgba(20, 24, 28, .25);
 }
 
+.aviso span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+
+.aviso button {
+  flex: none;
+  min-height: 36px;
+  padding: 0 14px;
+  border: 0;
+  border-radius: 999px;
+  background: var(--areia);
+  color: var(--tinta);
+  font: inherit;
+  font-weight: 600;
+  font-size: .8125rem;
+  cursor: pointer;
+}
+
 /* ---------- Telas largas ----------
  *
- * A navegacao inferior vira coluna fixa a esquerda. O celular nao e tocado:
- * tudo aqui esta dentro de min-width.
+ * A navegação inferior vira coluna fixa à esquerda. O celular não é tocado:
+ * tudo aqui está dentro de min-width.
  */
 
 @media (min-width: 768px) {
-  /* Grid explicito em vez de flex com quebra de linha: com flex-wrap a altura
-     da segunda linha depende do conteudo, e a coluna que rola perde a altura
+  /* Grid explícito em vez de flex com quebra de linha: com flex-wrap a altura
+     da segunda linha depende do conteúdo, e a coluna que rola perde a altura
      definida de que o overflow precisa. */
   body {
     display: grid;
@@ -240,9 +660,13 @@ h2 { font-size: 1.05rem; margin: 0 0 6px; }
 
   .barra-superior {
     grid-column: 1 / -1;
-    padding-inline: 24px;
-    border-bottom-color: var(--borda);
+    padding-inline: 16px 24px;
+    gap: 8px;
   }
+
+  .marca-nome { display: inline; }
+  .seletor-de-mes { flex: 0 1 auto; margin-inline: auto; }
+  .rotulo-do-mes { min-width: 190px; font-size: 1rem; }
 
   .navegacao {
     grid-row: 2;
@@ -259,7 +683,7 @@ h2 { font-size: 1.05rem; margin: 0 0 6px; }
   .navegacao a {
     /* flex: 1 vem das regras do celular, onde os itens dividem a largura da
        barra. Na coluna do desktop isso viraria dividir a ALTURA da tela, e os
-       tres itens ficariam espalhados de cima a baixo. */
+       itens ficariam espalhados de cima a baixo. */
     flex: none;
     grid-template-columns: auto 1fr;
     justify-items: start;
@@ -276,12 +700,40 @@ h2 { font-size: 1.05rem; margin: 0 0 6px; }
   #conteudo {
     grid-row: 2;
     grid-column: 2;
-    padding: 8px 24px 40px;
+    padding: 16px 24px 40px;
     margin-inline: 0;
+  }
+
+  /* Com largura sobrando, o número da sobra e as barras cabem lado a lado — e
+     aí a leitura do mês inteiro acontece sem rolar. */
+  .painel {
+    grid-template-columns: minmax(220px, 300px) 1fr;
+    gap: 34px;
+    padding: 22px 24px;
   }
 
   .botao-flutuante { bottom: 24px; right: 24px; }
   .aviso { bottom: 24px; }
+
+  /* No desktop a folha vira modal centrado. */
+  dialog {
+    inset: 0;
+    margin: auto;
+    width: min(440px, calc(100vw - 40px));
+    max-height: 88vh;
+    border: 1px solid var(--borda);
+    border-radius: 16px;
+    box-shadow: 0 24px 60px -20px rgba(20, 24, 28, .35);
+  }
+
+  .pegador { display: none; }
+  .folha { padding: 20px 24px 24px; }
+  .campo input, .campo select { font-size: .9375rem; min-height: 40px; }
+  .alternador button { min-height: 38px; }
+  .marcador { min-height: 0; margin: 2px 0 16px; }
+  .acoes { justify-content: flex-end; }
+  .botao { flex: none; }
+  .pilha .botao { flex: 1; }
 }
 
 @media (prefers-reduced-motion: reduce) {

@@ -75,7 +75,9 @@ um contador. O princípio 2 do projeto proíbe isso na interface. No Zenny é
 "adicionar", e as coisas "entram" e "saem". A palavra "lançamento" pode viver no
 código; na tela, não.
 
-**As duas colunas de Entradas e Despesas lado a lado.** É a forma de uma
+**As duas colunas de Entradas e Despesas lado a lado.** *(Qualificado no B2:
+os grupos voltaram, mas empilhados no celular; lado a lado só a partir de
+768px.)* É a forma de uma
 planilha, e ela carrega tudo que o público-alvo teme. O princípio de "uma
 pergunta por tela" pede o contrário: a tela de Início responde "como está o
 mês?" com um número e duas barras; a lista detalhada é outra tela, para quem

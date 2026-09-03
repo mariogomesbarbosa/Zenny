@@ -11,7 +11,7 @@
 <link rel="manifest" href="manifest.webmanifest">
 
 <!-- Pinta a barra de status do Android. O valor inicial acompanha o sistema; se
-     houver tema salvo, aplicarTema() sobrescreve logo abaixo. -->
+     houver tema salvo, o script abaixo sobrescreve. -->
 <meta name="theme-color" content="#F6F4EF" media="(prefers-color-scheme: light)">
 <meta name="theme-color" content="#14181C" media="(prefers-color-scheme: dark)">
 <meta name="mobile-web-app-capable" content="yes">
@@ -42,8 +42,23 @@
 <header class="barra-superior">
   <a class="marca" href="#/inicio">
     <img src="assets/logo.svg" alt="" width="28" height="28">
-    <span>Zenny</span>
+    <span class="marca-nome">Zenny</span>
   </a>
+
+  <nav class="seletor-de-mes" aria-label="Mês">
+    <button id="mes-anterior" class="botao-icone" type="button" aria-label="Mês anterior">
+      <svg viewBox="0 0 24 24" aria-hidden="true"><path d="m14.5 5-7 7 7 7"/></svg>
+    </button>
+    <span id="rotulo-do-mes" class="rotulo-do-mes" aria-live="polite">—</span>
+    <button id="mes-seguinte" class="botao-icone" type="button" aria-label="Próximo mês">
+      <svg viewBox="0 0 24 24" aria-hidden="true"><path d="m9.5 5 7 7-7 7"/></svg>
+    </button>
+  </nav>
+
+  <!-- Só aparece quando o mês visível não é o atual: botão que não faz nada não
+       merece ocupar espaço numa tela de 360px. -->
+  <button id="botao-hoje" class="botao-texto" type="button" hidden>Hoje</button>
+
   <button id="botao-tema" class="botao-icone" type="button" aria-label="Alternar tema">
     <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M21 12.8A9 9 0 1 1 11.2 3a7 7 0 0 0 9.8 9.8Z"/></svg>
   </button>
@@ -52,37 +67,70 @@
 <main id="conteudo">
 
   <section class="tela" id="tela-inicio" aria-labelledby="titulo-inicio">
-    <h1 id="titulo-inicio">Olá</h1>
-    <p class="subtitulo">Seu dinheiro, sem susto.</p>
+    <h1 id="titulo-inicio" class="oculto-visualmente">Início</h1>
 
-    <div class="cartao cartao-destaque">
-      <span class="rotulo">O que sobrou este mês</span>
-      <strong class="valor">R$ —</strong>
-      <span class="nota">Aparece assim que você registrar o primeiro gasto.</span>
+    <div class="cartao painel">
+      <div class="painel-sobra">
+        <span class="rotulo" id="rotulo-da-sobra">Sobra prevista no mês</span>
+        <strong class="valor" id="valor-da-sobra">R$ 0,00</strong>
+        <p class="detalhe" id="detalhe-da-sobra">Nada registrado neste mês ainda.</p>
+      </div>
+
+      <div class="painel-fluxo">
+        <div class="barra">
+          <span class="barra-nome">Entradas</span>
+          <span class="barra-valor tabular" id="valor-entradas">R$ 0,00</span>
+          <div class="trilho">
+            <div class="trecho cheio entrada" id="barra-entradas-realizado"></div>
+            <div class="trecho claro entrada" id="barra-entradas-previsto"></div>
+          </div>
+        </div>
+
+        <div class="barra">
+          <span class="barra-nome">Despesas</span>
+          <span class="barra-valor tabular" id="valor-despesas">R$ 0,00</span>
+          <div class="trilho">
+            <div class="trecho cheio saida" id="barra-despesas-realizado"></div>
+            <div class="trecho claro saida" id="barra-despesas-previsto"></div>
+          </div>
+        </div>
+
+        <p class="legenda">
+          <span><i class="amostra cheia"></i>preenchido = já aconteceu</span>
+          <span><i class="amostra clara"></i>claro = ainda previsto</span>
+        </p>
+      </div>
     </div>
 
-    <div class="cartao vazio">
-      <h2>Comece por um gasto</h2>
-      <p>
-        Sem cadastro, sem categoria para criar, sem saldo inicial. Um valor e um
-        toque — e o Zenny já começa a te mostrar para onde o dinheiro vai.
+    <section class="grupo" aria-labelledby="titulo-entradas">
+      <div class="grupo-cabeca">
+        <h2 id="titulo-entradas">Entradas</h2>
+        <span class="grupo-total entrada tabular" id="total-entradas">R$ 0,00</span>
+      </div>
+      <ul class="lancamentos" id="lista-entradas"></ul>
+      <p class="grupo-vazio" id="vazio-entradas">
+        Comece pelo que entra: salário, freela, reembolso.
       </p>
-      <p class="nota">Registrar gastos chega no bloco B1.</p>
-    </div>
-  </section>
+      <div class="grupo-pe">
+        <span id="pe-entradas-quantidade"></span>
+        <span id="pe-entradas-realizado"></span>
+      </div>
+    </section>
 
-  <section class="tela" id="tela-gastos" aria-labelledby="titulo-gastos" hidden>
-    <h1 id="titulo-gastos">Gastos</h1>
-    <p class="subtitulo">Para onde seu dinheiro foi.</p>
-
-    <div class="cartao vazio">
-      <h2>Nada por aqui ainda</h2>
-      <p>
-        Quando houver gastos, eles aparecem aqui agrupados por dia — o mais
-        recente primeiro, porque é o que você quer conferir.
+    <section class="grupo" aria-labelledby="titulo-despesas">
+      <div class="grupo-cabeca">
+        <h2 id="titulo-despesas">Despesas</h2>
+        <span class="grupo-total saida tabular" id="total-despesas">R$ 0,00</span>
+      </div>
+      <ul class="lancamentos" id="lista-despesas"></ul>
+      <p class="grupo-vazio" id="vazio-despesas">
+        E o que sai: aluguel, mercado, assinatura.
       </p>
-      <p class="nota">Chega no bloco B1.</p>
-    </div>
+      <div class="grupo-pe">
+        <span id="pe-despesas-quantidade"></span>
+        <span id="pe-despesas-realizado"></span>
+      </div>
+    </section>
   </section>
 
   <section class="tela" id="tela-metas" aria-labelledby="titulo-metas" hidden>
@@ -95,14 +143,15 @@
         Uma meta tem nome e prazo: "viagem em dezembro", "notebook novo". O Zenny
         mostra o quanto falta e o quanto isso pesa por mês.
       </p>
-      <p class="nota">Chega no bloco B4.</p>
+      <p class="nota">Chega mais para a frente no roteiro.</p>
     </div>
   </section>
 
 </main>
 
-<button id="botao-registrar" class="botao-flutuante" type="button" aria-label="Registrar um gasto">
+<button id="botao-adicionar" class="botao-flutuante" type="button">
   <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 5v14M5 12h14"/></svg>
+  <span>Adicionar</span>
 </button>
 
 <nav class="navegacao" aria-label="Navegação principal">
@@ -110,18 +159,93 @@
     <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3 10.5 12 3l9 7.5V20a1 1 0 0 1-1 1h-5v-6H9v6H4a1 1 0 0 1-1-1Z"/></svg>
     <span>Início</span>
   </a>
-  <a href="#/gastos" data-tela="gastos">
-    <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 7h16M4 12h16M4 17h10"/></svg>
-    <span>Gastos</span>
-  </a>
   <a href="#/metas" data-tela="metas">
     <svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="8"/><circle cx="12" cy="12" r="3"/></svg>
     <span>Metas</span>
   </a>
 </nav>
 
-<div id="aviso" class="aviso" role="status" aria-live="polite" hidden></div>
+<dialog id="dialogo" aria-labelledby="titulo-do-dialogo">
+  <div class="pegador" aria-hidden="true"></div>
+  <form id="formulario" class="folha" novalidate>
+    <h2 id="titulo-do-dialogo">Novo lançamento</h2>
 
-<script src="app.js"></script>
+    <div class="alternador" role="group" aria-label="Tipo">
+      <button type="button" id="tipo-entrada" aria-pressed="true">Entrada</button>
+      <button type="button" id="tipo-saida" aria-pressed="false">Despesa</button>
+    </div>
+
+    <div class="campo">
+      <label for="campo-descricao">Descrição</label>
+      <input type="text" id="campo-descricao" autocomplete="off" enterkeyhint="next"
+             placeholder="Salário, aluguel, mercado…">
+    </div>
+
+    <div class="dupla">
+      <div class="campo">
+        <label for="campo-valor">Valor</label>
+        <!-- type="text" com inputmode: traz o teclado numérico sem a validação
+             hostil do type="number", que rejeita vírgula em vários navegadores. -->
+        <input type="text" id="campo-valor" inputmode="decimal" enterkeyhint="done"
+               placeholder="0,00" class="tabular">
+      </div>
+      <div class="campo">
+        <label for="campo-repeticao">Repetição</label>
+        <select id="campo-repeticao">
+          <option value="avulsa">Avulsa (uma vez)</option>
+          <option value="fixa">Fixa (todo mês)</option>
+        </select>
+      </div>
+    </div>
+
+    <div class="campo" id="campo-da-data">
+      <label for="campo-data">Data</label>
+      <input type="date" id="campo-data">
+    </div>
+
+    <div class="campo" id="campo-do-dia" hidden>
+      <label for="campo-dia">Dia do mês</label>
+      <input type="number" id="campo-dia" inputmode="numeric" min="1" max="31" value="5">
+    </div>
+
+    <p class="dica" id="dica-da-repeticao" hidden>
+      Aparece a partir de <b id="dica-mes"></b> em todos os meses seguintes.
+    </p>
+
+    <label class="marcador">
+      <input type="checkbox" id="campo-realizado">
+      <span id="rotulo-realizado">Já recebi</span>
+    </label>
+
+    <p class="erro" id="erro-do-formulario" role="alert" hidden></p>
+
+    <div class="acoes">
+      <button type="button" class="botao apagado" id="botao-excluir" hidden>Excluir</button>
+      <button type="button" class="botao contorno" id="botao-cancelar">Cancelar</button>
+      <button type="submit" class="botao">Salvar</button>
+    </div>
+  </form>
+</dialog>
+
+<dialog id="dialogo-exclusao" aria-labelledby="titulo-da-exclusao">
+  <div class="pegador" aria-hidden="true"></div>
+  <div class="folha">
+    <h2 id="titulo-da-exclusao">Excluir lançamento fixo</h2>
+    <p class="dica">Este lançamento se repete todo mês. O que você quer fazer?</p>
+    <div class="pilha">
+      <button type="button" class="botao contorno" id="excluir-so-neste">Excluir só neste mês</button>
+      <button type="button" class="botao contorno" id="excluir-daqui">Encerrar deste mês em diante</button>
+      <button type="button" class="botao contorno" id="excluir-todos">Excluir de todos os meses</button>
+      <button type="button" class="botao apagado" id="excluir-cancelar">Cancelar</button>
+    </div>
+  </div>
+</dialog>
+
+<div id="aviso" class="aviso" role="status" aria-live="polite" hidden>
+  <span id="aviso-texto"></span>
+  <button type="button" id="aviso-acao" hidden>Desfazer</button>
+</div>
+
+<script type="module" src="app.js"></script>
 </body>
 </html>

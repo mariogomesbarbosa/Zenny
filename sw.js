@@ -18,13 +18,14 @@
  *   esta o peso, e a defasagem de uma visita e aceitavel.
  */
 
-const VERSAO = 'zenny-v1';
+const VERSAO = 'zenny-v3';
 
 const SHELL = [
   './',
   './index.html',
   './styles.css',
   './app.js',
+  './nucleo.js',
   './manifest.webmanifest',
   './assets/logo.svg',
   './assets/icons/icon-192.png',

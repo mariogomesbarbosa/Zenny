@@ -89,9 +89,9 @@ entregue algo usável sozinho.
 |---|---|---|
 | B0 | Esqueleto: navegação, tema claro/escuro, instalável no celular | Base para tudo; permite testar no celular de verdade desde o começo |
 | B1 | O mês, e entradas e saídas avulsas, com o número da sobra | É o coração. Entradas entram já aqui: sem elas não existe sobra, e a sobra é o que a promessa vende |
-| B2 | Lançamentos fixos, com as três semânticas de exclusão | O que faz o app trabalhar sozinho a partir do mês 2 — e o que torna a promessa sustentável |
-| B3 | Planejado × realizado: marcar recebi/paguei | Transforma a lista em plano. Depende de haver o que marcar |
-| B4 | Backup: baixar e restaurar | Depois do B2 o usuário tem trabalho investido nos fixos. Rede de segurança não pode chegar por último |
+| B2 | Fixos, planejado × realizado, e a tela do MVP | Fundidos num bloco só: o resumo pedido não existe sem os dois. É o que faz o app trabalhar sozinho a partir do mês 2 |
+| B3 | Backup: baixar e restaurar | Depois do B2 o usuário tem trabalho investido nos fixos. Rede de segurança não pode chegar por último |
+| B4 | Configurações (engrenagem): tema, backup, apagar tudo | Ganha razão de existir quando o backup precisa de casa |
 | B5 | Categorias sugeridas e limites | Só faz sentido depois de haver dados. Opcional de propósito: taxonomia é barreira |
 | B6 | Guardar para algo (metas com nome e prazo) | Motivação positiva; depende de sobrar dinheiro visível |
 | B7 | Pílulas de educação no contexto | Precisa de telas prontas para se ancorar |
