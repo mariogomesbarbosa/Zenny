@@ -12,7 +12,7 @@
  */
 
 export const CHAVE = 'zenny:v1';
-export const VERSAO_DO_ESQUEMA = 2;
+export const VERSAO_DO_ESQUEMA = 3;
 
 /* ---------- Dinheiro ---------- */
 
@@ -119,11 +119,22 @@ export function diaDe(data) {
  * Um lançamento é AVULSO ou FIXO:
  *
  *   avulso  { id, tipo, descricao, valor, fixo: false, data: 'AAAA-MM-DD' }
- *   fixo    { id, tipo, descricao, valor, fixo: true, dia, inicio, fim, pulados }
+ *   fixo    { id, tipo, descricao, fixo: true, dia, inicio, fim, pulados, valores }
  *
  * O fixo não é copiado mês a mês: ele é uma regra, e cada mês pergunta se está
  * dentro da janela. `fim` é inclusive, e `pulados` guarda os meses em que o
  * usuário apagou só aquela ocorrência.
+ *
+ * O fixo não tem UM valor: tem uma LINHA DO TEMPO de valores, em `valores`,
+ * ordenada por `desde`. Cada mês usa o último trecho que já começou.
+ *
+ *   valores: [ { desde: '2026-09', valor: 267526 },
+ *              { desde: '2027-01', valor: 300000 } ]
+ *
+ * Sem isso, aumentar o salário em janeiro reescrevia setembro a dezembro — os
+ * meses já fechados, inclusive os já marcados como recebidos, passavam a mostrar
+ * o valor novo. A história ficava errada em silêncio, porque nada na tela
+ * indicava que aquele número tinha mudado depois do fato.
  *
  * O que já aconteceu vive em `realizados`, num mapa com chave "id|AAAA-MM".
  * Isso é sutil e é certo: o mesmo aluguel fixo está pago em setembro e não em
@@ -136,8 +147,82 @@ export function estadoVazio() {
 const ehMes = (v) => /^\d{4}-\d{2}$/.test(v);
 const ehData = (v) => /^\d{4}-\d{2}-\d{2}$/.test(v);
 
+/* Põe a linha do tempo de um fixo em ordem e garante que ela cubra o lançamento
+ * inteiro.
+ *
+ * Também é aqui que mora a MIGRAÇÃO da versão 2: lá o fixo tinha um `valor`
+ * solto, e ele vira o primeiro — e único — trecho, começando junto com o
+ * lançamento. Nenhum dado se perde, e nenhum mês muda de valor na travessia.
+ *
+ * Três defesas, porque isto lê dado que já está no aparelho de alguém:
+ * ordena por data (a ordem é premissa de valorVigenteEm), remove trechos
+ * repetidos mantendo o último, e puxa o trecho mais antigo para o início do
+ * lançamento — senão os meses entre o início e o primeiro trecho ficariam sem
+ * valor nenhum. */
+function normalizarValores(crus, valorSolto, inicio) {
+  const trechos = (Array.isArray(crus) ? crus : [])
+    .filter((t) => t && ehMes(t.desde))
+    .map((t) => ({ desde: t.desde, valor: Math.abs(Math.trunc(Number(t.valor))) || 0 }))
+    .filter((t) => t.valor > 0)
+    .sort((a, b) => a.desde.localeCompare(b.desde));
+
+  const semRepetidos = [];
+  for (const trecho of trechos) {
+    const anterior = semRepetidos[semRepetidos.length - 1];
+    if (anterior && anterior.desde === trecho.desde) semRepetidos.pop();
+    semRepetidos.push(trecho);
+  }
+
+  if (!semRepetidos.length) {
+    return valorSolto > 0 ? [{ desde: inicio, valor: valorSolto }] : [];
+  }
+
+  if (semRepetidos[0].desde > inicio) semRepetidos[0] = { ...semRepetidos[0], desde: inicio };
+  return semRepetidos;
+}
+
 export function limitarDia(dia) {
   return Math.min(31, Math.max(1, Math.trunc(Number(dia)) || 1));
+}
+
+/* ---------- A linha do tempo de valores de um fixo ---------- */
+
+/* O valor que vale num mês: o último trecho que já começou.
+ *
+ * Se o mês for anterior a todos os trechos, devolve o primeiro. Não deveria
+ * acontecer — normalizarEstado garante que o trecho mais antigo comece junto com
+ * o lançamento — mas um dado torto não pode fazer o app mostrar R$ 0,00 e deixar
+ * o usuário achando que perdeu dinheiro. */
+export function valorVigenteEm(valores, mes) {
+  if (!valores || !valores.length) return 0;
+
+  let vigente = valores[0];
+  for (const trecho of valores) {
+    if (trecho.desde <= mes) vigente = trecho;
+    else break;
+  }
+  return vigente.valor;
+}
+
+/* "Deste mês em diante vale X."
+ *
+ * Substitui o trecho que começa neste mês, se houver, e descarta os trechos
+ * posteriores: "deste mês em diante" quer dizer isso mesmo, e um trecho futuro
+ * sobrevivente contradiria o que a pessoa acabou de pedir. */
+export function definirValorDesde(valores, mes, valor) {
+  const anteriores = valores.filter((t) => t.desde < mes);
+  return [...anteriores, { desde: mes, valor }];
+}
+
+/* "Sempre foi X" — a correção de quem digitou errado. Achata a linha do tempo
+   num trecho só, começando onde o lançamento começa.
+ *
+ * Recebe o `inicio` em vez de deduzir do primeiro trecho: a linha do tempo
+ * inteira vai ser descartada mesmo, e deduzir de uma lista que pode estar vazia
+ * produziria um trecho sem data — o tipo de dado torto que só aparece meses
+ * depois. */
+export function definirValorSempre(valor, inicio) {
+  return [{ desde: inicio, valor }];
 }
 
 /* Aceita qualquer coisa vinda do localStorage e devolve um estado utilizável.
@@ -163,13 +248,18 @@ export function normalizarEstado(bruto) {
       id: String(cru.id ?? ''),
       tipo: cru.tipo === 'entrada' ? 'entrada' : 'saida',
       descricao: String(cru.descricao ?? '').trim(),
-      valor: Math.abs(Math.trunc(Number(cru.valor))) || 0,
     };
 
-    if (!base.id || !base.descricao || base.valor <= 0) continue;
+    if (!base.id || !base.descricao) continue;
+
+    const valorSolto = Math.abs(Math.trunc(Number(cru.valor))) || 0;
 
     if (cru.fixo) {
       if (!ehMes(cru.inicio)) continue;
+
+      const valores = normalizarValores(cru.valores, valorSolto, cru.inicio);
+      if (!valores.length) continue;
+
       lancamentos.push({
         ...base,
         fixo: true,
@@ -177,10 +267,11 @@ export function normalizarEstado(bruto) {
         inicio: cru.inicio,
         fim: ehMes(cru.fim) ? cru.fim : null,
         pulados: Array.isArray(cru.pulados) ? cru.pulados.filter(ehMes) : [],
+        valores,
       });
     } else {
-      if (!ehData(cru.data)) continue;
-      lancamentos.push({ ...base, fixo: false, data: cru.data });
+      if (!ehData(cru.data) || valorSolto <= 0) continue;
+      lancamentos.push({ ...base, fixo: false, valor: valorSolto, data: cru.data });
     }
   }
 
@@ -239,14 +330,23 @@ export function fixoApareceEm(lancamento, mes) {
   return !lancamento.pulados.includes(mes);
 }
 
-/* Os lançamentos de um mês, do dia 1 para o 31, já com o dia resolvido.
+/* Os lançamentos de um mês, do dia 1 para o 31, já com o dia e o VALOR
+ * resolvidos para aquele mês.
+ *
+ * Resolver aqui é o que mantém a linha do tempo invisível para o resto do
+ * código: quem soma, quem desenha e quem compara continua lendo `.valor` como
+ * antes, sem saber que ele pode mudar de mês para mês.
  *
  * O dia do fixo é limitado ao tamanho do mês: sem isso o aluguel do dia 31
  * desaparece em fevereiro. */
 export function lancamentosDoMes(lancamentos, mes) {
   return lancamentos
     .filter((l) => (l.fixo ? fixoApareceEm(l, mes) : mesDe(l.data) === mes))
-    .map((l) => ({ ...l, dia: l.fixo ? Math.min(l.dia, diasNoMes(mes)) : diaDe(l.data) }))
+    .map((l) =>
+      l.fixo
+        ? { ...l, dia: Math.min(l.dia, diasNoMes(mes)), valor: valorVigenteEm(l.valores, mes) }
+        : { ...l, dia: diaDe(l.data) }
+    )
     .sort(
       (a, b) =>
         a.dia - b.dia ||

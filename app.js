@@ -14,6 +14,9 @@ import {
   analisarValor,
   formatarDinheiro,
   valorParaCampo,
+  valorVigenteEm,
+  definirValorDesde,
+  definirValorSempre,
   mesDe,
   deslocarMes,
   rotuloDoMes,
@@ -84,8 +87,21 @@ let timerDoAviso = null;
 function carregar() {
   const bruto = armazenamento.ler(CHAVE);
   if (!bruto) return estadoVazio();
+
   try {
-    return normalizarEstado(JSON.parse(bruto));
+    const cru = JSON.parse(bruto);
+    const normalizado = normalizarEstado(cru);
+
+    /* Grava a migração na hora, em vez de esperar a próxima edição. Sem isso, o
+       dado de quem abre o app e não mexe em nada continua no formato antigo
+       indefinidamente — e quebra no dia em que aquela versão deixar de ser
+       lida. Migrar é código de primeira classe (ver CLAUDE.md), e isso inclui
+       persistir a migração. */
+    if (cru && cru.versao !== normalizado.versao) {
+      armazenamento.gravar(CHAVE, JSON.stringify(normalizado));
+    }
+
+    return normalizado;
   } catch (e) {
     // Dado corrompido não pode impedir o app de abrir. Começar vazio é ruim;
     // uma tela morta é pior.
@@ -470,47 +486,55 @@ $('botao-adicionar').addEventListener('click', () => abrirFormulario(null));
    no fundo — e sair tocando fora é o gesto que todo mundo tenta primeiro, tanto
    na folha do celular quanto no modal do desktop. O alvo só é o próprio
    <dialog> quando o clique caiu fora da caixa. */
-for (const id of ['dialogo', 'dialogo-exclusao']) {
+for (const id of ['dialogo', 'dialogo-exclusao', 'dialogo-valor']) {
   $(id).addEventListener('click', (evento) => {
     if (evento.target === $(id)) {
       if (id === 'dialogo-exclusao') pendenteDeExclusao = null;
+      if (id === 'dialogo-valor') pendenteDeValor = null;
       $(id).close();
     }
   });
 }
 
-$('formulario').addEventListener('submit', (evento) => {
-  evento.preventDefault();
+/* Guarda o que o formulário coletou enquanto o diálogo pergunta a partir de
+   quando o valor novo vale. */
+let pendenteDeValor = null;
 
-  const descricao = $('campo-descricao').value.trim();
-  const valor = analisarValor($('campo-valor').value);
-  const ehFixa = $('campo-repeticao').value === 'fixa';
+/* Monta a linha do tempo de valores do fixo.
+ *
+ * `modo` só importa quando se está editando um fixo que já existia:
+ *   'daqui'      — o valor novo vale deste mês em diante, e o passado fica
+ *   'sempre'     — corrige todos os meses (o caso do erro de digitação)
+ *   'inalterado' — o valor não mudou, então a linha do tempo não se mexe */
+function linhaDoTempoDoFixo(valor, inicio, modo) {
+  const eraFixo = editando && editando.fixo;
+  if (!eraFixo) return [{ desde: inicio, valor }];
+  if (modo === 'sempre') return definirValorSempre(valor, inicio);
+  if (modo === 'daqui') return definirValorDesde(editando.valores, mesVisivel, valor);
+  return editando.valores;
+}
 
-  if (!descricao) return mostrarErro('Falta dizer o que é.', $('campo-descricao'));
-  if (valor <= 0) return mostrarErro('Falta o valor.', $('campo-valor'));
-
-  const base = {
-    id: editando ? editando.id : novoId(),
-    tipo: tipoDoFormulario,
-    descricao,
-    valor,
-  };
+function aplicarAlteracao({ descricao, valor, ehFixa, data, dia, jaAconteceu }, modo) {
+  const eraFixo = editando && editando.fixo;
+  const base = { id: editando ? editando.id : novoId(), tipo: tipoDoFormulario, descricao };
 
   let novo;
   if (ehFixa) {
+    // Virar fixo a partir de um avulso começa no mês visível; um fixo que já
+    // era fixo mantém a própria janela, senão editar o valor reviveria meses
+    // que o usuário já tinha encerrado.
+    const inicio = eraFixo ? editando.inicio : mesVisivel;
     novo = {
       ...base,
       fixo: true,
-      dia: limitarDia($('campo-dia').value),
-      // Virar fixo a partir de um avulso começa no mês visível; um fixo que já
-      // era fixo mantém a própria janela, senão editar o valor reviveria meses
-      // que o usuário já tinha encerrado.
-      inicio: editando && editando.fixo ? editando.inicio : mesVisivel,
-      fim: editando && editando.fixo ? editando.fim : null,
-      pulados: editando && editando.fixo ? editando.pulados : [],
+      dia: limitarDia(dia),
+      inicio,
+      fim: eraFixo ? editando.fim : null,
+      pulados: eraFixo ? editando.pulados : [],
+      valores: linhaDoTempoDoFixo(valor, inicio, modo),
     };
   } else {
-    novo = { ...base, fixo: false, data: $('campo-data').value || hojeISO() };
+    novo = { ...base, fixo: false, valor, data };
   }
 
   const lancamentos = editando
@@ -521,15 +545,79 @@ $('formulario').addEventListener('submit', (evento) => {
   // quem acabou de criá-lo.
   const mesDoRegistro = novo.fixo ? mesVisivel : mesDe(novo.data);
 
-  const realizados = $('campo-realizado').checked
+  const realizados = jaAconteceu
     ? { ...estado.realizados, [novo.id + '|' + mesDoRegistro]: true }
     : limparRealizadosDe(estado.realizados, novo.id, mesDoRegistro);
 
   estado = { ...estado, lancamentos, realizados };
   mesVisivel = mesDoRegistro;
 
-  $('dialogo').close();
+  editando = null;
   salvar();
+}
+
+$('formulario').addEventListener('submit', (evento) => {
+  evento.preventDefault();
+
+  const alteracao = {
+    descricao: $('campo-descricao').value.trim(),
+    valor: analisarValor($('campo-valor').value),
+    ehFixa: $('campo-repeticao').value === 'fixa',
+    data: $('campo-data').value || hojeISO(),
+    dia: $('campo-dia').value,
+    jaAconteceu: $('campo-realizado').checked,
+  };
+
+  if (!alteracao.descricao) return mostrarErro('Falta dizer o que é.', $('campo-descricao'));
+  if (alteracao.valor <= 0) return mostrarErro('Falta o valor.', $('campo-valor'));
+
+  /* A pergunta só aparece quando o VALOR de um fixo que já existia muda. Mudar
+     a descrição ou o dia vale para todos os meses sem perguntar: nenhum dos
+     dois reescreve dinheiro, e uma pergunta que aparece à toa vira uma pergunta
+     que ninguém lê. */
+  const eraFixo = editando && editando.fixo;
+  const valorAnterior = eraFixo ? valorVigenteEm(editando.valores, mesVisivel) : null;
+
+  if (eraFixo && alteracao.ehFixa && alteracao.valor !== valorAnterior) {
+    pendenteDeValor = alteracao;
+    $('explicacao-do-valor').textContent =
+      `Este lançamento se repete todo mês, e valia ${formatarDinheiro(valorAnterior)}. ` +
+      `A partir de quando vale ${formatarDinheiro(alteracao.valor)}?`;
+    $('dialogo').close();
+    $('dialogo-valor').showModal();
+    return;
+  }
+
+  $('dialogo').close();
+  aplicarAlteracao(alteracao, 'inalterado');
+});
+
+function concluirMudancaDeValor(modo, texto) {
+  if (!pendenteDeValor) return;
+  const anterior = instantaneo();
+  const alteracao = pendenteDeValor;
+  pendenteDeValor = null;
+  $('dialogo-valor').close();
+  aplicarAlteracao(alteracao, modo);
+  avisar(texto, () => restaurar(anterior));
+}
+
+$('valor-daqui').addEventListener('click', () =>
+  concluirMudancaDeValor('daqui', `Valor novo a partir de ${rotuloDoMes(mesVisivel)}.`)
+);
+
+$('valor-sempre').addEventListener('click', () =>
+  concluirMudancaDeValor('sempre', 'Valor corrigido em todos os meses.')
+);
+
+/* Cancelar aqui devolve ao formulário, e não descarta o que a pessoa digitou:
+   ela veio parar neste diálogo sem ter pedido. */
+$('valor-cancelar').addEventListener('click', () => {
+  $('dialogo-valor').close();
+  if (pendenteDeValor) {
+    pendenteDeValor = null;
+    $('dialogo').showModal();
+  }
 });
 
 $('botao-excluir').addEventListener('click', () => {
