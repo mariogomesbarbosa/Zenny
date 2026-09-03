@@ -1,0 +1,289 @@
+/* Zenny — folha de estilo unica.
+ *
+ * Duas regras estruturais que valem para tudo aqui:
+ *
+ * 1. MOBILE FIRST DE VERDADE. O estado base do CSS e a tela de 360px. Toda
+ *    media query usa min-width. Nenhuma usa max-width — max-width significa
+ *    "o desktop e o padrao e o celular e a excecao", que e o contrario do que
+ *    este projeto e.
+ * 2. TEMA POR VARIAVEL. Nenhuma cor literal fora do bloco :root. O tema escuro
+ *    troca as variaveis, e nada mais precisa saber que ele existe.
+ *
+ * A tipografia e a pilha do sistema, de proposito: o publico-alvo esta em
+ * Android de entrada com dado movel limitado, e baixar uma fonte da Google
+ * custa tempo de primeira pintura que o app nao tem para dar.
+ */
+
+:root {
+  color-scheme: light;
+
+  --areia: #f6f4ef;
+  --superficie: #ffffff;
+  --tinta: #14181c;
+  --tinta-suave: #5c6570;
+  --verde: #2e9e70;
+  --coral: #d9603c;
+  --borda: #e4e0d8;
+  --sombra: 0 1px 2px rgba(20, 24, 28, .06), 0 8px 24px rgba(20, 24, 28, .06);
+
+  --raio: 16px;
+  --alvo: 44px;          /* alvo minimo de toque; abaixo disso o dedo erra */
+  --respiro: 16px;
+  --largura-maxima: 720px;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root:not([data-tema="claro"]) { color-scheme: dark; }
+  :root:not([data-tema="claro"]) {
+    --areia: #14181c;
+    --superficie: #1c2127;
+    --tinta: #f2f0ea;
+    --tinta-suave: #98a1ab;
+    --verde: #46c489;
+    --coral: #e8845f;
+    --borda: #2a3138;
+    --sombra: none;
+  }
+}
+
+:root[data-tema="escuro"] {
+  color-scheme: dark;
+  --areia: #14181c;
+  --superficie: #1c2127;
+  --tinta: #f2f0ea;
+  --tinta-suave: #98a1ab;
+  --verde: #46c489;
+  --coral: #e8845f;
+  --borda: #2a3138;
+  --sombra: none;
+}
+
+* { box-sizing: border-box; }
+
+html, body { height: 100%; }
+
+body {
+  margin: 0;
+  background: var(--areia);
+  color: var(--tinta);
+  font-family: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+  font-size: 16px;
+  line-height: 1.5;
+  -webkit-font-smoothing: antialiased;
+  /* O app rola no <main>, nao no body: assim a navegacao inferior fica parada
+     e o iOS nao esconde a barra de forma imprevisivel. */
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+
+svg { width: 24px; height: 24px; fill: none; stroke: currentColor; stroke-width: 1.8; stroke-linecap: round; stroke-linejoin: round; }
+
+/* ---------- Barra superior ---------- */
+
+.barra-superior {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--respiro);
+  padding: max(env(safe-area-inset-top), 8px) var(--respiro) 8px;
+  background: var(--areia);
+  border-bottom: 1px solid transparent;
+  flex: none;
+}
+
+.marca {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  color: inherit;
+  text-decoration: none;
+  font-weight: 600;
+  letter-spacing: -.01em;
+}
+
+.marca img { display: block; border-radius: 7px; }
+
+.botao-icone {
+  display: grid;
+  place-items: center;
+  width: var(--alvo);
+  height: var(--alvo);
+  border: 0;
+  border-radius: 50%;
+  background: transparent;
+  color: var(--tinta-suave);
+  cursor: pointer;
+}
+
+.botao-icone:hover { background: var(--superficie); color: var(--tinta); }
+
+/* ---------- Conteudo ---------- */
+
+#conteudo {
+  flex: 1;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  min-height: 0;          /* sem isso um filho alto impede o proprio scroll */
+  padding: 8px var(--respiro) 0;
+  /* Espaco para a navegacao inferior e o botao flutuante nao cobrirem o fim
+     da lista. */
+  padding-bottom: calc(96px + env(safe-area-inset-bottom));
+  width: 100%;
+  max-width: var(--largura-maxima);
+  margin-inline: auto;
+}
+
+h1 { font-size: 1.75rem; line-height: 1.2; letter-spacing: -.02em; margin: 8px 0 2px; }
+h2 { font-size: 1.05rem; margin: 0 0 6px; }
+
+.subtitulo { color: var(--tinta-suave); margin: 0 0 20px; }
+.rotulo { color: var(--tinta-suave); font-size: .875rem; }
+.nota { color: var(--tinta-suave); font-size: .8125rem; margin: 8px 0 0; }
+
+.cartao {
+  background: var(--superficie);
+  border: 1px solid var(--borda);
+  border-radius: var(--raio);
+  box-shadow: var(--sombra);
+  padding: 20px;
+  margin-bottom: 12px;
+}
+
+.cartao-destaque { display: grid; gap: 4px; }
+
+.valor {
+  font-size: 2.25rem;
+  font-weight: 600;
+  letter-spacing: -.03em;
+  font-variant-numeric: tabular-nums;
+}
+
+.cartao.vazio p { margin: 0; color: var(--tinta-suave); }
+
+/* ---------- Botao flutuante ---------- */
+
+.botao-flutuante {
+  position: fixed;
+  right: var(--respiro);
+  bottom: calc(76px + env(safe-area-inset-bottom));
+  width: 56px;
+  height: 56px;
+  display: grid;
+  place-items: center;
+  border: 0;
+  border-radius: 50%;
+  background: var(--verde);
+  color: #fff;
+  box-shadow: 0 6px 20px rgba(20, 24, 28, .22);
+  cursor: pointer;
+}
+
+.botao-flutuante svg { stroke-width: 2.4; }
+.botao-flutuante:active { transform: scale(.94); }
+
+/* ---------- Navegacao ---------- */
+
+.navegacao {
+  flex: none;
+  display: flex;
+  background: var(--superficie);
+  border-top: 1px solid var(--borda);
+  padding-bottom: env(safe-area-inset-bottom);
+}
+
+.navegacao a {
+  flex: 1;
+  display: grid;
+  justify-items: center;
+  gap: 2px;
+  padding: 8px 0;
+  min-height: var(--alvo);
+  color: var(--tinta-suave);
+  text-decoration: none;
+  font-size: .75rem;
+}
+
+.navegacao a[aria-current="page"] { color: var(--verde); }
+
+/* ---------- Aviso temporario ---------- */
+
+.aviso {
+  position: fixed;
+  left: 50%;
+  transform: translateX(-50%);
+  bottom: calc(84px + env(safe-area-inset-bottom));
+  max-width: calc(100% - 32px);
+  padding: 10px 16px;
+  border-radius: 999px;
+  background: var(--tinta);
+  color: var(--areia);
+  font-size: .875rem;
+  box-shadow: 0 6px 20px rgba(20, 24, 28, .25);
+}
+
+/* ---------- Telas largas ----------
+ *
+ * A navegacao inferior vira coluna fixa a esquerda. O celular nao e tocado:
+ * tudo aqui esta dentro de min-width.
+ */
+
+@media (min-width: 768px) {
+  /* Grid explicito em vez de flex com quebra de linha: com flex-wrap a altura
+     da segunda linha depende do conteudo, e a coluna que rola perde a altura
+     definida de que o overflow precisa. */
+  body {
+    display: grid;
+    grid-template-columns: 200px minmax(0, 1fr);
+    grid-template-rows: auto minmax(0, 1fr);
+  }
+
+  .barra-superior {
+    grid-column: 1 / -1;
+    padding-inline: 24px;
+    border-bottom-color: var(--borda);
+  }
+
+  .navegacao {
+    grid-row: 2;
+    grid-column: 1;
+    flex-direction: column;
+    border-top: 0;
+    border-right: 1px solid var(--borda);
+    background: transparent;
+    padding: 12px 12px 0;
+    gap: 4px;
+    align-content: start;
+  }
+
+  .navegacao a {
+    /* flex: 1 vem das regras do celular, onde os itens dividem a largura da
+       barra. Na coluna do desktop isso viraria dividir a ALTURA da tela, e os
+       tres itens ficariam espalhados de cima a baixo. */
+    flex: none;
+    grid-template-columns: auto 1fr;
+    justify-items: start;
+    align-items: center;
+    gap: 12px;
+    padding: 10px 12px;
+    border-radius: 10px;
+    font-size: .9375rem;
+  }
+
+  .navegacao a:hover,
+  .navegacao a[aria-current="page"] { background: var(--superficie); }
+
+  #conteudo {
+    grid-row: 2;
+    grid-column: 2;
+    padding: 8px 24px 40px;
+    margin-inline: 0;
+  }
+
+  .botao-flutuante { bottom: 24px; right: 24px; }
+  .aviso { bottom: 24px; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  * { transition: none !important; animation: none !important; }
+}
