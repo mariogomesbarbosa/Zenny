@@ -81,9 +81,13 @@ valores formatados com marcação, e concatenar HTML com dado que veio do usuár
 
 ## Sobre as palavras da tela
 
-A tela usa **Entradas** e **Despesas**, que são as palavras do MVP. O Mário
-escreveu "Receita e Despesa" no pedido; ficou "Entradas" porque é o que está no
-MVP que ele apontou como referência. Trocar é uma palavra em dois lugares.
+A tela usa **Receitas** e **Despesas**. A primeira versão deste bloco usava
+"Entradas", a palavra do MVP; o Mário pediu "Receitas", e é o que vale.
+
+A troca é só de texto visível. Os identificadores do código (`tipo-entrada`,
+`lista-entradas`) e o valor gravado (`tipo: "entrada"`) continuam como estão:
+renomear o dado exigiria migração de esquema para ganho nenhum, e o nome interno
+não é a palavra que o usuário lê.
 
 "Lançamento" continua aparecendo no título do formulário e no diálogo de
 exclusão, herdado do MVP. Está em tensão com o princípio 2 do `CLAUDE.md` — nada
