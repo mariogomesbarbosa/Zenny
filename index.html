@@ -1,0 +1,127 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<title>Zenny</title>
+<meta name="description" content="Cuidar do seu dinheiro sem medo e sem complicação.">
+
+<link rel="icon" type="image/svg+xml" href="assets/logo.svg">
+<link rel="apple-touch-icon" href="assets/icons/apple-touch-icon.png">
+<link rel="manifest" href="manifest.webmanifest">
+
+<!-- Pinta a barra de status do Android. O valor inicial acompanha o sistema; se
+     houver tema salvo, aplicarTema() sobrescreve logo abaixo. -->
+<meta name="theme-color" content="#F6F4EF" media="(prefers-color-scheme: light)">
+<meta name="theme-color" content="#14181C" media="(prefers-color-scheme: dark)">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="Zenny">
+
+<link rel="stylesheet" href="styles.css">
+
+<!-- Tema antes da primeira pintura: se isso esperar o app.js, a tela pisca
+     branca em quem usa o tema escuro. -->
+<script>
+  (function () {
+    try {
+      var salvo = localStorage.getItem('zenny-tema');
+      if (salvo === 'claro' || salvo === 'escuro') {
+        document.documentElement.dataset.tema = salvo;
+      }
+    } catch (e) {
+      /* localStorage bloqueado (aba anonima com cookies desligados): segue no
+         tema do sistema, que e o padrao do CSS. */
+    }
+  })();
+</script>
+</head>
+<body>
+
+<header class="barra-superior">
+  <a class="marca" href="#/inicio">
+    <img src="assets/logo.svg" alt="" width="28" height="28">
+    <span>Zenny</span>
+  </a>
+  <button id="botao-tema" class="botao-icone" type="button" aria-label="Alternar tema">
+    <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M21 12.8A9 9 0 1 1 11.2 3a7 7 0 0 0 9.8 9.8Z"/></svg>
+  </button>
+</header>
+
+<main id="conteudo">
+
+  <section class="tela" id="tela-inicio" aria-labelledby="titulo-inicio">
+    <h1 id="titulo-inicio">Olá</h1>
+    <p class="subtitulo">Seu dinheiro, sem susto.</p>
+
+    <div class="cartao cartao-destaque">
+      <span class="rotulo">O que sobrou este mês</span>
+      <strong class="valor">R$ —</strong>
+      <span class="nota">Aparece assim que você registrar o primeiro gasto.</span>
+    </div>
+
+    <div class="cartao vazio">
+      <h2>Comece por um gasto</h2>
+      <p>
+        Sem cadastro, sem categoria para criar, sem saldo inicial. Um valor e um
+        toque — e o Zenny já começa a te mostrar para onde o dinheiro vai.
+      </p>
+      <p class="nota">Registrar gastos chega no bloco B1.</p>
+    </div>
+  </section>
+
+  <section class="tela" id="tela-gastos" aria-labelledby="titulo-gastos" hidden>
+    <h1 id="titulo-gastos">Gastos</h1>
+    <p class="subtitulo">Para onde seu dinheiro foi.</p>
+
+    <div class="cartao vazio">
+      <h2>Nada por aqui ainda</h2>
+      <p>
+        Quando houver gastos, eles aparecem aqui agrupados por dia — o mais
+        recente primeiro, porque é o que você quer conferir.
+      </p>
+      <p class="nota">Chega no bloco B1.</p>
+    </div>
+  </section>
+
+  <section class="tela" id="tela-metas" aria-labelledby="titulo-metas" hidden>
+    <h1 id="titulo-metas">Metas</h1>
+    <p class="subtitulo">Guardar para alguma coisa é mais fácil que guardar por guardar.</p>
+
+    <div class="cartao vazio">
+      <h2>Sem metas ainda</h2>
+      <p>
+        Uma meta tem nome e prazo: "viagem em dezembro", "notebook novo". O Zenny
+        mostra o quanto falta e o quanto isso pesa por mês.
+      </p>
+      <p class="nota">Chega no bloco B4.</p>
+    </div>
+  </section>
+
+</main>
+
+<button id="botao-registrar" class="botao-flutuante" type="button" aria-label="Registrar um gasto">
+  <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 5v14M5 12h14"/></svg>
+</button>
+
+<nav class="navegacao" aria-label="Navegação principal">
+  <a href="#/inicio" data-tela="inicio" aria-current="page">
+    <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3 10.5 12 3l9 7.5V20a1 1 0 0 1-1 1h-5v-6H9v6H4a1 1 0 0 1-1-1Z"/></svg>
+    <span>Início</span>
+  </a>
+  <a href="#/gastos" data-tela="gastos">
+    <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 7h16M4 12h16M4 17h10"/></svg>
+    <span>Gastos</span>
+  </a>
+  <a href="#/metas" data-tela="metas">
+    <svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="8"/><circle cx="12" cy="12" r="3"/></svg>
+    <span>Metas</span>
+  </a>
+</nav>
+
+<div id="aviso" class="aviso" role="status" aria-live="polite" hidden></div>
+
+<script src="app.js"></script>
+</body>
+</html>

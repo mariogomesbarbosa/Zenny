@@ -169,7 +169,7 @@ Ambas estão em [pendencias.md](pendencias.md).
 
 | Bloco | O quê | Situação |
 |---|---|---|
-| B0 | Esqueleto: navegação, tema, PWA instalável | Em revisão (PR #1) |
+| B0 | Esqueleto: navegação, tema, PWA instalável | Na `main` (PR #1) |
 | B1 | O mês e o primeiro lançamento: entradas e saídas avulsas, com o número da sobra | A planejar |
 | B2 | Lançamentos fixos, com as três semânticas de exclusão | A planejar |
 | B3 | Planejado × realizado: marcar recebi/paguei, e as barras do painel | A planejar |
