@@ -18,7 +18,7 @@
  *   esta o peso, e a defasagem de uma visita e aceitavel.
  */
 
-const VERSAO = 'zenny-v2';
+const VERSAO = 'zenny-v3';
 
 const SHELL = [
   './',

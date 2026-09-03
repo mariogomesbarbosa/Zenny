@@ -7,6 +7,12 @@ Escopo: navegar por mês, adicionar entradas e saídas **avulsas**, ver a lista 
 mês e ver o número da sobra. Fixos ficam no B2; marcar recebi/paguei fica no B3;
 backup fica no B4.
 
+> **Revisto no B2.** As decisões 5 (duas telas), 6 (a aba "Entra e sai") e 7
+> (formulário de dois campos) foram revertidas depois que o Mário comparou
+> este bloco com o MVP rodando no celular. Ficam aqui porque o raciocínio
+> continua tendo valor — o que mudou foi a evidência. Ver
+> [b2-fixos-e-realizado.md](b2-fixos-e-realizado.md).
+
 ## Decisões, e o porquê
 
 **1. Dinheiro é inteiro em centavos, nunca ponto flutuante.** O MVP guardava

@@ -16,13 +16,15 @@ histórico se perde.
 | [mescla-com-o-mvp.md](mescla-com-o-mvp.md) | O cruzamento com o MVP do Mário: por que o Zenny é um planejador e não um diário, o que atravessou, o que ficou de fora e as três tensões |
 | [b0-esqueleto.md](b0-esqueleto.md) | O primeiro bloco: as 7 decisões da casca do app, o que ficou de fora e como foi verificado |
 | [b1-o-mes.md](b1-o-mes.md) | O segundo bloco: as 9 decisões do mês e dos lançamentos, o modelo de dados e o que ficou de fora |
+| [b2-fixos-e-realizado.md](b2-fixos-e-realizado.md) | Os fixos, o planejado × realizado e a volta da tela do MVP: as 9 decisões, e as 3 decisões do B1 que isto reverte |
 | [pendencias.md](pendencias.md) | Ressalvas conhecidas e o que foi para a `main` sem verificação |
 
 ## Estado atual
 
-O B0 (esqueleto) e o B1 (o mês, entradas e saídas avulsas) estão implementados.
-O app já é útil: dá para navegar por mês, adicionar, editar e excluir
-lançamentos, e ver quanto sobra. Os dados ficam no aparelho, em centavos.
+O B0 (esqueleto), o B1 (o mês e os avulsos) e o B2 (fixos, planejado ×
+realizado e a tela do MVP) estão implementados. O app já planeja um mês de
+verdade: fixos que se repetem, marcação do que já aconteceu, e o resumo
+separando o previsto do realizado.
 
-Próximo: B2, os lançamentos fixos. O roteiro está em
-[conceito.md](conceito.md#roteiro-proposto).
+Próximo: backup, para que o trabalho investido nos fixos tenha rede de
+segurança. O roteiro está em [conceito.md](conceito.md#roteiro-proposto).

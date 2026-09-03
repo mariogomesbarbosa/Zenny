@@ -12,7 +12,7 @@
  */
 
 export const CHAVE = 'zenny:v1';
-export const VERSAO_DO_ESQUEMA = 1;
+export const VERSAO_DO_ESQUEMA = 2;
 
 /* ---------- Dinheiro ---------- */
 
@@ -114,10 +114,30 @@ export function diaDe(data) {
   return Number(String(data).slice(8, 10));
 }
 
-/* ---------- Estado ---------- */
+/* ---------- Estado ----------
+ *
+ * Um lançamento é AVULSO ou FIXO:
+ *
+ *   avulso  { id, tipo, descricao, valor, fixo: false, data: 'AAAA-MM-DD' }
+ *   fixo    { id, tipo, descricao, valor, fixo: true, dia, inicio, fim, pulados }
+ *
+ * O fixo não é copiado mês a mês: ele é uma regra, e cada mês pergunta se está
+ * dentro da janela. `fim` é inclusive, e `pulados` guarda os meses em que o
+ * usuário apagou só aquela ocorrência.
+ *
+ * O que já aconteceu vive em `realizados`, num mapa com chave "id|AAAA-MM".
+ * Isso é sutil e é certo: o mesmo aluguel fixo está pago em setembro e não em
+ * outubro, e o lançamento é um só. */
 
 export function estadoVazio() {
-  return { versao: VERSAO_DO_ESQUEMA, lancamentos: [] };
+  return { versao: VERSAO_DO_ESQUEMA, lancamentos: [], realizados: {} };
+}
+
+const ehMes = (v) => /^\d{4}-\d{2}$/.test(v);
+const ehData = (v) => /^\d{4}-\d{2}-\d{2}$/.test(v);
+
+export function limitarDia(dia) {
+  return Math.min(31, Math.max(1, Math.trunc(Number(dia)) || 1));
 }
 
 /* Aceita qualquer coisa vinda do localStorage e devolve um estado utilizável.
@@ -125,61 +145,189 @@ export function estadoVazio() {
  * Dado corrompido, de outra versão ou simplesmente estranho não pode derrubar o
  * app: o usuário não tem como consertar, e perder a tela é pior que perder um
  * lançamento torto. Cada lançamento é validado por conta própria; o que não
- * passa é descartado, e o resto sobrevive. */
+ * passa é descartado, e o resto sobrevive.
+ *
+ * Migração da versão 1: lá não havia fixos nem realizados. Um estado v1 entra
+ * aqui e sai v2 sem perder nada — todo lançamento antigo é avulso. */
 export function normalizarEstado(bruto) {
   if (!bruto || typeof bruto !== 'object' || !Array.isArray(bruto.lancamentos)) {
     return estadoVazio();
   }
 
-  const lancamentos = bruto.lancamentos
-    .filter((l) => l && typeof l === 'object')
-    .map((l) => ({
-      id: String(l.id ?? ''),
-      tipo: l.tipo === 'entrada' ? 'entrada' : 'saida',
-      descricao: String(l.descricao ?? '').trim(),
-      valor: Math.abs(Math.trunc(Number(l.valor))) || 0,
-      data: String(l.data ?? ''),
-    }))
-    .filter((l) => l.id && l.descricao && l.valor > 0 && /^\d{4}-\d{2}-\d{2}$/.test(l.data));
+  const lancamentos = [];
 
-  return { versao: VERSAO_DO_ESQUEMA, lancamentos };
+  for (const cru of bruto.lancamentos) {
+    if (!cru || typeof cru !== 'object') continue;
+
+    const base = {
+      id: String(cru.id ?? ''),
+      tipo: cru.tipo === 'entrada' ? 'entrada' : 'saida',
+      descricao: String(cru.descricao ?? '').trim(),
+      valor: Math.abs(Math.trunc(Number(cru.valor))) || 0,
+    };
+
+    if (!base.id || !base.descricao || base.valor <= 0) continue;
+
+    if (cru.fixo) {
+      if (!ehMes(cru.inicio)) continue;
+      lancamentos.push({
+        ...base,
+        fixo: true,
+        dia: limitarDia(cru.dia),
+        inicio: cru.inicio,
+        fim: ehMes(cru.fim) ? cru.fim : null,
+        pulados: Array.isArray(cru.pulados) ? cru.pulados.filter(ehMes) : [],
+      });
+    } else {
+      if (!ehData(cru.data)) continue;
+      lancamentos.push({ ...base, fixo: false, data: cru.data });
+    }
+  }
+
+  const realizados = {};
+  const cruRealizados = bruto.realizados;
+  if (cruRealizados && typeof cruRealizados === 'object') {
+    const idsValidos = new Set(lancamentos.map((l) => l.id));
+    for (const chave of Object.keys(cruRealizados)) {
+      if (!cruRealizados[chave]) continue;
+      const [id, mes] = chave.split('|');
+      // Descarta a marcação órfã, do lançamento que não existe mais: é o que
+      // impedia o mapa de encolher no MVP.
+      if (idsValidos.has(id) && ehMes(mes)) realizados[chave] = true;
+    }
+  }
+
+  return { versao: VERSAO_DO_ESQUEMA, lancamentos, realizados };
 }
 
-/* ---------- Seleção e resumo ---------- */
+/* ---------- Realizado ---------- */
 
-/* Os lançamentos de um mês, do dia 1 para o 31. Empate de dia desempata pela
-   descrição, para que a ordem não dance a cada nova gravação. */
+export function chaveDeRealizado(id, mes) {
+  return id + '|' + mes;
+}
+
+export function estaRealizado(realizados, id, mes) {
+  return Boolean(realizados[chaveDeRealizado(id, mes)]);
+}
+
+export function alternarRealizado(realizados, id, mes) {
+  const chave = chaveDeRealizado(id, mes);
+  const copia = { ...realizados };
+  if (copia[chave]) delete copia[chave];
+  else copia[chave] = true;
+  return copia;
+}
+
+export function limparRealizadosDe(realizados, id, mes) {
+  const copia = { ...realizados };
+  if (mes) {
+    delete copia[chaveDeRealizado(id, mes)];
+    return copia;
+  }
+  for (const chave of Object.keys(copia)) {
+    if (chave.startsWith(id + '|')) delete copia[chave];
+  }
+  return copia;
+}
+
+/* ---------- Seleção ---------- */
+
+/* Um mês "vê" um fixo se está dentro da janela e não foi pulado. */
+export function fixoApareceEm(lancamento, mes) {
+  if (mes < lancamento.inicio) return false;
+  if (lancamento.fim && mes > lancamento.fim) return false;
+  return !lancamento.pulados.includes(mes);
+}
+
+/* Os lançamentos de um mês, do dia 1 para o 31, já com o dia resolvido.
+ *
+ * O dia do fixo é limitado ao tamanho do mês: sem isso o aluguel do dia 31
+ * desaparece em fevereiro. */
 export function lancamentosDoMes(lancamentos, mes) {
   return lancamentos
-    .filter((l) => mesDe(l.data) === mes)
+    .filter((l) => (l.fixo ? fixoApareceEm(l, mes) : mesDe(l.data) === mes))
+    .map((l) => ({ ...l, dia: l.fixo ? Math.min(l.dia, diasNoMes(mes)) : diaDe(l.data) }))
     .sort(
       (a, b) =>
-        diaDe(a.data) - diaDe(b.data) ||
+        a.dia - b.dia ||
         a.descricao.localeCompare(b.descricao, 'pt-BR') ||
         a.id.localeCompare(b.id)
     );
 }
 
-export function resumoDoMes(lancamentos, mes) {
-  let entrou = 0;
-  let saiu = 0;
+/* ---------- Resumo ---------- */
 
-  for (const l of lancamentosDoMes(lancamentos, mes)) {
-    if (l.tipo === 'entrada') entrou += l.valor;
-    else saiu += l.valor;
+/* Tudo que o painel do topo precisa, numa passada só.
+ *
+ * "previsto" é o mês inteiro como planejado; "realizado" é o que já foi
+ * marcado como recebido ou pago. A diferença entre os dois é o que torna isto
+ * um planejador e não um diário. */
+export function resumoDoMes(lancamentos, realizados, mes) {
+  const doMes = lancamentosDoMes(lancamentos, mes);
+
+  const entradas = { previsto: 0, realizado: 0, quantidade: 0 };
+  const despesas = { previsto: 0, realizado: 0, quantidade: 0 };
+
+  for (const l of doMes) {
+    const lado = l.tipo === 'entrada' ? entradas : despesas;
+    lado.previsto += l.valor;
+    lado.quantidade += 1;
+    if (estaRealizado(realizados, l.id, mes)) lado.realizado += l.valor;
   }
 
-  return { entrou, saiu, sobra: entrou - saiu };
+  return {
+    entradas,
+    despesas,
+    sobra: entradas.previsto - despesas.previsto,
+    naContaAgora: entradas.realizado - despesas.realizado,
+    faltaEntrar: entradas.previsto - entradas.realizado,
+    faltaSair: despesas.previsto - despesas.realizado,
+    vazio: doMes.length === 0,
+  };
 }
 
-/* Largura das barras do painel, em porcentagem. As duas dividem a mesma
-   referência — o maior dos dois lados — para que "saiu mais do que entrou" seja
-   visível de relance, sem precisar ler número. */
-export function proporcoesDoResumo({ entrou, saiu }) {
-  const referencia = Math.max(entrou, saiu);
-  if (referencia === 0) return { entrou: 0, saiu: 0 };
-  return {
-    entrou: (entrou / referencia) * 100,
-    saiu: (saiu / referencia) * 100,
-  };
+/* Largura dos dois trechos de cada barra, em porcentagem.
+ *
+ * As duas barras dividem a mesma referência — o maior dos dois previstos — para
+ * que "vai sair mais do que entra" seja visível de relance. Dentro de cada
+ * barra, o trecho cheio é o que já aconteceu e o claro é o que ainda falta; os
+ * dois somados dão o previsto do lado. */
+export function proporcoesDasBarras(resumo) {
+  const referencia = Math.max(resumo.entradas.previsto, resumo.despesas.previsto);
+
+  const fatiar = (lado) =>
+    referencia === 0
+      ? { realizado: 0, previsto: 0 }
+      : {
+          realizado: (lado.realizado / referencia) * 100,
+          previsto: (Math.max(lado.previsto - lado.realizado, 0) / referencia) * 100,
+        };
+
+  return { entradas: fatiar(resumo.entradas), despesas: fatiar(resumo.despesas) };
+}
+
+/* ---------- Alterações que envolvem recorrência ----------
+ *
+ * As três semânticas de excluir um fixo. São o problema mais difícil da
+ * recorrência, e por isso vivem aqui, puras e testadas, em vez de espalhadas
+ * pelos manipuladores de clique. */
+
+export function excluirLancamento(lancamentos, id) {
+  return lancamentos.filter((l) => l.id !== id);
+}
+
+/* "Excluir só neste mês": o fixo continua existindo, mas este mês passa a ser
+   pulado. */
+export function pularMes(lancamentos, id, mes) {
+  return lancamentos.map((l) =>
+    l.id === id && l.fixo && !l.pulados.includes(mes)
+      ? { ...l, pulados: [...l.pulados, mes] }
+      : l
+  );
+}
+
+/* "Encerrar deste mês em diante": o fixo passa a valer até o mês anterior. */
+export function encerrarFixo(lancamentos, id, mes) {
+  const fim = deslocarMes(mes, -1);
+  return lancamentos.map((l) => (l.id === id && l.fixo ? { ...l, fim } : l));
 }
