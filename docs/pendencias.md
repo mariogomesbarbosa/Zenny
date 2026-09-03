@@ -8,7 +8,8 @@ seis meses depois.
 | # | Ressalva | Por que ficou assim |
 |---|---|---|
 | 1 | Editar um lançamento fixo reescreve o passado — um aumento de salário muda os meses já fechados | Limitação herdada do modelo do MVP. Sem histórico por versão, e resolver isso custa complexidade real. Vira problema quando alguém comparar meses |
-| 2 | O MVP original (`planejador-financeiro.html`, fora do repositório) tem um salário real embutido como dado semente | Por isso não foi commitado. Se for compartilhado, o dado vaza |
+| 2 | O prazo de 3 segundos do service worker não foi exercitado | Os testes cobrem a rede respondendo e a rede recusando conexão (que falha rápido). Simular uma rede que aceita e depois pendura exigiria um servidor de teste próprio. Ver [cache-e-deploy.md](cache-e-deploy.md) |
+| 3 | O MVP original (`planejador-financeiro.html`, fora do repositório) tem um salário real embutido como dado semente | Por isso não foi commitado. Se for compartilhado, o dado vaza |
 
 ## Resolvidas
 
