@@ -157,11 +157,36 @@ dura.
 
 ## O que ficou de fora
 
-- **Backup em nuvem.** Exige conta, servidor e política de privacidade. O
-  conceito admite nuvem um dia, "opcional e para backup" — mas isso é bloco
-  próprio, e provavelmente vem depois de o app provar que merece.
-- **Backup automático.** Sem nuvem, automático só significa baixar um arquivo
-  sozinho na pasta Downloads. Isso é lixo, não é rede de segurança.
+- **Frequência de backup configurável.** Foi pedido e recusado no próprio
+  planejamento, porque a palavra "frequência" promete o que a plataforma não
+  entrega: **um PWA sem servidor não consegue salvar um arquivo sozinho.** O app
+  só executa enquanto está aberto; `navigator.share` exige gesto do usuário e
+  não pode ser disparado por temporizador; download automático é bloqueado pelo
+  navegador; a Periodic Background Sync só existe em navegadores Chromium, só
+  com o PWA instalado, não garante horário e serve para buscar dados da rede, não
+  para gravar arquivo; e a File System Access API, que permitiria escrever num
+  arquivo escolhido, [não é exposta no Chrome para Android](https://developer.chrome.com/docs/capabilities/web-apis/file-system-access)
+  — justamente o aparelho do público-alvo. Uma frequência só poderia controlar
+  o texto do lembrete, e chamar isso de "backup automático" seria mentir para o
+  usuário sobre a proteção que ele tem.
+
+- **Backup em nuvem, no modelo do WhatsApp.** É para onde isto deve caminhar, e
+  é a resposta certa para o problema que a frequência tentava resolver: a cópia
+  vai sozinha para o Google Drive da pessoa, e trocar de celular deixa de ser um
+  evento. O caminho existe sem servidor próprio — OAuth do Google no próprio
+  navegador, gravando na `appDataFolder` do Drive, uma área que só o Zenny
+  enxerga e que não polui os arquivos dela. O dado continua sendo do usuário e
+  não passa por servidor nosso.
+
+  Três coisas fazem disto bloco próprio: traz a primeira dependência externa do
+  projeto (o script de identidade do Google), que o `CLAUDE.md` manda tratar em
+  PR separado com justificativa; exige um login, que o conceito só admite como
+  opcional; e exige registrar o app no console do Google, com política de
+  privacidade publicada.
+
+  Mesmo depois disso, o backup manual deste bloco continua valendo: é ele que
+  funciona sem conta, sem rede e sem Google.
+
 - **Senha ou criptografia.** O arquivo tem quanto a pessoa ganha e o que ela
   paga. É dado sensível, e a resposta honesta hoje é a tela dizer isso em uma
   linha, para ela escolher onde guardar. Criptografar exigiria a pessoa lembrar

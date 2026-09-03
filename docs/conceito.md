@@ -96,6 +96,12 @@ entregue algo usável sozinho.
 | B6 | Guardar para algo (metas com nome e prazo) | Motivação positiva; depende de sobrar dinheiro visível |
 | B7 | Pílulas de educação no contexto | Precisa de telas prontas para se ancorar |
 
+Sem número, porque depende de decisões que ainda não foram tomadas: **backup na
+nuvem, no modelo do WhatsApp** — a cópia indo sozinha para o Google Drive da
+pessoa. É a única forma de o backup proteger quem perde o celular sem nunca ter
+aberto os Ajustes. Traria a primeira dependência externa do projeto e um login
+opcional; o raciocínio está em [b4-backup.md](b4-backup.md#o-que-ficou-de-fora).
+
 ## Identidade
 
 - **Nome**: Zenny — *zen* + *money*. A proposta inteira em duas sílabas: calma
