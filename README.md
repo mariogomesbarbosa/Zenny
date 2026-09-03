@@ -12,6 +12,12 @@
   <img src="https://img.shields.io/badge/Status-Em_constru%C3%A7%C3%A3o-blue?style=for-the-badge" alt="Status">
   <img src="https://img.shields.io/badge/Tecnologias-HTML5_|_CSS3_|_JS-14181C?style=for-the-badge" alt="Tecnologias">
   <img src="https://img.shields.io/badge/Mobile-First-35B37E?style=for-the-badge" alt="Mobile First">
+  <img src="https://img.shields.io/badge/Licen%C3%A7a-MIT-5c6570?style=for-the-badge" alt="Licença MIT">
+</p>
+
+<p align="center">
+  📱 <strong>Use agora: <a href="https://mariogomesbarbosa.github.io/Zenny/">Zenny</a></strong><br>
+  <sub>Abre no navegador e instala como app no Android — funciona sem internet.</sub>
 </p>
 
 ---
@@ -73,7 +79,17 @@ npx --yes http-server . -p 8142 -c-1
 |---|---|
 | [CLAUDE.md](CLAUDE.md) | O contrato de trabalho: princípios, regras técnicas e o fluxo de PR |
 | [docs/conceito.md](docs/conceito.md) | A régua do projeto: problema, público, promessa, não-objetivos e roteiro |
+| [docs/mescla-com-o-mvp.md](docs/mescla-com-o-mvp.md) | Por que o Zenny é um planejador e não um diário |
+| [docs/](docs/) | Um documento por bloco, com as decisões e o porquê de cada uma |
 | [docs/pendencias.md](docs/pendencias.md) | Ressalvas conhecidas |
+
+---
+
+## 📄 Licença
+
+[MIT](LICENSE). Você pode usar, copiar, modificar, distribuir e vender este
+código, inclusive dentro de um produto fechado — desde que o aviso de copyright
+e o texto da licença acompanhem o código. Sem garantia de qualquer espécie.
 
 ---
 
