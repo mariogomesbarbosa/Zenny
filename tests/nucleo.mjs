@@ -16,6 +16,9 @@ import {
   rotuloDoMes,
   diaDe,
   limitarDia,
+  valorVigenteEm,
+  definirValorDesde,
+  definirValorSempre,
   estadoVazio,
   normalizarEstado,
   chaveDeRealizado,
@@ -106,14 +109,61 @@ conferir('dia 0 vira 1', limitarDia(0), 1);
 conferir('dia 99 vira 31', limitarDia(99), 31);
 conferir('dia inválido vira 1', limitarDia('abc'), 1);
 
+/* ---------- a linha do tempo de valores ---------- */
+
+const LINHA = [
+  { desde: '2026-09', valor: 267526 },
+  { desde: '2027-01', valor: 300000 },
+  { desde: '2027-07', valor: 320000 },
+];
+
+conferir('no mês de início', valorVigenteEm(LINHA, '2026-09'), 267526);
+conferir('entre dois trechos', valorVigenteEm(LINHA, '2026-11'), 267526);
+conferir('no mês exato da virada', valorVigenteEm(LINHA, '2027-01'), 300000);
+conferir('depois da virada', valorVigenteEm(LINHA, '2027-05'), 300000);
+conferir('no último trecho', valorVigenteEm(LINHA, '2028-02'), 320000);
+conferir('antes de tudo cai no primeiro, em vez de zero', valorVigenteEm(LINHA, '2026-01'), 267526);
+conferir('linha vazia', valorVigenteEm([], '2026-09'), 0);
+conferir('linha ausente', valorVigenteEm(undefined, '2026-09'), 0);
+
+conferir(
+  'definir a partir de um mês novo insere o trecho',
+  definirValorDesde([{ desde: '2026-09', valor: 500 }], '2027-01', 650),
+  [{ desde: '2026-09', valor: 500 }, { desde: '2027-01', valor: 650 }]
+);
+conferir(
+  'definir no mesmo mês substitui o trecho, não duplica',
+  definirValorDesde([{ desde: '2026-09', valor: 500 }], '2026-09', 650),
+  [{ desde: '2026-09', valor: 650 }]
+);
+/* Descarta o que vem DEPOIS e preserva tudo que já passou: os trechos de
+   setembro/2026 e de janeiro/2027 ficam, porque são passado em março/2027; só o
+   de julho/2027 cai, porque "deste mês em diante" o contradiz. Apagar janeiro
+   junto reescreveria a história, que é o defeito que este bloco existe para
+   corrigir. */
+conferir(
+  'definir no meio preserva o passado e descarta só o futuro',
+  definirValorDesde(LINHA, '2027-03', 999),
+  [
+    { desde: '2026-09', valor: 267526 },
+    { desde: '2027-01', valor: 300000 },
+    { desde: '2027-03', valor: 999 },
+  ]
+);
+conferir(
+  'corrigir para sempre achata a linha do tempo',
+  definirValorSempre(999, '2026-09'),
+  [{ desde: '2026-09', valor: 999 }]
+);
+
 /* ---------- estado ---------- */
 
-conferir('estado vazio', estadoVazio(), { versao: 2, lancamentos: [], realizados: {} });
+conferir('estado vazio', estadoVazio(), { versao: 3, lancamentos: [], realizados: {} });
 conferir('nulo vira estado vazio', normalizarEstado(null), {
-  versao: 2, lancamentos: [], realizados: {},
+  versao: 3, lancamentos: [], realizados: {},
 });
 conferir('lixo vira estado vazio', normalizarEstado('xpto'), {
-  versao: 2, lancamentos: [], realizados: {},
+  versao: 3, lancamentos: [], realizados: {},
 });
 
 conferir(
@@ -126,14 +176,14 @@ conferir(
       { id: '', tipo: 'saida', descricao: 'Sem id', valor: 100, data: '2026-09-05' },
       { id: 'e', tipo: 'saida', descricao: 'Valor zero', valor: 0, data: '2026-09-05' },
       { id: 'f', tipo: 'saida', descricao: 'Fixo sem início', valor: 100, fixo: true, dia: 5 },
+      { id: 'g', tipo: 'saida', descricao: 'Fixo sem valor nenhum', fixo: true, dia: 5, inicio: '2026-09' },
       null,
     ],
   }).lancamentos.map((l) => l.id),
   ['a']
 );
 
-/* Migração da v1: lá não existiam fixos nem realizados, e todo lançamento tinha
-   data completa. Nada pode se perder na travessia. */
+/* Migração da v1: lá não existiam fixos nem realizados. */
 conferir(
   'estado da versão 1 atravessa inteiro',
   normalizarEstado({
@@ -141,25 +191,62 @@ conferir(
     lancamentos: [{ id: 'a', tipo: 'entrada', descricao: 'Salário', valor: 350000, data: '2026-09-05' }],
   }),
   {
-    versao: 2,
+    versao: 3,
     lancamentos: [
-      { id: 'a', tipo: 'entrada', descricao: 'Salário', valor: 350000, fixo: false, data: '2026-09-05' },
+      { id: 'a', tipo: 'entrada', descricao: 'Salário', fixo: false, valor: 350000, data: '2026-09-05' },
     ],
     realizados: {},
   }
 );
 
+/* Migração da v2: o fixo tinha um `valor` solto, que vira o primeiro trecho.
+   Este é o teste que garante que ninguém perde dinheiro na travessia. */
 conferir(
-  'fixo é normalizado com os campos da recorrência',
+  'fixo da versão 2 vira linha do tempo de um trecho só',
   normalizarEstado({
+    versao: 2,
     lancamentos: [
-      { id: 'a', tipo: 'saida', descricao: 'Aluguel', valor: 180000, fixo: true, dia: 99, inicio: '2026-09' },
+      { id: 'a', tipo: 'saida', descricao: 'Aluguel', valor: 180000, fixo: true, dia: 10, inicio: '2026-09', fim: null, pulados: [] },
     ],
   }).lancamentos[0],
   {
-    id: 'a', tipo: 'saida', descricao: 'Aluguel', valor: 180000,
-    fixo: true, dia: 31, inicio: '2026-09', fim: null, pulados: [],
+    id: 'a', tipo: 'saida', descricao: 'Aluguel',
+    fixo: true, dia: 10, inicio: '2026-09', fim: null, pulados: [],
+    valores: [{ desde: '2026-09', valor: 180000 }],
   }
+);
+
+conferir(
+  'e o valor de cada mês não muda na travessia da v2',
+  lancamentosDoMes(
+    normalizarEstado({
+      versao: 2,
+      lancamentos: [
+        { id: 'a', tipo: 'saida', descricao: 'Aluguel', valor: 180000, fixo: true, dia: 10, inicio: '2026-09', fim: null, pulados: [] },
+      ],
+    }).lancamentos,
+    '2027-05'
+  )[0].valor,
+  180000
+);
+
+conferir(
+  'a linha do tempo é ordenada, sem repetidos, e cobre desde o início',
+  normalizarEstado({
+    lancamentos: [
+      {
+        id: 'a', tipo: 'saida', descricao: 'Aluguel', fixo: true, dia: 10, inicio: '2026-09',
+        valores: [
+          { desde: '2027-01', valor: 650 },
+          { desde: '2026-11', valor: 500 },
+          { desde: '2027-01', valor: 700 },
+          { desde: 'torto', valor: 1 },
+          { desde: '2027-05', valor: 0 },
+        ],
+      },
+    ],
+  }).lancamentos[0].valores,
+  [{ desde: '2026-09', valor: 500 }, { desde: '2027-01', valor: 700 }]
 );
 
 conferir(
@@ -196,7 +283,10 @@ conferir(
 
 /* ---------- janela do fixo ---------- */
 
-const FIXO = { id: 'f', tipo: 'saida', descricao: 'Aluguel', valor: 50000, fixo: true, dia: 10, inicio: '2026-09', fim: null, pulados: [] };
+const FIXO = {
+  id: 'f', tipo: 'saida', descricao: 'Aluguel', fixo: true, dia: 10,
+  inicio: '2026-09', fim: null, pulados: [], valores: [{ desde: '2026-09', valor: 50000 }],
+};
 
 conferir('aparece no mês de início', fixoApareceEm(FIXO, '2026-09'), true);
 conferir('aparece adiante', fixoApareceEm(FIXO, '2027-03'), true);
@@ -207,11 +297,19 @@ conferir('não aparece depois do fim', fixoApareceEm({ ...FIXO, fim: '2026-11' }
 
 /* ---------- seleção ---------- */
 
-const LANCAMENTOS = [
-  { id: '1', tipo: 'entrada', descricao: 'Salário', valor: 602891, fixo: true, dia: 5, inicio: '2026-09', fim: null, pulados: [] },
-  { id: '2', tipo: 'saida', descricao: 'Aluguel', valor: 180000, fixo: true, dia: 31, inicio: '2026-09', fim: null, pulados: [] },
-  { id: '3', tipo: 'saida', descricao: 'Mercado', valor: 32450, fixo: false, data: '2026-09-03' },
-];
+const SALARIO = {
+  id: '1', tipo: 'entrada', descricao: 'Salário', fixo: true, dia: 5,
+  inicio: '2026-09', fim: null, pulados: [],
+  valores: [{ desde: '2026-09', valor: 267526 }, { desde: '2027-01', valor: 300000 }],
+};
+const ALUGUEL = {
+  id: '2', tipo: 'saida', descricao: 'Aluguel', fixo: true, dia: 31,
+  inicio: '2026-09', fim: null, pulados: [],
+  valores: [{ desde: '2026-09', valor: 180000 }],
+};
+const MERCADO = { id: '3', tipo: 'saida', descricao: 'Mercado', fixo: false, valor: 32450, data: '2026-09-03' };
+
+const LANCAMENTOS = [SALARIO, ALUGUEL, MERCADO];
 
 conferir(
   'fixos e avulsos convivem, ordenados por dia',
@@ -237,6 +335,23 @@ conferir(
 );
 conferir('antes do início, mês vazio', lancamentosDoMes(LANCAMENTOS, '2026-08'), []);
 
+/* O ponto do bloco: cada mês recebe o valor que valia NELE. */
+conferir(
+  'setembro usa o valor antigo do salário',
+  lancamentosDoMes(LANCAMENTOS, '2026-09').find((l) => l.id === '1').valor,
+  267526
+);
+conferir(
+  'dezembro ainda usa o valor antigo',
+  lancamentosDoMes(LANCAMENTOS, '2026-12').find((l) => l.id === '1').valor,
+  267526
+);
+conferir(
+  'janeiro já usa o valor novo',
+  lancamentosDoMes(LANCAMENTOS, '2027-01').find((l) => l.id === '1').valor,
+  300000
+);
+
 conferir(
   'empate de dia desempata pela descrição',
   lancamentosDoMes(
@@ -255,25 +370,50 @@ const REALIZADOS = { '1|2026-09': true, '3|2026-09': true };
 const resumo = resumoDoMes(LANCAMENTOS, REALIZADOS, '2026-09');
 
 conferir('entradas previstas e realizadas', resumo.entradas, {
-  previsto: 602891, realizado: 602891, quantidade: 1,
+  previsto: 267526, realizado: 267526, quantidade: 1,
 });
 conferir('despesas previstas e realizadas', resumo.despesas, {
   previsto: 212450, realizado: 32450, quantidade: 2,
 });
-conferir('sobra prevista do mês', resumo.sobra, 390441);
-conferir('na conta agora', resumo.naContaAgora, 570441);
+conferir('sobra prevista do mês', resumo.sobra, 55076);
+conferir('na conta agora', resumo.naContaAgora, 235076);
 conferir('falta entrar', resumo.faltaEntrar, 0);
 conferir('falta sair', resumo.faltaSair, 180000);
 conferir('mês com lançamentos não é vazio', resumo.vazio, false);
 
+/* O resumo de janeiro reflete o aumento; o de setembro, não. */
+conferir('resumo de janeiro usa o valor novo', resumoDoMes(LANCAMENTOS, {}, '2027-01').entradas.previsto, 300000);
+conferir('resumo de setembro segue com o antigo', resumoDoMes(LANCAMENTOS, {}, '2026-09').entradas.previsto, 267526);
+
 const semNada = resumoDoMes(LANCAMENTOS, {}, '2026-08');
 conferir('mês vazio', [semNada.sobra, semNada.naContaAgora, semNada.vazio], [0, 0, true]);
 
-const semMarcar = resumoDoMes(LANCAMENTOS, {}, '2026-09');
+/* A REGRESSÃO QUE ESTE BLOCO EXISTE PARA IMPEDIR: registrar um aumento não pode
+   mexer em nenhum mês anterior — nem no valor, nem no que já foi marcado. */
+const antesDoAumento = resumoDoMes(LANCAMENTOS, REALIZADOS, '2026-09');
+const comAumento = LANCAMENTOS.map((l) =>
+  l.id === '1' ? { ...l, valores: definirValorDesde(l.valores, '2027-03', 400000) } : l
+);
 conferir(
-  'sem nada marcado, na conta agora é zero e falta tudo',
-  [semMarcar.naContaAgora, semMarcar.faltaEntrar, semMarcar.faltaSair],
-  [0, 602891, 212450]
+  'o passado fica intacto depois de um aumento futuro',
+  resumoDoMes(comAumento, REALIZADOS, '2026-09'),
+  antesDoAumento
+);
+conferir(
+  'e o mês do aumento reflete o valor novo',
+  resumoDoMes(comAumento, {}, '2027-03').entradas.previsto,
+  400000
+);
+
+/* Corrigir "para sempre" — o caso do erro de digitação — muda o passado de
+   propósito, que é o contrário do aumento. */
+const corrigido = LANCAMENTOS.map((l) =>
+  l.id === '2' ? { ...l, valores: definirValorSempre(50000, l.inicio) } : l
+);
+conferir(
+  'corrigir para sempre alcança os meses antigos',
+  lancamentosDoMes(corrigido, '2026-09').find((l) => l.id === '2').valor,
+  50000
 );
 
 /* ---------- barras ---------- */
@@ -325,7 +465,11 @@ conferir(
   lancamentosDoMes(pulado, '2026-11').map((l) => l.descricao),
   ['Salário', 'Aluguel']
 );
-conferir('pular o mesmo mês duas vezes não duplica', pularMes(pulado, '2', '2026-10').find((l) => l.id === '2').pulados, ['2026-10']);
+conferir(
+  'pular o mesmo mês duas vezes não duplica',
+  pularMes(pulado, '2', '2026-10').find((l) => l.id === '2').pulados,
+  ['2026-10']
+);
 
 const encerrado = encerrarFixo(LANCAMENTOS, '2', '2026-11');
 conferir('encerrar daqui deixa o mês anterior intacto', lancamentosDoMes(encerrado, '2026-10').map((l) => l.id), ['1', '2']);
