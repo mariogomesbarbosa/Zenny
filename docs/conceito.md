@@ -91,11 +91,16 @@ entregue algo usável sozinho.
 | B1 | O mês, e entradas e saídas avulsas, com o número da sobra | É o coração. Entradas entram já aqui: sem elas não existe sobra, e a sobra é o que a promessa vende |
 | B2 | Fixos, planejado × realizado, e a tela do MVP | Fundidos num bloco só: o resumo pedido não existe sem os dois. É o que faz o app trabalhar sozinho a partir do mês 2 |
 | B3 | O valor do fixo passa a ter data | Sem isso, registrar um aumento reescrevia os meses já fechados — a história ficava errada em silêncio |
-| B4 | Backup: baixar e restaurar | Depois do B2 o usuário tem trabalho investido nos fixos. Rede de segurança não pode chegar por último |
-| B5 | Configurações (engrenagem): tema, backup, apagar tudo | Ganha razão de existir quando o backup precisa de casa |
-| B6 | Categorias sugeridas e limites | Só faz sentido depois de haver dados. Opcional de propósito: taxonomia é barreira |
-| B7 | Guardar para algo (metas com nome e prazo) | Motivação positiva; depende de sobrar dinheiro visível |
-| B8 | Pílulas de educação no contexto | Precisa de telas prontas para se ancorar |
+| B4 | Backup, Ajustes e apagar tudo | Depois do B2 o usuário tem trabalho investido nos fixos. Rede de segurança não pode chegar por último. Absorveu o antigo B5: o backup não tem onde morar sem a tela de Ajustes, então os dois viraram um bloco só |
+| B5 | Categorias sugeridas e limites | Só faz sentido depois de haver dados. Opcional de propósito: taxonomia é barreira |
+| B6 | Guardar para algo (metas com nome e prazo) | Motivação positiva; depende de sobrar dinheiro visível |
+| B7 | Pílulas de educação no contexto | Precisa de telas prontas para se ancorar |
+
+Sem número, porque depende de decisões que ainda não foram tomadas: **backup na
+nuvem, no modelo do WhatsApp** — a cópia indo sozinha para o Google Drive da
+pessoa. É a única forma de o backup proteger quem perde o celular sem nunca ter
+aberto os Ajustes. Traria a primeira dependência externa do projeto e um login
+opcional; o raciocínio está em [b4-backup.md](b4-backup.md#o-que-ficou-de-fora).
 
 ## Identidade
 
