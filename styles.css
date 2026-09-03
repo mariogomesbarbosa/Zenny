@@ -230,6 +230,21 @@ h1 { font-size: 1.75rem; line-height: 1.2; letter-spacing: -.02em; margin: 8px 0
 .cartao.vazio h2 { font-size: 1.05rem; margin: 0 0 6px; }
 .cartao.vazio p { margin: 0; color: var(--tinta-suave); }
 
+/* ---------- Ajustes ---------- */
+
+.cartao.ajuste { margin-bottom: 14px; }
+.cartao.ajuste h2 { font-size: 1.05rem; margin: 0 0 10px; letter-spacing: -.01em; }
+.cartao.ajuste .pilha { margin: 14px 0 12px; }
+.cartao.ajuste .nota:last-child { margin-bottom: 0; }
+
+/* O alternador nasceu dentro de um formulário, onde havia um campo embaixo
+   dele. Aqui ele é o último elemento do cartão, e a margem sobraria. */
+.cartao.ajuste .alternador { margin-bottom: 0; }
+
+/* O botão de apagar é o único destrutivo do app, e fica sozinho no cartão: a
+   largura inteira o torna fácil de acertar, e a cor já diz o que ele é. */
+.cartao.ajuste .botao.apagado { width: 100%; margin-top: 14px; }
+
 /* ---------- Painel do mês ---------- */
 
 .painel { display: grid; gap: 22px; }
@@ -455,6 +470,10 @@ h1 { font-size: 1.75rem; line-height: 1.2; letter-spacing: -.02em; margin: 8px 0
 
 /* ---------- Navegação ---------- */
 
+/* Nos Ajustes o botão flutuante some. Ele adiciona lançamento, e esta tela não
+   é sobre lançamentos — pior, ele fica por cima do cartão de apagar tudo. */
+body[data-tela="ajustes"] .botao-flutuante { display: none; }
+
 .navegacao {
   flex: none;
   display: flex;
@@ -595,6 +614,15 @@ dialog::backdrop { background: rgba(20, 24, 28, .45); }
 
 .botao.contorno { background: transparent; color: var(--tinta); border-color: var(--borda); }
 .botao.contorno:hover { background: var(--areia); }
+
+/* O único botão sólido em coral do app.
+ *
+ * Existe porque no diálogo de apagar tudo a ação destrutiva e a saída ficam uma
+ * embaixo da outra. Com as duas em texto coral — que é como o resto do app
+ * escreve tanto "Excluir" quanto "Cancelar" — elas viravam gêmeas, e o botão de
+ * escape não pode parecer o botão de destruir. */
+.botao.perigo { background: var(--coral); border-color: var(--coral); color: #fff; }
+.botao.perigo:hover { filter: brightness(.94); }
 
 .botao.apagado {
   flex: none;

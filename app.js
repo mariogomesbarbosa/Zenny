@@ -32,11 +32,22 @@ import {
   excluirLancamento,
   pularMes,
   encerrarFixo,
+  montarBackup,
+  nomeDoArquivo,
+  lerBackup,
+  textoDoUltimoBackup,
 } from './nucleo.js';
 
-const TELAS = ['inicio', 'metas'];
+const TELAS = ['inicio', 'metas', 'ajustes'];
 const TELA_PADRAO = 'inicio';
 const CHAVE_TEMA = 'zenny-tema';
+
+/* Fora do estado, de propósito. Se a data da última cópia morasse dentro do
+   estado, ela entraria no próprio arquivo de backup — e restaurar num celular
+   novo faria ele herdar a data do celular velho, afirmando uma cópia que
+   aquele aparelho nunca teve. Aqui, aparelho novo diz "nunca", que é a
+   verdade. Pela mesma razão o tema também vive fora. */
+const CHAVE_BACKUP = 'zenny-backup';
 
 const $ = (id) => document.getElementById(id);
 
@@ -135,6 +146,7 @@ function desenhar() {
   desenharPainel(resumo);
   desenharGrupo('entradas', doMes.filter((l) => l.tipo === 'entrada'), resumo.entradas, 'recebido');
   desenharGrupo('despesas', doMes.filter((l) => l.tipo === 'saida'), resumo.despesas, 'pago');
+  desenharAjustes();
 }
 
 function desenharCabecalho() {
@@ -359,6 +371,10 @@ function mostrarTela(nome) {
     else link.removeAttribute('aria-current');
   }
 
+  // O CSS precisa saber qual tela está aberta: nos Ajustes o botão flutuante
+  // some, por não ter o que fazer lá.
+  document.body.dataset.tela = nome;
+
   $('conteudo').scrollTop = 0;
 }
 
@@ -383,11 +399,31 @@ function temaEmUso() {
   return window.matchMedia('(prefers-color-scheme: dark)').matches ? 'escuro' : 'claro';
 }
 
-$('botao-tema').addEventListener('click', () => {
-  const proximo = temaEmUso() === 'escuro' ? 'claro' : 'escuro';
+/* O tema tem dois controles: o atalho no cabeçalho, que é o gesto de impulso
+   ("está claro demais agora"), e o alternador dos Ajustes, que é onde a pessoa
+   vai procurar quando procura. Dois controles para o mesmo estado só não viram
+   dessincronia porque um lugar só escreve o tema e um lugar só redesenha os
+   dois. */
+function aplicarTema(proximo) {
   document.documentElement.dataset.tema = proximo;
   armazenamento.gravar(CHAVE_TEMA, proximo);
-});
+  sincronizarTema();
+}
+
+function sincronizarTema() {
+  const escuro = temaEmUso() === 'escuro';
+  $('tema-claro').setAttribute('aria-pressed', String(!escuro));
+  $('tema-escuro').setAttribute('aria-pressed', String(escuro));
+  // O rótulo diz o que o botão FAZ, não o tema que está em uso: é o que um
+  // leitor de tela precisa ouvir antes de decidir tocar.
+  $('botao-tema').setAttribute('aria-label', escuro ? 'Usar tema claro' : 'Usar tema escuro');
+}
+
+$('botao-tema').addEventListener('click', () =>
+  aplicarTema(temaEmUso() === 'escuro' ? 'claro' : 'escuro')
+);
+$('tema-claro').addEventListener('click', () => aplicarTema('claro'));
+$('tema-escuro').addEventListener('click', () => aplicarTema('escuro'));
 
 /* ---------- Aviso, com desfazer ---------- */
 
@@ -486,11 +522,12 @@ $('botao-adicionar').addEventListener('click', () => abrirFormulario(null));
    no fundo — e sair tocando fora é o gesto que todo mundo tenta primeiro, tanto
    na folha do celular quanto no modal do desktop. O alvo só é o próprio
    <dialog> quando o clique caiu fora da caixa. */
-for (const id of ['dialogo', 'dialogo-exclusao', 'dialogo-valor']) {
+for (const id of ['dialogo', 'dialogo-exclusao', 'dialogo-valor', 'dialogo-restaurar', 'dialogo-apagar']) {
   $(id).addEventListener('click', (evento) => {
     if (evento.target === $(id)) {
       if (id === 'dialogo-exclusao') pendenteDeExclusao = null;
       if (id === 'dialogo-valor') pendenteDeValor = null;
+      if (id === 'dialogo-restaurar') pendenteDeRestauracao = null;
       $(id).close();
     }
   });
@@ -627,6 +664,247 @@ $('botao-excluir').addEventListener('click', () => {
   pedirExclusao(alvo);
 });
 
+/* ---------- Ajustes: a cópia, o tema e o apagar tudo ---------- */
+
+let pendenteDeRestauracao = null;
+
+function desenharAjustes() {
+  $('estado-do-backup').textContent = textoDoUltimoBackup(
+    armazenamento.ler(CHAVE_BACKUP),
+    new Date()
+  );
+}
+
+function registrarBackup(quando) {
+  armazenamento.gravar(CHAVE_BACKUP, quando.toISOString());
+  desenharAjustes();
+}
+
+/* Baixar é a reserva de quem não tem o menu de compartilhar.
+ *
+ * O objeto de URL não é revogado na hora: em alguns navegadores isso cancela o
+ * download que acabou de começar. Um minuto é folga de sobra, e o objeto morre
+ * junto com a aba de qualquer jeito. */
+function baixar(texto, nome) {
+  const url = URL.createObjectURL(new Blob([texto], { type: 'application/json' }));
+  const link = document.createElement('a');
+  link.href = url;
+  link.download = nome;
+  link.click();
+  setTimeout(() => URL.revokeObjectURL(url), 60000);
+}
+
+/* No Android, o menu de compartilhar é o que faz a cópia chegar num lugar onde
+   a pessoa vai reencontrá-la — o Drive, o WhatsApp dela mesma, o e-mail. A
+   pasta Downloads é onde arquivos vão morrer.
+ *
+ * canShare é consultado ANTES de qualquer await: share() precisa acontecer
+   dentro do gesto que o usuário acabou de fazer, e um await no meio já custou o
+   gesto em parte dos navegadores. */
+async function guardarCopia() {
+  const agora = new Date();
+  const texto = JSON.stringify(montarBackup(estado, agora), null, 2);
+  const nome = nomeDoArquivo(agora);
+
+  let arquivo = null;
+  try {
+    arquivo = new File([texto], nome, { type: 'application/json' });
+  } catch (e) {
+    /* File não é construível em navegadores antigos: segue para o download. */
+  }
+
+  const podeCompartilhar =
+    arquivo &&
+    typeof navigator.canShare === 'function' &&
+    navigator.canShare({ files: [arquivo] });
+
+  if (podeCompartilhar) {
+    try {
+      await navigator.share({ files: [arquivo], title: 'Cópia do Zenny' });
+      registrarBackup(agora);
+      avisar('Cópia guardada.');
+      return true;
+    } catch (e) {
+      /* Fechar o menu de compartilhar lança AbortError, e desistir não é erro:
+         cair para o download aqui baixaria justamente o arquivo que a pessoa
+         acabou de recusar. Qualquer outra falha, sim, merece a reserva. */
+      if (e && e.name === 'AbortError') return false;
+    }
+  }
+
+  baixar(texto, nome);
+  registrarBackup(agora);
+  avisar('Cópia guardada.');
+  return true;
+}
+
+const ERROS_DO_ARQUIVO = {
+  'nao-e-json': 'Esse arquivo não parece ser uma cópia do Zenny.',
+  'nao-e-zenny': 'Esse arquivo não parece ser uma cópia do Zenny.',
+};
+
+/* Descreve o arquivo para a pessoa reconhecê-lo ANTES de trocar o que está no
+   aparelho por ele. É metade do que torna "substituir tudo" aceitável — a outra
+   metade é o desfazer. */
+function explicarRestauracao(lido) {
+  const { total, primeiroMes, ultimoMes } = lido.resumo;
+
+  const partes = [];
+
+  if (total === 0) {
+    partes.push('Esta cópia está vazia: não tem nenhum lançamento.');
+  } else {
+    const quantos = total === 1 ? '1 lançamento' : `${total} lançamentos`;
+    const periodo =
+      primeiroMes === ultimoMes
+        ? ` de ${rotuloDoMes(primeiroMes)}`
+        : `, de ${rotuloDoMes(primeiroMes)} a ${rotuloDoMes(ultimoMes)}`;
+    partes.push(`A cópia tem ${quantos}${periodo}.`);
+  }
+
+  const aqui = estado.lancamentos.length;
+  if (aqui > 0) {
+    partes.push(
+      aqui === 1
+        ? 'O lançamento que está neste aparelho sai no lugar.'
+        : `Os ${aqui} lançamentos que estão neste aparelho saem no lugar.`
+    );
+  }
+
+  if (lido.descartados > 0) {
+    partes.push(
+      lido.descartados === 1
+        ? '1 lançamento do arquivo não pôde ser lido e não vem junto.'
+        : `${lido.descartados} lançamentos do arquivo não puderam ser lidos e não vêm junto.`
+    );
+  }
+
+  return partes.join(' ');
+}
+
+async function arquivoEscolhido(evento) {
+  const arquivo = evento.target.files && evento.target.files[0];
+  // Zerar permite escolher o MESMO arquivo de novo: sem isto, o segundo change
+  // não dispara e o botão parece quebrado.
+  evento.target.value = '';
+  if (!arquivo) return;
+
+  let texto;
+  try {
+    texto = await arquivo.text();
+  } catch (e) {
+    avisar('Não consegui abrir esse arquivo.');
+    return;
+  }
+
+  const lido = lerBackup(texto);
+  if (!lido.ok) {
+    avisar(ERROS_DO_ARQUIVO[lido.erro] || 'Não consegui ler esse arquivo.');
+    return;
+  }
+
+  pendenteDeRestauracao = lido;
+  $('explicacao-do-restaurar').textContent = explicarRestauracao(lido);
+  $('dialogo-restaurar').showModal();
+}
+
+$('botao-guardar').addEventListener('click', guardarCopia);
+$('botao-trazer').addEventListener('click', () => $('arquivo-do-backup').click());
+$('arquivo-do-backup').addEventListener('change', arquivoEscolhido);
+
+$('restaurar-confirmar').addEventListener('click', () => {
+  const lido = pendenteDeRestauracao;
+  pendenteDeRestauracao = null;
+  $('dialogo-restaurar').close();
+  if (!lido) return;
+
+  const anterior = instantaneo();
+  const mesAnterior = mesVisivel;
+  estado = { ...estado, lancamentos: lido.estado.lancamentos, realizados: lido.estado.realizados };
+
+  /* Leva para um mês onde haja o que ver.
+   *
+   * Sem isto, quem restaura em setembro uma cópia que só tem dados de 2027 volta
+   * para a tela e encontra um mês vazio — e conclui, com razão aparente, que não
+   * funcionou. O mês atual continua sendo a preferência; só cede quando não tem
+   * nada para mostrar. */
+  if (!lancamentosDoMes(estado.lancamentos, mesVisivel).length && lido.resumo.ultimoMes) {
+    mesVisivel = lido.resumo.ultimoMes;
+  }
+
+  salvar();
+  location.hash = '#/inicio';
+  avisar('Tudo de volta.', () => {
+    mesVisivel = mesAnterior;
+    restaurar(anterior);
+  });
+});
+
+$('restaurar-cancelar').addEventListener('click', () => {
+  pendenteDeRestauracao = null;
+  $('dialogo-restaurar').close();
+});
+
+/* ---------- Apagar tudo ---------- */
+
+function pedirApagamento() {
+  const total = estado.lancamentos.length;
+  $('explicacao-do-apagar').textContent =
+    total === 0
+      ? 'Não há nada para apagar: este aparelho já está vazio.'
+      : total === 1
+        ? 'O único lançamento deste aparelho vai embora.'
+        : `Os ${total} lançamentos deste aparelho vão embora.`;
+  $('dialogo-apagar').showModal();
+}
+
+$('botao-apagar').addEventListener('click', pedirApagamento);
+$('apagar-cancelar').addEventListener('click', () => $('dialogo-apagar').close());
+
+/* A fricção certa não é dificultar o gesto, é resolver o arrependimento antes
+   dele acontecer. Guardar a cópia deixa o diálogo aberto de propósito: a pessoa
+   veio aqui para apagar, e ainda vai querer apagar depois de guardar.
+ *
+ * A resposta vem no próprio botão, e não pelo aviso de sempre: um <dialog>
+ * modal vive na top layer, e o aviso apareceria atrás dele. Um clique sem
+ * resposta visível, na tela em que a pessoa está prestes a apagar tudo, é o
+ * pior lugar do app para deixar alguém em dúvida. */
+$('apagar-guardar-antes').addEventListener('click', async (evento) => {
+  const botao = evento.currentTarget;
+  const original = botao.textContent;
+
+  botao.disabled = true;
+  const guardou = await guardarCopia();
+
+  // Desistir do menu de compartilhar não guardou nada, e dizer que guardou
+  // seria mentir bem na hora em que a pessoa mais precisa acreditar no app.
+  botao.textContent = guardou ? 'Cópia guardada' : original;
+  setTimeout(() => {
+    botao.textContent = original;
+    botao.disabled = false;
+  }, 2500);
+});
+
+$('apagar-confirmar').addEventListener('click', () => {
+  $('dialogo-apagar').close();
+
+  const lancamentos = estado.lancamentos;
+  const realizados = estado.realizados;
+  // A data da última cópia vai junto: ela é um fato deste aparelho, e o aparelho
+  // acabou de ser esvaziado. O tema fica, porque é preferência, não dado.
+  const ultimoBackup = armazenamento.ler(CHAVE_BACKUP);
+
+  estado = estadoVazio();
+  armazenamento.gravar(CHAVE_BACKUP, '');
+  salvar();
+
+  avisar('Tudo apagado.', () => {
+    estado = { ...estado, lancamentos, realizados };
+    if (ultimoBackup) armazenamento.gravar(CHAVE_BACKUP, ultimoBackup);
+    salvar();
+  });
+});
+
 /* ---------- Service worker ---------- */
 
 /* Registra depois do load: em Android de entrada, disputar banda com o primeiro
@@ -642,5 +920,6 @@ if ('serviceWorker' in navigator) {
 /* ---------- Início ---------- */
 
 estado = carregar();
+sincronizarTema();
 mostrarTela(telaDaUrl());
 desenhar();

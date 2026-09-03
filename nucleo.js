@@ -431,3 +431,127 @@ export function encerrarFixo(lancamentos, id, mes) {
   const fim = deslocarMes(mes, -1);
   return lancamentos.map((l) => (l.id === id && l.fixo ? { ...l, fim } : l));
 }
+
+/* ---------- Backup ----------
+ *
+ * O arquivo leva um envelope em volta do estado, e não o estado cru. Um JSON
+ * solto na pasta de Downloads seis meses depois não diz de onde veio nem de
+ * quando é — e o app, ao receber um JSON qualquer, não teria como saber se
+ * aquilo é uma cópia do Zenny ou outra coisa.
+ *
+ * Na leitura, porém, o app é liberal: aceita o envelope e o estado cru. Custa
+ * três linhas e evita trancar para fora dos próprios dados quem editou o
+ * arquivo à mão. */
+
+export const APP_DO_BACKUP = 'zenny';
+
+export function montarBackup(estado, agora) {
+  return {
+    app: APP_DO_BACKUP,
+    versao: VERSAO_DO_ESQUEMA,
+    exportadoEm: agora.toISOString(),
+    estado,
+  };
+}
+
+/* Data LOCAL, e não UTC: o nome é lido por gente, e uma cópia feita às 21h no
+   Brasil não pode aparecer com a data de amanhã. */
+export function nomeDoArquivo(agora) {
+  const ano = agora.getFullYear();
+  const mes = String(agora.getMonth() + 1).padStart(2, '0');
+  const dia = String(agora.getDate()).padStart(2, '0');
+  return `zenny-${ano}-${mes}-${dia}.json`;
+}
+
+/* O que dizer na confirmação, para a pessoa reconhecer o arquivo antes de
+   trocar o que está no aparelho por ele.
+ *
+ * O fim de um fixo sem `fim` não entra no intervalo: ele é aberto, e afirmar um
+ * último mês que não existe seria inventar. Por isso o fixo aberto contribui
+ * com o próprio início nas duas pontas. */
+export function resumirEstado(estado) {
+  const lancamentos = (estado && estado.lancamentos) || [];
+
+  let primeiroMes = null;
+  let ultimoMes = null;
+  let fixos = 0;
+
+  for (const l of lancamentos) {
+    if (l.fixo) fixos++;
+    const comeca = l.fixo ? l.inicio : mesDe(l.data);
+    const termina = l.fixo ? l.fim || l.inicio : comeca;
+
+    if (!primeiroMes || comeca < primeiroMes) primeiroMes = comeca;
+    if (!ultimoMes || termina > ultimoMes) ultimoMes = termina;
+  }
+
+  return {
+    total: lancamentos.length,
+    fixos,
+    avulsos: lancamentos.length - fixos,
+    primeiroMes,
+    ultimoMes,
+  };
+}
+
+/* Lê o texto de um arquivo e devolve o que dá para fazer com ele.
+ *
+ * `descartados` existe porque normalizarEstado joga fora lançamento inválido em
+ * silêncio. No uso normal isso está certo — o usuário não tem como consertar, e
+ * perder a tela é pior que perder um lançamento torto. Aqui o silêncio se
+ * inverte: a pessoa lê "pronto" e acredita que está tudo de volta. Então a
+ * conta é feita e quem chama decide o que dizer. */
+export function lerBackup(texto) {
+  let cru;
+  try {
+    cru = JSON.parse(texto);
+  } catch (e) {
+    return { ok: false, erro: 'nao-e-json' };
+  }
+
+  if (!cru || typeof cru !== 'object') return { ok: false, erro: 'nao-e-json' };
+
+  const bruto = cru.estado && typeof cru.estado === 'object' ? cru.estado : cru;
+  if (!Array.isArray(bruto.lancamentos)) return { ok: false, erro: 'nao-e-zenny' };
+
+  const estado = normalizarEstado(bruto);
+
+  return {
+    ok: true,
+    estado,
+    resumo: resumirEstado(estado),
+    descartados: bruto.lancamentos.length - estado.lancamentos.length,
+    exportadoEm: typeof cru.exportadoEm === 'string' ? cru.exportadoEm : null,
+  };
+}
+
+/* Dias inteiros entre duas datas.
+ *
+ * Cada data vira meia-noite do próprio dia LOCAL antes da subtração. Dividir a
+ * diferença bruta de milissegundos por 86.400.000 erra na virada do horário de
+ * verão, quando um dia tem 23 ou 25 horas — o tipo de defeito que aparece uma
+ * vez por ano e não se reproduz quando alguém vai procurar. */
+export function diasEntre(inicio, fim) {
+  const a = new Date(inicio);
+  const b = new Date(fim);
+  if (isNaN(a.getTime()) || isNaN(b.getTime())) return null;
+
+  const diaA = Date.UTC(a.getFullYear(), a.getMonth(), a.getDate());
+  const diaB = Date.UTC(b.getFullYear(), b.getMonth(), b.getDate());
+  return Math.round((diaB - diaA) / 86400000);
+}
+
+/* A frase do lembrete. Fica aqui, e não no app.js, porque tem regra: sem cópia,
+   hoje, ontem, e o resto em dias. Regra tem teste. */
+export function textoDoUltimoBackup(iso, agora) {
+  if (!iso) return 'Você ainda não guardou nenhuma cópia.';
+
+  const dias = diasEntre(iso, agora);
+  if (dias === null) return 'Você ainda não guardou nenhuma cópia.';
+
+  // Data no futuro significa relógio mexido, não cópia futura. Tratar como hoje
+  // é benigno; dizer "nunca guardou" para quem acabou de guardar, não.
+  if (dias <= 0) return 'Última cópia: hoje.';
+  if (dias === 1) return 'Última cópia: ontem.';
+  return `Última cópia: há ${dias} dias.`;
+}

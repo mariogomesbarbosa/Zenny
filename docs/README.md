@@ -25,12 +25,15 @@ histórico se perde.
 ## Estado atual
 
 O B0 (esqueleto), o B1 (o mês e os avulsos), o B2 (fixos, planejado ×
-realizado e a tela do MVP) e o B3 (o valor do fixo com data) estão
-implementados. O app já planeja um mês de verdade: fixos que se repetem,
-marcação do que já aconteceu, e o resumo separando o previsto do realizado.
+realizado e a tela do MVP), o B3 (o valor do fixo com data) e o B4 (backup,
+Ajustes e apagar tudo) estão implementados. O app já planeja um mês de verdade
+— fixos que se repetem, marcação do que já aconteceu, o resumo separando o
+previsto do realizado — e agora o trabalho investido nisso tem cópia de
+segurança.
 
-Em planejamento: o **B4 — backup, Ajustes e apagar tudo**. O plano está escrito
-em [b4-backup.md](b4-backup.md) e aguarda revisão; nada foi implementado ainda.
-O bloco absorveu o antigo B5 (configurações), porque o backup não tem onde morar
-sem a tela — o roteiro em [conceito.md](conceito.md#roteiro-proposto) foi
-atualizado e os blocos seguintes renumerados.
+`tests/nucleo.mjs` cobre 149 casos.
+
+Próximo: **B5 — categorias sugeridas e limites**. O roteiro está em
+[conceito.md](conceito.md#roteiro-proposto). Antes disso, vale ler a
+[pendência 3](pendencias.md): o menu de compartilhar do Android, que é o que
+faz a cópia sair do celular, ainda não foi exercitado num aparelho real.

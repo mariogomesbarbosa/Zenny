@@ -147,6 +147,48 @@
     </div>
   </section>
 
+  <section class="tela" id="tela-ajustes" aria-labelledby="titulo-ajustes" hidden>
+    <h1 id="titulo-ajustes">Ajustes</h1>
+    <p class="subtitulo">Tudo o que você anota fica neste aparelho, e em mais nenhum lugar.</p>
+
+    <section class="cartao ajuste" aria-labelledby="titulo-da-copia">
+      <h2 id="titulo-da-copia">Uma cópia dos seus dados</h2>
+      <p class="nota" id="estado-do-backup">—</p>
+
+      <div class="pilha">
+        <button type="button" class="botao" id="botao-guardar">Guardar uma cópia</button>
+        <button type="button" class="botao contorno" id="botao-trazer">Trazer de volta</button>
+      </div>
+
+      <p class="nota">
+        A cópia é um arquivo com tudo o que você anotou — inclusive quanto você
+        ganha. Guarde num lugar que só você abre.
+      </p>
+
+      <!-- Fora da tela em vez de hidden: um input escondido com hidden nao abre
+           o seletor em alguns navegadores. -->
+      <input type="file" id="arquivo-do-backup" class="oculto-visualmente"
+             accept="application/json,.json" tabindex="-1" aria-hidden="true">
+    </section>
+
+    <section class="cartao ajuste" aria-labelledby="titulo-do-tema">
+      <h2 id="titulo-do-tema">Tema</h2>
+      <div class="alternador" role="group" aria-labelledby="titulo-do-tema">
+        <button type="button" id="tema-claro" aria-pressed="true">Claro</button>
+        <button type="button" id="tema-escuro" aria-pressed="false">Escuro</button>
+      </div>
+    </section>
+
+    <section class="cartao ajuste" aria-labelledby="titulo-do-apagar">
+      <h2 id="titulo-do-apagar">Apagar tudo</h2>
+      <p class="nota">
+        Some com todos os lançamentos deste aparelho. Dá para voltar atrás só
+        enquanto o aviso estiver na tela.
+      </p>
+      <button type="button" class="botao apagado" id="botao-apagar">Apagar tudo</button>
+    </section>
+  </section>
+
 </main>
 
 <button id="botao-adicionar" class="botao-flutuante" type="button">
@@ -162,6 +204,10 @@
   <a href="#/metas" data-tela="metas">
     <svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="8"/><circle cx="12" cy="12" r="3"/></svg>
     <span>Metas</span>
+  </a>
+  <a href="#/ajustes" data-tela="ajustes">
+    <svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.6a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1Z"/></svg>
+    <span>Ajustes</span>
   </a>
 </nav>
 
@@ -250,6 +296,31 @@
       <button type="button" class="botao contorno" id="valor-daqui">Deste mês em diante</button>
       <button type="button" class="botao contorno" id="valor-sempre">Corrigir em todos os meses</button>
       <button type="button" class="botao apagado" id="valor-cancelar">Cancelar</button>
+    </div>
+  </div>
+</dialog>
+
+<dialog id="dialogo-restaurar" aria-labelledby="titulo-do-restaurar">
+  <div class="pegador" aria-hidden="true"></div>
+  <div class="folha">
+    <h2 id="titulo-do-restaurar">Trazer de volta?</h2>
+    <p class="dica" id="explicacao-do-restaurar"></p>
+    <div class="pilha">
+      <button type="button" class="botao" id="restaurar-confirmar">Trazer de volta</button>
+      <button type="button" class="botao apagado" id="restaurar-cancelar">Cancelar</button>
+    </div>
+  </div>
+</dialog>
+
+<dialog id="dialogo-apagar" aria-labelledby="titulo-do-dialogo-apagar">
+  <div class="pegador" aria-hidden="true"></div>
+  <div class="folha">
+    <h2 id="titulo-do-dialogo-apagar">Apagar tudo?</h2>
+    <p class="dica" id="explicacao-do-apagar"></p>
+    <div class="pilha">
+      <button type="button" class="botao contorno" id="apagar-guardar-antes">Guardar uma cópia antes</button>
+      <button type="button" class="botao perigo" id="apagar-confirmar">Apagar tudo</button>
+      <button type="button" class="botao apagado" id="apagar-cancelar">Cancelar</button>
     </div>
   </div>
 </dialog>
