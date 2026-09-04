@@ -389,10 +389,14 @@
              placeholder="0,00" class="tabular">
     </div>
 
-    <div class="acoes">
-      <button type="button" class="botao apagado" id="limite-remover" hidden>Remover limite</button>
-      <button type="button" class="botao contorno" id="limite-cancelar">Cancelar</button>
+    <!-- Empilhados, como os outros diálogos de folha do app. Em linha, os três
+         não cabem em 360px: "Remover limite" não encolhe, e o "Salvar" saía da
+         tela — cortado, sem nem gerar rolagem visível, porque o overflow-y do
+         <dialog> também torna o eixo X rolável. -->
+    <div class="pilha">
       <button type="button" class="botao" id="limite-salvar">Salvar</button>
+      <button type="button" class="botao contorno" id="limite-remover" hidden>Remover limite</button>
+      <button type="button" class="botao apagado" id="limite-cancelar">Cancelar</button>
     </div>
   </div>
 </dialog>

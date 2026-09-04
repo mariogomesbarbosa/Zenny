@@ -701,14 +701,20 @@ for (const id of [
   'dialogo-limite',
 ]) {
   $dialogo(id).addEventListener('click', (evento) => {
-    if (evento.target === $dialogo(id)) {
-      if (id === 'dialogo-exclusao') pendenteDeExclusao = null;
-      if (id === 'dialogo-valor') pendenteDeValor = null;
-      if (id === 'dialogo-restaurar') pendenteDeRestauracao = null;
-      if (id === 'dialogo-categoria') lancamentoParaCategoria = null;
-      if (id === 'dialogo-limite') limiteEmEdicao = null;
-      $dialogo(id).close();
-    }
+    if (evento.target === $dialogo(id)) $dialogo(id).close();
+  });
+
+  /* A limpeza do estado pendente vive no `close`, e não em cada botão: o Esc
+     fecha o <dialog> nativamente, sem passar por clique nenhum, e deixava
+     `limiteEmEdicao` preenchido. Um lugar só cobre os três caminhos — botão,
+     toque fora e Esc — e não há como esquecer um deles ao acrescentar o
+     próximo diálogo. */
+  $dialogo(id).addEventListener('close', () => {
+    if (id === 'dialogo-exclusao') pendenteDeExclusao = null;
+    if (id === 'dialogo-valor') pendenteDeValor = null;
+    if (id === 'dialogo-restaurar') pendenteDeRestauracao = null;
+    if (id === 'dialogo-categoria') lancamentoParaCategoria = null;
+    if (id === 'dialogo-limite') limiteEmEdicao = null;
   });
 }
 
@@ -763,9 +769,18 @@ function linhaDoTempoDoFixo(valor, inicio, modo) {
  * @returns {string|null}
  */
 function categoriaParaAlteracao(descricao) {
-  if (editando && editando.categoria && editando.tipo === tipoDoFormulario) {
-    return editando.categoria;
-  }
+  /* Num registro que já existe, o que ele tem vale — INCLUSIVE a ausência.
+   *
+   * A versão anterior só preservava categoria preenchida, então quem tirava a
+   * etiqueta de propósito e depois corrigia o valor via a categoria voltar
+   * sozinha. Isso desfaz uma escolha explícita em silêncio, que é exatamente o
+   * que `normalizarEstado` recusa fazer na leitura, pelo mesmo motivo.
+   *
+   * O preço está registrado como pendência: mudar a descrição de um registro
+   * não faz o app sugerir de novo. Enquanto o dado não distinguir categoria
+   * sugerida de categoria escolhida, uma das duas pontas fica errada — e
+   * ressuscitar o que a pessoa apagou é a pior das duas. */
+  if (editando && editando.tipo === tipoDoFormulario) return editando.categoria ?? null;
   return sugerirCategoria(descricao, tipoDoFormulario);
 }
 
@@ -1249,6 +1264,9 @@ $('categoria-criar').addEventListener('click', () => {
 
   const anterior = instantaneo();
   const id = idDeCategoriaPeloNome(estado, nome, alvo.tipo);
+  // Digitar o nome de uma categoria que já existe não cria nada — e dizer
+  // "criada" seria anunciar um trabalho que não aconteceu.
+  const jaExistia = categoriaPorId(estado, id) !== null;
   estado = criarCategoria(estado, nome, alvo.tipo);
   aplicarCategoria(alvo.id, id);
 
@@ -1257,7 +1275,10 @@ $('categoria-criar').addEventListener('click', () => {
   $dialogo('dialogo-categoria').close();
   lancamentoParaCategoria = null;
   salvar();
-  avisar(`Categoria "${nomeFinal}" criada e aplicada.`, () => restaurar(anterior));
+  avisar(
+    jaExistia ? `Categoria "${nomeFinal}" aplicada.` : `Categoria "${nomeFinal}" criada e aplicada.`,
+    () => restaurar(anterior)
+  );
 });
 
 $('categoria-cancelar').addEventListener('click', () => {
@@ -1370,10 +1391,14 @@ function desenharLimite() {
   // sem exclamação, sem a palavra "estourou" na tela.
   const situacaoTexto = $('limite-situacao');
   if (limiteAtual > 0) {
+    /* "combinado" saiu: sugere promessa quebrada, que é meio passo na direção
+       do fiscal. A frase base é a que a decisão 5 do plano escreveu, e o
+       excedente vem pronto do núcleo — inverter o sinal aqui era conta com
+       dinheiro fora do lugar. */
+    const base = `Você já usou ${formatarDinheiro(situacao.usado)} dos ${formatarDinheiro(limiteAtual)}`;
     situacaoTexto.textContent = situacao.estourou
-      ? `Você já usou ${formatarDinheiro(situacao.usado)} dos ${formatarDinheiro(limiteAtual)} — ` +
-        `${formatarDinheiro(-situacao.restante)} além do combinado.`
-      : `Você já usou ${formatarDinheiro(situacao.usado)} dos ${formatarDinheiro(limiteAtual)}.`;
+      ? `${base} — ${formatarDinheiro(situacao.excedente)} a mais.`
+      : `${base}.`;
   } else {
     situacaoTexto.textContent = `Você já usou ${formatarDinheiro(situacao.usado)} este mês.`;
   }
@@ -1395,8 +1420,12 @@ $('limite-salvar').addEventListener('click', () => {
   salvar();
   $dialogo('dialogo-limite').close();
   limiteEmEdicao = null;
+  /* Sem reabrir o detalhamento: um <dialog> modal vai para a top layer e torna
+     inerte todo o resto, inclusive o aviso — o Desfazer ficava atrás do véu,
+     visível e sem clique, até o timer apagá-lo. Quem quiser voltar à quebra do
+     mês toca de novo em "Para onde foi", que é um toque; ressuscitar um
+     desfazer perdido não é. */
   avisar(valor > 0 ? 'Limite salvo.' : 'Limite removido.', () => restaurar(anterior));
-  abrirDetalhamento();
 });
 
 $('limite-remover').addEventListener('click', () => {
@@ -1408,12 +1437,13 @@ $('limite-remover').addEventListener('click', () => {
   $dialogo('dialogo-limite').close();
   limiteEmEdicao = null;
   avisar('Limite removido.', () => restaurar(anterior));
-  abrirDetalhamento();
 });
 
+/* Cancelar devolve a pessoa onde ela estava, e pode reabrir o detalhamento
+   porque não emite aviso nenhum. Salvar e remover não reabrem, justamente
+   porque emitem — e o aviso precisa ficar tocável. */
 $('limite-cancelar').addEventListener('click', () => {
   $dialogo('dialogo-limite').close();
-  limiteEmEdicao = null;
   abrirDetalhamento();
 });
 

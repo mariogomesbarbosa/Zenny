@@ -861,27 +861,27 @@ conferir('fração de centavo não existe', definirLimite({}, 'mercado', 40000.9
 }
 
 conferir('abaixo do limite', situacaoDoLimite(38000, 40000), {
-  usado: 38000, restante: 2000, proporcao: 95, estourou: false,
+  usado: 38000, restante: 2000, excedente: 0, proporcao: 95, estourou: false,
 });
 /* Gastar exatamente o limite não é estourar: usou o que tinha para usar. */
 conferir('exatamente no limite', situacaoDoLimite(40000, 40000), {
-  usado: 40000, restante: 0, proporcao: 100, estourou: false,
+  usado: 40000, restante: 0, excedente: 0, proporcao: 100, estourou: false,
 });
 /* O restante negativo é o quanto passou. A tela informa, sem bronca. */
 conferir('acima do limite', situacaoDoLimite(45000, 40000), {
-  usado: 45000, restante: -5000, proporcao: 100, estourou: true,
+  usado: 45000, restante: -5000, excedente: 5000, proporcao: 100, estourou: true,
 });
 /* A barra para em 100%: quem gastou o dobro não tem barra do dobro do tamanho
    da tela. */
 conferir('a barra não passa de cheia', situacaoDoLimite(400000, 40000).proporcao, 100);
 conferir('nada gasto ainda', situacaoDoLimite(0, 40000), {
-  usado: 0, restante: 40000, proporcao: 0, estourou: false,
+  usado: 0, restante: 40000, excedente: 0, proporcao: 0, estourou: false,
 });
 conferir('proporção com fração', situacaoDoLimite(500, 4000).proporcao, 12.5);
 /* Sem limite não existe estouro: tratar a ausência como limite de zero faria
    toda categoria nascer estourada, que é o oposto de aliado. */
 conferir('categoria sem limite', situacaoDoLimite(5000, 0), {
-  usado: 5000, restante: 0, proporcao: 0, estourou: false,
+  usado: 5000, restante: 0, excedente: 0, proporcao: 0, estourou: false,
 });
 conferir('gasto torto não vira dívida', situacaoDoLimite(lixo(-500), 40000).usado, 0);
 
@@ -1266,6 +1266,30 @@ conferir(
   textoDoUltimoBackup('qualquer coisa', AGORA),
   'Você ainda não guardou nenhuma cópia.'
 );
+
+/* ---------- situacaoDoLimite: o excedente ----------
+ *
+ * O campo nasceu de um achado do juiz: a tela escrevia
+ * `formatarDinheiro(-situacao.restante)`, ou seja, invertia o sinal por conta
+ * propria. Conta com dinheiro fora do nucleo e o que o CLAUDE.md proibe, e o
+ * numero que o usuario via nao tinha teste. Agora tem. */
+
+conferir('sem estouro, excedente e zero', situacaoDoLimite(38000, 40000).excedente, 0);
+conferir('gastar exatamente o limite nao gera excedente', situacaoDoLimite(40000, 40000).excedente, 0);
+conferir('excedente e o quanto passou, em positivo', situacaoDoLimite(45000, 40000).excedente, 5000);
+conferir('excedente de um centavo', situacaoDoLimite(40001, 40000).excedente, 1);
+conferir('sem limite nao ha excedente', situacaoDoLimite(45000, 0).excedente, 0);
+
+/* O par restante/excedente e redundante de proposito: um assinado, outro em
+   positivo. Se eles se desencontrarem, a tela mostra um numero e a barra mostra
+   outro. */
+{
+  const acima = situacaoDoLimite(45000, 40000);
+  conferir('excedente e o oposto exato do restante', acima.excedente, -acima.restante);
+  const abaixo = situacaoDoLimite(30000, 40000);
+  conferir('abaixo do teto, o restante e positivo e o excedente e zero',
+    [abaixo.restante > 0, abaixo.excedente], [true, 0]);
+}
 
 /* ---------- resultado ---------- */
 

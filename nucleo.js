@@ -135,6 +135,7 @@
  * @typedef {object} SituacaoDeLimite
  * @property {number} usado Centavos.
  * @property {number} restante Centavos. Negativo é o quanto passou.
+ * @property {number} excedente Centavos. O quanto passou, já em positivo; zero quando não passou.
  * @property {number} proporcao Largura da barra, em %, no máximo 100.
  * @property {boolean} estourou
  */
@@ -1156,9 +1157,9 @@ export function definirLimite(limites, id, valor) {
  * isso aqui não existe "gravidade" nem "alerta": existe quanto se usou, quanto
  * resta, e um `estourou` que a tela lê para trocar a frase.
  *
- * `restante` é ASSINADO: negativo é o quanto passou. Um quinto campo para o
- * excedente foi recusado porque a frase que a tela escreve — "você já usou X dos
- * Y" — não precisa dele, e o sinal já carrega a informação para quem precisar.
+ * `restante` é ASSINADO: negativo é o quanto passou. `excedente` é o mesmo
+ * número já em positivo — os dois existem porque a tela precisa dos dois, e
+ * fazer a inversão de sinal lá seria conta com dinheiro fora do núcleo.
  *
  * `proporcao` para em 100 porque é largura de barra: quem gastou o dobro do
  * limite tem a barra cheia, e quem conta o "passou" é `estourou`.
@@ -1174,11 +1175,22 @@ export function situacaoDoLimite(gasto, limite) {
   const usado = Math.max(Math.trunc(Number(gasto)) || 0, 0);
   const teto = Math.max(Math.trunc(Number(limite)) || 0, 0);
 
-  if (teto <= 0) return { usado, restante: 0, proporcao: 0, estourou: false };
+  if (teto <= 0) return { usado, restante: 0, excedente: 0, proporcao: 0, estourou: false };
+
+  const restante = teto - usado;
 
   return {
     usado,
-    restante: teto - usado,
+    restante,
+    /* Quanto passou do teto, já em positivo.
+     *
+     * Este campo foi recusado na primeira versão, com o argumento de que a
+     * frase da tela — "você já usou X dos Y" — não precisava dele. A tela
+     * escreveu outra frase, que precisava, e inverteu o sinal do `restante` por
+     * conta própria. Era conta com dinheiro fora do núcleo, que é justamente o
+     * que o CLAUDE.md proíbe. O campo passa a existir, e o cálculo volta para
+     * onde há teste. */
+    excedente: Math.max(-restante, 0),
     proporcao: Math.min((usado / teto) * 100, 100),
     // Gastar exatamente o limite não é estourar: usou o que tinha para usar.
     estourou: usado > teto,

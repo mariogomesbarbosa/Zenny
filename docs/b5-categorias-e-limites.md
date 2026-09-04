@@ -49,9 +49,33 @@ limite gera informação, não bronca. O tom é de aliado, não de fiscal."* Ent
 coral, nunca vermelho; "você já usou R$ 380 dos R$ 400 de Comida fora", nunca
 "você estourou o limite". Nenhum ícone de alerta, nenhum ponto de exclamação.
 
-**6. Limite é opcional e por categoria, e vive onde a categoria vive.** Não há
-tela de configuração de limites: o limite se define na mesma folha onde se vê o
-gasto daquela categoria. Uma tela a menos, e a decisão nasce onde o número está.
+**6. Limite é opcional e por categoria, e vive na tela de Relatório.**
+
+> **Esta decisão foi corrigida depois da primeira implementação.** Ela dizia
+> *"não há tela de configuração: o limite se define na mesma folha onde se vê o
+> gasto daquela categoria"* — e o `juiz` mostrou o buraco: a folha só abre a
+> partir de uma linha do detalhamento, e o detalhamento só lista o que já foi
+> pago. No dia 1º do mês não havia porta nenhuma. Pior: um limite posto em
+> setembro ficava **inalcançável** em outubro enquanto não houvesse gasto
+> naquela categoria, continuando a valer sem porta para removê-lo.
+>
+> O erro era do plano, não de quem o implementou.
+
+O detalhamento deixa de ser um diálogo e vira a **tela de Relatório**, alcançada
+pelo botão "Para onde foi" do Início. Ela lista as categorias com gasto no mês
+**e** as que têm limite definido, mesmo sem gasto — é essa segunda parte que
+garante que todo limite tenha porta de entrada e de saída.
+
+Ela não entra na navegação de baixo, pelo mesmo motivo da decisão 7: um item de
+menu para algo que se consulta uma vez por semana custa caro em 360px. E é a
+tela que cresce: os gráficos que hoje estão fora de escopo têm onde nascer sem
+inventar lugar novo.
+
+**6b. O limite aparece na própria linha.** A decisão 5 chama o limite de
+"aviso", e um aviso que exige três toques para ser visto é quase mudo. Cada
+linha do Relatório que tem teto mostra o quanto dele foi usado, junto do valor —
+o aviso passa a existir onde a pessoa já está olhando. O Início não muda: ele
+continua respondendo uma pergunta só.
 
 **7. "Para onde foi" é um botão visível no Início.** Não uma quarta aba — que em
 360px deixaria cada item com 90px — e não um toque escondido no número das
@@ -163,5 +187,11 @@ No navegador, em 360px, nos dois temas:
 8. Um estado da v3 (sem categoria em nada) atravessa e nasce categorizado pela
    descrição, sem perder nenhum registro
 9. Console limpo, nada estourando a largura
+10. No dia 1º do mês, sem nada pago ainda, ainda **é possível** definir um
+    limite — a porta não depende de haver gasto
+11. Um limite definido num mês continua alcançável no mês seguinte, mesmo sem
+    gasto naquela categoria
+12. A linha do Relatório mostra o quanto do limite foi usado, sem precisar abrir
+    nada
 
 O que só um aparelho real prova continua indo para [pendencias.md](pendencias.md).
