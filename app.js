@@ -38,6 +38,38 @@ import {
   textoDoUltimoBackup,
 } from './nucleo.js';
 
+/**
+ * Os tipos do domínio moram no núcleo, junto das funções que os produzem.
+ * Importados como tipo — nada disto existe em tempo de execução.
+ *
+ * @typedef {import('./nucleo.js').Estado} Estado
+ * @typedef {import('./nucleo.js').Lancamento} Lancamento
+ * @typedef {import('./nucleo.js').LancamentoDoMes} LancamentoDoMes
+ * @typedef {import('./nucleo.js').Realizados} Realizados
+ * @typedef {import('./nucleo.js').Resumo} Resumo
+ * @typedef {import('./nucleo.js').Mes} Mes
+ * @typedef {import('./nucleo.js').Data} Data
+ * @typedef {import('./nucleo.js').TipoDeLancamento} TipoDeLancamento
+ * @typedef {import('./nucleo.js').TrechoDeValor} TrechoDeValor
+ */
+
+/**
+ * O que o formulário coletou, antes de virar lançamento.
+ * @typedef {object} Alteracao
+ * @property {string} descricao
+ * @property {number} valor
+ * @property {boolean} ehFixa
+ * @property {Data} data
+ * @property {string|number} dia
+ * @property {boolean} jaAconteceu
+ */
+
+/**
+ * O par que o desfazer guarda. Como nada é mutado no lugar, as referências
+ * antigas seguem válidas.
+ * @typedef {{ lancamentos: Lancamento[], realizados: Realizados }} Instantaneo
+ */
+
 const TELAS = ['inicio', 'metas', 'ajustes'];
 const TELA_PADRAO = 'inicio';
 const CHAVE_TEMA = 'zenny-tema';
@@ -49,12 +81,52 @@ const CHAVE_TEMA = 'zenny-tema';
    verdade. Pela mesma razão o tema também vive fora. */
 const CHAVE_BACKUP = 'zenny-backup';
 
-const $ = (id) => document.getElementById(id);
+/* ---------- Localizadores ----------
+ *
+ * `$` promete devolver um elemento, e não `elemento ou nada`. A promessa se
+ * sustenta porque ela é verificada: um id que não existe no index.html lança
+ * aqui, com o id na mensagem, em vez de virar `null` e estourar quarenta linhas
+ * depois num "Cannot read properties of null". Todos os ids do app são estáticos
+ * — se existe no desenvolvimento, existe em produção —, então isto é erro de
+ * programação, não estado de execução.
+ *
+ * Os três irmãos existem porque `.value`, `.checked`, `.close()` e
+ * `.showModal()` não moram em HTMLElement. Sem eles, cada uso precisaria de uma
+ * anotação própria; com eles, a informação fica num lugar só. */
+
+/**
+ * @param {string} id
+ * @returns {HTMLElement}
+ */
+function $(id) {
+  const elemento = document.getElementById(id);
+  if (!elemento) throw new Error(`Elemento "${id}" não existe no index.html`);
+  return elemento;
+}
+
+/**
+ * @param {string} id
+ * @returns {HTMLInputElement}
+ */
+const $campo = (id) => /** @type {HTMLInputElement} */ ($(id));
+
+/**
+ * @param {string} id
+ * @returns {HTMLSelectElement}
+ */
+const $selecao = (id) => /** @type {HTMLSelectElement} */ ($(id));
+
+/**
+ * @param {string} id
+ * @returns {HTMLDialogElement}
+ */
+const $dialogo = (id) => /** @type {HTMLDialogElement} */ ($(id));
 
 /* localStorage lança em aba anônima com cookies bloqueados. Um app que quebra
    inteiro porque não conseguiu gravar seria um jeito bobo de perder usuário: em
    vez disso ele segue funcionando, só sem lembrar depois de fechar. */
 const armazenamento = {
+  /** @param {string} chave @returns {string|null} */
   ler(chave) {
     try {
       return localStorage.getItem(chave);
@@ -62,6 +134,7 @@ const armazenamento = {
       return null;
     }
   },
+  /** @param {string} chave @param {string} valor @returns {boolean} */
   gravar(chave, valor) {
     try {
       localStorage.setItem(chave, valor);
@@ -87,12 +160,18 @@ function hojeISO() {
 
 const novoId = () => Date.now().toString(36) + Math.random().toString(36).slice(2, 7);
 
+/** @type {Estado} */
 let estado = estadoVazio();
 let mesVisivel = mesDe(new Date());
+/** @type {LancamentoDoMes|null} */
 let editando = null;
+/** @type {TipoDeLancamento} */
 let tipoDoFormulario = 'entrada';
+/** @type {LancamentoDoMes|null} */
 let pendenteDeExclusao = null;
+/** @type {(() => void)|null} */
 let desfazer = null;
+/** @type {ReturnType<typeof setTimeout>|null} */
 let timerDoAviso = null;
 
 function carregar() {
@@ -131,6 +210,7 @@ function instantaneo() {
   return { lancamentos: estado.lancamentos, realizados: estado.realizados };
 }
 
+/** @param {Instantaneo} anterior */
 function restaurar(anterior) {
   estado = { ...estado, ...anterior };
   salvar();
@@ -154,6 +234,7 @@ function desenharCabecalho() {
   $('botao-hoje').hidden = mesVisivel === mesDe(new Date());
 }
 
+/** @param {Resumo} resumo */
 function desenharPainel(resumo) {
   const negativa = resumo.sobra < 0;
 
@@ -190,6 +271,7 @@ function desenharPainel(resumo) {
   $('barra-despesas-previsto').style.width = barras.despesas.previsto + '%';
 }
 
+/** @param {string} texto @returns {HTMLElement} */
 function forte(texto) {
   const b = document.createElement('b');
   b.className = 'tabular';
@@ -197,6 +279,12 @@ function forte(texto) {
   return b;
 }
 
+/**
+ * @param {string} nome
+ * @param {LancamentoDoMes[]} lancamentos
+ * @param {import('./nucleo.js').LadoDoResumo} lado
+ * @param {string} verbo
+ */
 function desenharGrupo(nome, lancamentos, lado, verbo) {
   const lista = $('lista-' + nome);
   lista.textContent = '';
@@ -212,6 +300,7 @@ function desenharGrupo(nome, lancamentos, lado, verbo) {
     : '';
 }
 
+/** @param {LancamentoDoMes} lancamento @returns {HTMLLIElement} */
 function linhaDoLancamento(lancamento) {
   const entrada = lancamento.tipo === 'entrada';
   const feito = estaRealizado(estado.realizados, lancamento.id, mesVisivel);
@@ -272,6 +361,7 @@ function linhaDoLancamento(lancamento) {
 
 /* ---------- Marcar como recebido / pago ---------- */
 
+/** @param {LancamentoDoMes} lancamento */
 function alternarFeito(lancamento) {
   estado = {
     ...estado,
@@ -284,13 +374,14 @@ function alternarFeito(lancamento) {
 
 /* ---------- Excluir ---------- */
 
+/** @param {LancamentoDoMes} lancamento */
 function pedirExclusao(lancamento) {
   if (lancamento.fixo) {
     // Um fixo não é um registro só: é uma regra que vale para vários meses. As
     // três respostas possíveis são bem diferentes entre si, e adivinhar qual o
     // usuário queria seria pior do que perguntar.
     pendenteDeExclusao = lancamento;
-    $('dialogo-exclusao').showModal();
+    $dialogo('dialogo-exclusao').showModal();
     return;
   }
 
@@ -304,13 +395,17 @@ function pedirExclusao(lancamento) {
   avisar(`"${lancamento.descricao}" foi removido.`, () => restaurar(anterior));
 }
 
+/**
+ * @param {(alvo: LancamentoDoMes) => Estado} transformar
+ * @param {string} texto
+ */
 function concluirExclusao(transformar, texto) {
   const alvo = pendenteDeExclusao;
   if (!alvo) return;
 
   const anterior = instantaneo();
   estado = transformar(alvo);
-  $('dialogo-exclusao').close();
+  $dialogo('dialogo-exclusao').close();
   pendenteDeExclusao = null;
   salvar();
   avisar(texto, () => restaurar(anterior));
@@ -351,7 +446,7 @@ $('excluir-todos').addEventListener('click', () =>
 
 $('excluir-cancelar').addEventListener('click', () => {
   pendenteDeExclusao = null;
-  $('dialogo-exclusao').close();
+  $dialogo('dialogo-exclusao').close();
 });
 
 /* ---------- Navegação entre telas ---------- */
@@ -361,10 +456,13 @@ function telaDaUrl() {
   return TELAS.includes(nome) ? nome : TELA_PADRAO;
 }
 
+/** @param {string} nome */
 function mostrarTela(nome) {
   for (const tela of TELAS) $('tela-' + tela).hidden = tela !== nome;
 
-  for (const link of document.querySelectorAll('.navegacao a')) {
+  for (const link of /** @type {NodeListOf<HTMLAnchorElement>} */ (
+    document.querySelectorAll('.navegacao a')
+  )) {
     // aria-current é removido, não definido como "false": leitores de tela
     // anunciam qualquer valor presente.
     if (link.dataset.tela === nome) link.setAttribute('aria-current', 'page');
@@ -382,6 +480,7 @@ window.addEventListener('hashchange', () => mostrarTela(telaDaUrl()));
 
 /* ---------- Mês ---------- */
 
+/** @param {Mes} mes */
 function irParaMes(mes) {
   mesVisivel = mes;
   desenhar();
@@ -404,6 +503,7 @@ function temaEmUso() {
    vai procurar quando procura. Dois controles para o mesmo estado só não viram
    dessincronia porque um lugar só escreve o tema e um lugar só redesenha os
    dois. */
+/** @param {'claro'|'escuro'} proximo */
 function aplicarTema(proximo) {
   document.documentElement.dataset.tema = proximo;
   armazenamento.gravar(CHAVE_TEMA, proximo);
@@ -427,13 +527,17 @@ $('tema-escuro').addEventListener('click', () => aplicarTema('escuro'));
 
 /* ---------- Aviso, com desfazer ---------- */
 
+/**
+ * @param {string} texto
+ * @param {() => void} [acaoDeDesfazer]
+ */
 function avisar(texto, acaoDeDesfazer) {
   $('aviso-texto').textContent = texto;
   $('aviso').hidden = false;
   $('aviso-acao').hidden = !acaoDeDesfazer;
   desfazer = acaoDeDesfazer || null;
 
-  clearTimeout(timerDoAviso);
+  clearTimeout(timerDoAviso ?? undefined);
   timerDoAviso = setTimeout(esconderAviso, acaoDeDesfazer ? 6000 : 3200);
 }
 
@@ -450,6 +554,7 @@ $('aviso-acao').addEventListener('click', () => {
 
 /* ---------- Formulário ---------- */
 
+/** @param {TipoDeLancamento} tipo */
 function definirTipo(tipo) {
   tipoDoFormulario = tipo;
   $('tipo-entrada').setAttribute('aria-pressed', String(tipo === 'entrada'));
@@ -457,6 +562,7 @@ function definirTipo(tipo) {
   $('rotulo-realizado').textContent = tipo === 'entrada' ? 'Já recebi' : 'Já paguei';
 }
 
+/** @param {boolean} ehFixa */
 function definirRepeticao(ehFixa) {
   $('campo-da-data').hidden = ehFixa;
   $('campo-do-dia').hidden = !ehFixa;
@@ -464,40 +570,41 @@ function definirRepeticao(ehFixa) {
   $('dica-mes').textContent = rotuloDoMes(editando && editando.fixo ? editando.inicio : mesVisivel);
 }
 
+/** @param {LancamentoDoMes|null} [lancamento] */
 function abrirFormulario(lancamento) {
   editando = lancamento || null;
 
   $('titulo-do-dialogo').textContent = lancamento ? 'Editar lançamento' : 'Novo lançamento';
   definirTipo(lancamento ? lancamento.tipo : 'entrada');
 
-  $('campo-descricao').value = lancamento ? lancamento.descricao : '';
-  $('campo-valor').value = lancamento ? valorParaCampo(lancamento.valor) : '';
-  $('campo-repeticao').value = lancamento && lancamento.fixo ? 'fixa' : 'avulsa';
+  $campo('campo-descricao').value = lancamento ? lancamento.descricao : '';
+  $campo('campo-valor').value = lancamento ? valorParaCampo(lancamento.valor) : '';
+  $selecao('campo-repeticao').value = lancamento && lancamento.fixo ? 'fixa' : 'avulsa';
 
   // Ao adicionar, a data padrão é hoje se o mês visível é o atual; senão, o dia
   // 1 do mês que a pessoa está olhando — que é o que ela quis dizer ao navegar
   // até lá.
-  $('campo-data').value =
+  $campo('campo-data').value =
     lancamento && !lancamento.fixo
       ? lancamento.data
       : mesVisivel === mesDe(new Date())
         ? hojeISO()
         : mesVisivel + '-01';
 
-  $('campo-dia').value = lancamento && lancamento.fixo ? lancamento.dia : 5;
-  $('campo-realizado').checked = lancamento
+  $campo('campo-dia').value = String(lancamento && lancamento.fixo ? lancamento.dia : 5);
+  $campo('campo-realizado').checked = lancamento
     ? estaRealizado(estado.realizados, lancamento.id, mesVisivel)
     : false;
   $('botao-excluir').hidden = !lancamento;
 
-  definirRepeticao($('campo-repeticao').value === 'fixa');
+  definirRepeticao($selecao('campo-repeticao').value === 'fixa');
   esconderErro();
-  $('dialogo').showModal();
+  $dialogo('dialogo').showModal();
 
   // No celular o foco automático abre o teclado por cima da folha e esconde o
   // resto do formulário. No desktop é só conveniência.
   if (window.matchMedia('(min-width: 768px)').matches) {
-    setTimeout(() => $('campo-descricao').focus(), 30);
+    setTimeout(() => $campo('campo-descricao').focus(), 30);
   }
 }
 
@@ -506,6 +613,11 @@ function esconderErro() {
   $('erro-do-formulario').textContent = '';
 }
 
+/**
+ * @param {string} texto
+ * @param {HTMLElement} [campo]
+ * @returns {void}
+ */
 function mostrarErro(texto, campo) {
   $('erro-do-formulario').textContent = texto;
   $('erro-do-formulario').hidden = false;
@@ -514,8 +626,10 @@ function mostrarErro(texto, campo) {
 
 $('tipo-entrada').addEventListener('click', () => definirTipo('entrada'));
 $('tipo-saida').addEventListener('click', () => definirTipo('saida'));
-$('campo-repeticao').addEventListener('change', (e) => definirRepeticao(e.target.value === 'fixa'));
-$('botao-cancelar').addEventListener('click', () => $('dialogo').close());
+$selecao('campo-repeticao').addEventListener('change', () =>
+  definirRepeticao($selecao('campo-repeticao').value === 'fixa')
+);
+$('botao-cancelar').addEventListener('click', () => $dialogo('dialogo').close());
 $('botao-adicionar').addEventListener('click', () => abrirFormulario(null));
 
 /* Tocar fora fecha. O <dialog> nativo fecha no Esc sozinho, mas ignora o clique
@@ -523,18 +637,33 @@ $('botao-adicionar').addEventListener('click', () => abrirFormulario(null));
    na folha do celular quanto no modal do desktop. O alvo só é o próprio
    <dialog> quando o clique caiu fora da caixa. */
 for (const id of ['dialogo', 'dialogo-exclusao', 'dialogo-valor', 'dialogo-restaurar', 'dialogo-apagar']) {
-  $(id).addEventListener('click', (evento) => {
-    if (evento.target === $(id)) {
+  $dialogo(id).addEventListener('click', (evento) => {
+    if (evento.target === $dialogo(id)) {
       if (id === 'dialogo-exclusao') pendenteDeExclusao = null;
       if (id === 'dialogo-valor') pendenteDeValor = null;
       if (id === 'dialogo-restaurar') pendenteDeRestauracao = null;
-      $(id).close();
+      $dialogo(id).close();
     }
   });
 }
 
+/* O lançamento em edição, quando ele é fixo — e `null` quando não é, ou quando
+ * não há nada em edição.
+ *
+ * Existe porque `const eraFixo = editando && editando.fixo` respondia à pergunta
+ * sem dar acesso seguro à resposta: quem lia `editando.valores` depois disso
+ * dependia de o leitor humano lembrar que `eraFixo` implicava `editando` fixo.
+ * Uma função que devolve o fixo carrega a garantia junto com o dado.
+ *
+ * @returns {(import('./nucleo.js').Fixo & { valor: number })|null}
+ */
+function fixoEmEdicao() {
+  return editando && editando.fixo ? editando : null;
+}
+
 /* Guarda o que o formulário coletou enquanto o diálogo pergunta a partir de
    quando o valor novo vale. */
+/** @type {Alteracao|null} */
 let pendenteDeValor = null;
 
 /* Monta a linha do tempo de valores do fixo.
@@ -543,31 +672,43 @@ let pendenteDeValor = null;
  *   'daqui'      — o valor novo vale deste mês em diante, e o passado fica
  *   'sempre'     — corrige todos os meses (o caso do erro de digitação)
  *   'inalterado' — o valor não mudou, então a linha do tempo não se mexe */
+/**
+ * @param {number} valor
+ * @param {Mes} inicio
+ * @param {'daqui'|'sempre'|'inalterado'} modo
+ * @returns {TrechoDeValor[]}
+ */
 function linhaDoTempoDoFixo(valor, inicio, modo) {
-  const eraFixo = editando && editando.fixo;
-  if (!eraFixo) return [{ desde: inicio, valor }];
+  const antigo = fixoEmEdicao();
+  if (!antigo) return [{ desde: inicio, valor }];
   if (modo === 'sempre') return definirValorSempre(valor, inicio);
-  if (modo === 'daqui') return definirValorDesde(editando.valores, mesVisivel, valor);
-  return editando.valores;
+  if (modo === 'daqui') return definirValorDesde(antigo.valores, mesVisivel, valor);
+  return antigo.valores;
 }
 
-function aplicarAlteracao({ descricao, valor, ehFixa, data, dia, jaAconteceu }, modo) {
-  const eraFixo = editando && editando.fixo;
+/**
+ * @param {Alteracao} alteracao
+ * @param {'daqui'|'sempre'|'inalterado'} modo
+ */
+function aplicarAlteracao(alteracao, modo) {
+  const { descricao, valor, ehFixa, data, dia, jaAconteceu } = alteracao;
+  const antigo = fixoEmEdicao();
   const base = { id: editando ? editando.id : novoId(), tipo: tipoDoFormulario, descricao };
 
+  /** @type {Lancamento} */
   let novo;
   if (ehFixa) {
     // Virar fixo a partir de um avulso começa no mês visível; um fixo que já
     // era fixo mantém a própria janela, senão editar o valor reviveria meses
     // que o usuário já tinha encerrado.
-    const inicio = eraFixo ? editando.inicio : mesVisivel;
+    const inicio = antigo ? antigo.inicio : mesVisivel;
     novo = {
       ...base,
       fixo: true,
       dia: limitarDia(dia),
       inicio,
-      fim: eraFixo ? editando.fim : null,
-      pulados: eraFixo ? editando.pulados : [],
+      fim: antigo ? antigo.fim : null,
+      pulados: antigo ? antigo.pulados : [],
       valores: linhaDoTempoDoFixo(valor, inicio, modo),
     };
   } else {
@@ -582,6 +723,7 @@ function aplicarAlteracao({ descricao, valor, ehFixa, data, dia, jaAconteceu }, 
   // quem acabou de criá-lo.
   const mesDoRegistro = novo.fixo ? mesVisivel : mesDe(novo.data);
 
+  /** @type {Realizados} */
   const realizados = jaAconteceu
     ? { ...estado.realizados, [novo.id + '|' + mesDoRegistro]: true }
     : limparRealizadosDe(estado.realizados, novo.id, mesDoRegistro);
@@ -597,44 +739,51 @@ $('formulario').addEventListener('submit', (evento) => {
   evento.preventDefault();
 
   const alteracao = {
-    descricao: $('campo-descricao').value.trim(),
-    valor: analisarValor($('campo-valor').value),
-    ehFixa: $('campo-repeticao').value === 'fixa',
-    data: $('campo-data').value || hojeISO(),
-    dia: $('campo-dia').value,
-    jaAconteceu: $('campo-realizado').checked,
+    descricao: $campo('campo-descricao').value.trim(),
+    valor: analisarValor($campo('campo-valor').value),
+    ehFixa: $selecao('campo-repeticao').value === 'fixa',
+    data: $campo('campo-data').value || hojeISO(),
+    dia: $campo('campo-dia').value,
+    jaAconteceu: $campo('campo-realizado').checked,
   };
 
-  if (!alteracao.descricao) return mostrarErro('Falta dizer o que é.', $('campo-descricao'));
-  if (alteracao.valor <= 0) return mostrarErro('Falta o valor.', $('campo-valor'));
+  if (!alteracao.descricao) return mostrarErro('Falta dizer o que é.', $campo('campo-descricao'));
+  if (alteracao.valor <= 0) return mostrarErro('Falta o valor.', $campo('campo-valor'));
 
   /* A pergunta só aparece quando o VALOR de um fixo que já existia muda. Mudar
      a descrição ou o dia vale para todos os meses sem perguntar: nenhum dos
      dois reescreve dinheiro, e uma pergunta que aparece à toa vira uma pergunta
      que ninguém lê. */
-  const eraFixo = editando && editando.fixo;
-  const valorAnterior = eraFixo ? valorVigenteEm(editando.valores, mesVisivel) : null;
+  const antigo = fixoEmEdicao();
 
-  if (eraFixo && alteracao.ehFixa && alteracao.valor !== valorAnterior) {
-    pendenteDeValor = alteracao;
-    $('explicacao-do-valor').textContent =
-      `Este lançamento se repete todo mês, e valia ${formatarDinheiro(valorAnterior)}. ` +
-      `A partir de quando vale ${formatarDinheiro(alteracao.valor)}?`;
-    $('dialogo').close();
-    $('dialogo-valor').showModal();
-    return;
+  if (antigo && alteracao.ehFixa) {
+    const valorAnterior = valorVigenteEm(antigo.valores, mesVisivel);
+
+    if (alteracao.valor !== valorAnterior) {
+      pendenteDeValor = alteracao;
+      $('explicacao-do-valor').textContent =
+        `Este lançamento se repete todo mês, e valia ${formatarDinheiro(valorAnterior)}. ` +
+        `A partir de quando vale ${formatarDinheiro(alteracao.valor)}?`;
+      $dialogo('dialogo').close();
+      $dialogo('dialogo-valor').showModal();
+      return;
+    }
   }
 
-  $('dialogo').close();
+  $dialogo('dialogo').close();
   aplicarAlteracao(alteracao, 'inalterado');
 });
 
+/**
+ * @param {'daqui'|'sempre'} modo
+ * @param {string} texto
+ */
 function concluirMudancaDeValor(modo, texto) {
   if (!pendenteDeValor) return;
   const anterior = instantaneo();
   const alteracao = pendenteDeValor;
   pendenteDeValor = null;
-  $('dialogo-valor').close();
+  $dialogo('dialogo-valor').close();
   aplicarAlteracao(alteracao, modo);
   avisar(texto, () => restaurar(anterior));
 }
@@ -650,22 +799,23 @@ $('valor-sempre').addEventListener('click', () =>
 /* Cancelar aqui devolve ao formulário, e não descarta o que a pessoa digitou:
    ela veio parar neste diálogo sem ter pedido. */
 $('valor-cancelar').addEventListener('click', () => {
-  $('dialogo-valor').close();
+  $dialogo('dialogo-valor').close();
   if (pendenteDeValor) {
     pendenteDeValor = null;
-    $('dialogo').showModal();
+    $dialogo('dialogo').showModal();
   }
 });
 
 $('botao-excluir').addEventListener('click', () => {
   const alvo = editando;
   if (!alvo) return;
-  $('dialogo').close();
+  $dialogo('dialogo').close();
   pedirExclusao(alvo);
 });
 
 /* ---------- Ajustes: a cópia, o tema e o apagar tudo ---------- */
 
+/** @type {Extract<ReturnType<typeof lerBackup>, { ok: true }>|null} */
 let pendenteDeRestauracao = null;
 
 function desenharAjustes() {
@@ -675,6 +825,7 @@ function desenharAjustes() {
   );
 }
 
+/** @param {Date} quando */
 function registrarBackup(quando) {
   armazenamento.gravar(CHAVE_BACKUP, quando.toISOString());
   desenharAjustes();
@@ -685,6 +836,7 @@ function registrarBackup(quando) {
  * O objeto de URL não é revogado na hora: em alguns navegadores isso cancela o
  * download que acabou de começar. Um minuto é folga de sobra, e o objeto morre
  * junto com a aba de qualquer jeito. */
+/** @param {string} texto @param {string} nome */
 function baixar(texto, nome) {
   const url = URL.createObjectURL(new Blob([texto], { type: 'application/json' }));
   const link = document.createElement('a');
@@ -706,6 +858,7 @@ async function guardarCopia() {
   const texto = JSON.stringify(montarBackup(estado, agora), null, 2);
   const nome = nomeDoArquivo(agora);
 
+  /** @type {File|null} */
   let arquivo = null;
   try {
     arquivo = new File([texto], nome, { type: 'application/json' });
@@ -718,7 +871,7 @@ async function guardarCopia() {
     typeof navigator.canShare === 'function' &&
     navigator.canShare({ files: [arquivo] });
 
-  if (podeCompartilhar) {
+  if (arquivo && podeCompartilhar) {
     try {
       await navigator.share({ files: [arquivo], title: 'Cópia do Zenny' });
       registrarBackup(agora);
@@ -728,7 +881,7 @@ async function guardarCopia() {
       /* Fechar o menu de compartilhar lança AbortError, e desistir não é erro:
          cair para o download aqui baixaria justamente o arquivo que a pessoa
          acabou de recusar. Qualquer outra falha, sim, merece a reserva. */
-      if (e && e.name === 'AbortError') return false;
+      if (e instanceof Error && e.name === 'AbortError') return false;
     }
   }
 
@@ -746,6 +899,10 @@ const ERROS_DO_ARQUIVO = {
 /* Descreve o arquivo para a pessoa reconhecê-lo ANTES de trocar o que está no
    aparelho por ele. É metade do que torna "substituir tudo" aceitável — a outra
    metade é o desfazer. */
+/**
+ * @param {Extract<ReturnType<typeof lerBackup>, { ok: true }>} lido
+ * @returns {string}
+ */
 function explicarRestauracao(lido) {
   const { total, primeiroMes, ultimoMes } = lido.resumo;
 
@@ -755,10 +912,12 @@ function explicarRestauracao(lido) {
     partes.push('Esta cópia está vazia: não tem nenhum lançamento.');
   } else {
     const quantos = total === 1 ? '1 lançamento' : `${total} lançamentos`;
-    const periodo =
-      primeiroMes === ultimoMes
-        ? ` de ${rotuloDoMes(primeiroMes)}`
-        : `, de ${rotuloDoMes(primeiroMes)} a ${rotuloDoMes(ultimoMes)}`;
+    /* Havendo lançamento, há mês: resumirEstado só devolve as pontas nulas para
+       um estado vazio. O `|| ''` existe para o conferidor, que não correlaciona
+       `total > 0` com as duas outras variáveis. */
+    const doInicio = rotuloDoMes(primeiroMes || '');
+    const doFim = rotuloDoMes(ultimoMes || '');
+    const periodo = primeiroMes === ultimoMes ? ` de ${doInicio}` : `, de ${doInicio} a ${doFim}`;
     partes.push(`A cópia tem ${quantos}${periodo}.`);
   }
 
@@ -782,11 +941,13 @@ function explicarRestauracao(lido) {
   return partes.join(' ');
 }
 
+/** @param {Event} evento */
 async function arquivoEscolhido(evento) {
-  const arquivo = evento.target.files && evento.target.files[0];
+  const entrada = $campo('arquivo-do-backup');
+  const arquivo = entrada.files && entrada.files[0];
   // Zerar permite escolher o MESMO arquivo de novo: sem isto, o segundo change
   // não dispara e o botão parece quebrado.
-  evento.target.value = '';
+  entrada.value = '';
   if (!arquivo) return;
 
   let texto;
@@ -805,17 +966,17 @@ async function arquivoEscolhido(evento) {
 
   pendenteDeRestauracao = lido;
   $('explicacao-do-restaurar').textContent = explicarRestauracao(lido);
-  $('dialogo-restaurar').showModal();
+  $dialogo('dialogo-restaurar').showModal();
 }
 
 $('botao-guardar').addEventListener('click', guardarCopia);
-$('botao-trazer').addEventListener('click', () => $('arquivo-do-backup').click());
-$('arquivo-do-backup').addEventListener('change', arquivoEscolhido);
+$('botao-trazer').addEventListener('click', () => $campo('arquivo-do-backup').click());
+$campo('arquivo-do-backup').addEventListener('change', arquivoEscolhido);
 
 $('restaurar-confirmar').addEventListener('click', () => {
   const lido = pendenteDeRestauracao;
   pendenteDeRestauracao = null;
-  $('dialogo-restaurar').close();
+  $dialogo('dialogo-restaurar').close();
   if (!lido) return;
 
   const anterior = instantaneo();
@@ -842,7 +1003,7 @@ $('restaurar-confirmar').addEventListener('click', () => {
 
 $('restaurar-cancelar').addEventListener('click', () => {
   pendenteDeRestauracao = null;
-  $('dialogo-restaurar').close();
+  $dialogo('dialogo-restaurar').close();
 });
 
 /* ---------- Apagar tudo ---------- */
@@ -855,11 +1016,11 @@ function pedirApagamento() {
       : total === 1
         ? 'O único lançamento deste aparelho vai embora.'
         : `Os ${total} lançamentos deste aparelho vão embora.`;
-  $('dialogo-apagar').showModal();
+  $dialogo('dialogo-apagar').showModal();
 }
 
 $('botao-apagar').addEventListener('click', pedirApagamento);
-$('apagar-cancelar').addEventListener('click', () => $('dialogo-apagar').close());
+$('apagar-cancelar').addEventListener('click', () => $dialogo('dialogo-apagar').close());
 
 /* A fricção certa não é dificultar o gesto, é resolver o arrependimento antes
    dele acontecer. Guardar a cópia deixa o diálogo aberto de propósito: a pessoa
@@ -870,7 +1031,7 @@ $('apagar-cancelar').addEventListener('click', () => $('dialogo-apagar').close()
  * resposta visível, na tela em que a pessoa está prestes a apagar tudo, é o
  * pior lugar do app para deixar alguém em dúvida. */
 $('apagar-guardar-antes').addEventListener('click', async (evento) => {
-  const botao = evento.currentTarget;
+  const botao = /** @type {HTMLButtonElement} */ (evento.currentTarget);
   const original = botao.textContent;
 
   botao.disabled = true;
@@ -886,7 +1047,7 @@ $('apagar-guardar-antes').addEventListener('click', async (evento) => {
 });
 
 $('apagar-confirmar').addEventListener('click', () => {
-  $('dialogo-apagar').close();
+  $dialogo('dialogo-apagar').close();
 
   const lancamentos = estado.lancamentos;
   const realizados = estado.realizados;

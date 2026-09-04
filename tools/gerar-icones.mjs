@@ -35,12 +35,14 @@ const TABELA_CRC = (() => {
   return t;
 })();
 
+/** @param {Buffer} buf @returns {number} */
 function crc32(buf) {
   let c = 0xffffffff;
   for (const b of buf) c = TABELA_CRC[(c ^ b) & 0xff] ^ (c >>> 8);
   return (c ^ 0xffffffff) >>> 0;
 }
 
+/** @param {string} tipo @param {Buffer} dados @returns {Buffer} */
 function chunk(tipo, dados) {
   const tamanho = Buffer.alloc(4);
   tamanho.writeUInt32BE(dados.length);
@@ -51,6 +53,12 @@ function chunk(tipo, dados) {
 }
 
 /* Codifica RGBA (8 bits por canal, sem filtro) em PNG. */
+/**
+ * @param {number} largura
+ * @param {number} altura
+ * @param {Buffer} rgba
+ * @returns {Buffer}
+ */
 function png(largura, altura, rgba) {
   const ihdr = Buffer.alloc(13);
   ihdr.writeUInt32BE(largura, 0);
@@ -81,6 +89,13 @@ function png(largura, altura, rgba) {
 /* ---------- Desenho ---------- */
 
 /* Cobertura de um ponto pelo retangulo de cantos arredondados. */
+/**
+ * @param {number} x
+ * @param {number} y
+ * @param {number} lado
+ * @param {number} raio
+ * @returns {boolean}
+ */
 function dentroDoQuadrado(x, y, lado, raio) {
   if (raio <= 0) return x >= 0 && y >= 0 && x <= lado && y <= lado;
   const cx = Math.min(Math.max(x, raio), lado - raio);
@@ -92,6 +107,15 @@ function dentroDoQuadrado(x, y, lado, raio) {
 
 /* O anel aberto, com as pontas arredondadas. O vao vai de 315 a 360 graus,
    medidos no sentido horario da tela a partir das 3 horas. */
+/**
+ * @param {number} x
+ * @param {number} y
+ * @param {number} cx
+ * @param {number} cy
+ * @param {number} raio
+ * @param {number} espessura
+ * @returns {boolean}
+ */
 function dentroDoAnel(x, y, cx, cy, raio, espessura) {
   const dx = x - cx;
   const dy = y - cy;
@@ -116,6 +140,11 @@ function dentroDoAnel(x, y, cx, cy, raio, espessura) {
 }
 
 /* Rasteriza com supersampling 4x4 — sem isso o anel fica serrilhado. */
+/**
+ * @param {number} lado
+ * @param {{ raioDoCanto: number, raioDoAnel: number, espessura: number }} proporcoes
+ * @returns {Buffer}
+ */
 function desenhar(lado, { raioDoCanto, raioDoAnel, espessura }) {
   const AMOSTRAS = 4;
   const rgba = Buffer.alloc(lado * lado * 4);

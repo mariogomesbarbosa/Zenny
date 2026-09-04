@@ -11,6 +11,102 @@
  * divisão por 100 acontece só na hora de formatar para a tela.
  */
 
+/* ---------- Os tipos do domínio ----------
+ *
+ * Escritos em JSDoc, e verificados por `npm run tipos` — o TypeScript aqui é um
+ * conferidor, não um compilador. Nada é gerado, e o arquivo servido ao navegador
+ * é este mesmo. O porquê está em docs/tipos-sem-build.md.
+ *
+ * `Avulso` e `Fixo` se distinguem por `fixo: false` e `fixo: true`. Isso não é
+ * capricho de anotação: faz do par uma união discriminada, e dentro de um
+ * `if (l.fixo)` o conferidor passa a saber que ali existe `valores` e não
+ * existe `data`. É o que transforma a regra do B3 em algo que a ferramenta
+ * cobra, em vez de algo que a gente lembra. */
+
+/**
+ * Um mês, sempre 'AAAA-MM'.
+ * @typedef {string} Mes
+ */
+
+/**
+ * Um dia, sempre 'AAAA-MM-DD'.
+ * @typedef {string} Data
+ */
+
+/**
+ * @typedef {'entrada'|'saida'} TipoDeLancamento
+ */
+
+/**
+ * Um trecho da linha do tempo de valores de um fixo (B3).
+ * @typedef {object} TrechoDeValor
+ * @property {Mes} desde
+ * @property {number} valor Em centavos, sempre inteiro.
+ */
+
+/**
+ * @typedef {object} Avulso
+ * @property {string} id
+ * @property {TipoDeLancamento} tipo
+ * @property {string} descricao
+ * @property {false} fixo
+ * @property {number} valor Em centavos.
+ * @property {Data} data
+ */
+
+/**
+ * @typedef {object} Fixo
+ * @property {string} id
+ * @property {TipoDeLancamento} tipo
+ * @property {string} descricao
+ * @property {true} fixo
+ * @property {number} dia
+ * @property {Mes} inicio
+ * @property {Mes|null} fim Inclusive. `null` é um fixo sem fim.
+ * @property {Mes[]} pulados Meses em que só esta ocorrência foi apagada.
+ * @property {TrechoDeValor[]} valores Ordenada por `desde`.
+ */
+
+/**
+ * @typedef {Avulso|Fixo} Lancamento
+ */
+
+/**
+ * O que `lancamentosDoMes` devolve: o dia e o valor já resolvidos para aquele
+ * mês. O fixo ganha `valor`; o avulso ganha `dia`.
+ * @typedef {(Avulso & { dia: number }) | (Fixo & { valor: number })} LancamentoDoMes
+ */
+
+/**
+ * Mapa de "já aconteceu", com chave "id|AAAA-MM".
+ * @typedef {Record<string, true>} Realizados
+ */
+
+/**
+ * @typedef {object} Estado
+ * @property {number} versao
+ * @property {Lancamento[]} lancamentos
+ * @property {Realizados} realizados
+ */
+
+/**
+ * @typedef {object} LadoDoResumo
+ * @property {number} previsto
+ * @property {number} realizado
+ * @property {number} quantidade
+ */
+
+/**
+ * @typedef {object} Resumo
+ * @property {LadoDoResumo} entradas
+ * @property {LadoDoResumo} despesas
+ * @property {number} sobra
+ * @property {number} naContaAgora
+ * @property {number} faltaEntrar
+ * @property {number} faltaSair
+ * @property {boolean} vazio
+ */
+
 export const CHAVE = 'zenny:v1';
 export const VERSAO_DO_ESQUEMA = 3;
 
@@ -35,6 +131,10 @@ const FORMATO_BRL = new Intl.NumberFormat('pt-BR', {
  *
  * A terceira casa decimal em diante é descartada, não arredondada: quem digitou
  * "12,999" vê R$ 12,99, que é o que aparece na tela enquanto digita.
+ */
+/**
+ * @param {unknown} texto
+ * @returns {number} Centavos, sempre inteiro e sem sinal.
  */
 export function analisarValor(texto) {
   const limpo = String(texto ?? '').replace(/[^\d.,]/g, '');
@@ -67,12 +167,20 @@ export function analisarValor(texto) {
   return reais * 100 + centavos;
 }
 
+/**
+ * @param {number} centavos
+ * @returns {string}
+ */
 export function formatarDinheiro(centavos) {
   return FORMATO_BRL.format((Number(centavos) || 0) / 100);
 }
 
 /* Para preencher o campo ao editar: 123456 -> "1234,56". Sem símbolo e sem
    separador de milhar, porque é texto para continuar editando, não para ler. */
+/**
+ * @param {number} centavos
+ * @returns {string}
+ */
 export function valorParaCampo(centavos) {
   const n = Math.abs(Number(centavos) || 0);
   return String(Math.floor(n / 100)) + ',' + String(n % 100).padStart(2, '0');
@@ -86,6 +194,10 @@ const NOMES_DOS_MESES = [
 ];
 
 /* Aceita 'AAAA-MM-DD' ou Date, e devolve 'AAAA-MM'. */
+/**
+ * @param {Data|Date} data
+ * @returns {Mes}
+ */
 export function mesDe(data) {
   if (data instanceof Date) {
     return data.getFullYear() + '-' + String(data.getMonth() + 1).padStart(2, '0');
@@ -93,6 +205,11 @@ export function mesDe(data) {
   return String(data).slice(0, 7);
 }
 
+/**
+ * @param {Mes} mes
+ * @param {number} passos
+ * @returns {Mes}
+ */
 export function deslocarMes(mes, passos) {
   const [ano, m] = mes.split('-').map(Number);
   // Date normaliza o estouro sozinho: mês 13 vira janeiro do ano seguinte.
@@ -100,16 +217,28 @@ export function deslocarMes(mes, passos) {
   return mesDe(d);
 }
 
+/**
+ * @param {Mes} mes
+ * @returns {number}
+ */
 export function diasNoMes(mes) {
   const [ano, m] = mes.split('-').map(Number);
   return new Date(ano, m, 0).getDate();
 }
 
+/**
+ * @param {Mes} mes
+ * @returns {string}
+ */
 export function rotuloDoMes(mes) {
   const [ano, m] = mes.split('-').map(Number);
   return NOMES_DOS_MESES[m - 1] + ' de ' + ano;
 }
 
+/**
+ * @param {Data} data
+ * @returns {number}
+ */
 export function diaDe(data) {
   return Number(String(data).slice(8, 10));
 }
@@ -140,12 +269,18 @@ export function diaDe(data) {
  * Isso é sutil e é certo: o mesmo aluguel fixo está pago em setembro e não em
  * outubro, e o lançamento é um só. */
 
+/**
+ * @returns {Estado}
+ */
 export function estadoVazio() {
   return { versao: VERSAO_DO_ESQUEMA, lancamentos: [], realizados: {} };
 }
 
-const ehMes = (v) => /^\d{4}-\d{2}$/.test(v);
-const ehData = (v) => /^\d{4}-\d{2}-\d{2}$/.test(v);
+/** @param {unknown} v @returns {v is Mes} */
+const ehMes = (v) => typeof v === 'string' && /^\d{4}-\d{2}$/.test(v);
+
+/** @param {unknown} v @returns {v is Data} */
+const ehData = (v) => typeof v === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(v);
 
 /* Põe a linha do tempo de um fixo em ordem e garante que ela cubra o lançamento
  * inteiro.
@@ -159,6 +294,12 @@ const ehData = (v) => /^\d{4}-\d{2}-\d{2}$/.test(v);
  * repetidos mantendo o último, e puxa o trecho mais antigo para o início do
  * lançamento — senão os meses entre o início e o primeiro trecho ficariam sem
  * valor nenhum. */
+/**
+ * @param {unknown} crus
+ * @param {number} valorSolto
+ * @param {Mes} inicio
+ * @returns {TrechoDeValor[]}
+ */
 function normalizarValores(crus, valorSolto, inicio) {
   const trechos = (Array.isArray(crus) ? crus : [])
     .filter((t) => t && ehMes(t.desde))
@@ -181,6 +322,10 @@ function normalizarValores(crus, valorSolto, inicio) {
   return semRepetidos;
 }
 
+/**
+ * @param {unknown} dia
+ * @returns {number}
+ */
 export function limitarDia(dia) {
   return Math.min(31, Math.max(1, Math.trunc(Number(dia)) || 1));
 }
@@ -193,6 +338,11 @@ export function limitarDia(dia) {
  * acontecer — normalizarEstado garante que o trecho mais antigo comece junto com
  * o lançamento — mas um dado torto não pode fazer o app mostrar R$ 0,00 e deixar
  * o usuário achando que perdeu dinheiro. */
+/**
+ * @param {TrechoDeValor[]} valores
+ * @param {Mes} mes
+ * @returns {number} Centavos.
+ */
 export function valorVigenteEm(valores, mes) {
   if (!valores || !valores.length) return 0;
 
@@ -209,6 +359,12 @@ export function valorVigenteEm(valores, mes) {
  * Substitui o trecho que começa neste mês, se houver, e descarta os trechos
  * posteriores: "deste mês em diante" quer dizer isso mesmo, e um trecho futuro
  * sobrevivente contradiria o que a pessoa acabou de pedir. */
+/**
+ * @param {TrechoDeValor[]} valores
+ * @param {Mes} mes
+ * @param {number} valor
+ * @returns {TrechoDeValor[]}
+ */
 export function definirValorDesde(valores, mes, valor) {
   const anteriores = valores.filter((t) => t.desde < mes);
   return [...anteriores, { desde: mes, valor }];
@@ -221,6 +377,11 @@ export function definirValorDesde(valores, mes, valor) {
  * inteira vai ser descartada mesmo, e deduzir de uma lista que pode estar vazia
  * produziria um trecho sem data — o tipo de dado torto que só aparece meses
  * depois. */
+/**
+ * @param {number} valor
+ * @param {Mes} inicio
+ * @returns {TrechoDeValor[]}
+ */
 export function definirValorSempre(valor, inicio) {
   return [{ desde: inicio, valor }];
 }
@@ -234,16 +395,30 @@ export function definirValorSempre(valor, inicio) {
  *
  * Migração da versão 1: lá não havia fixos nem realizados. Um estado v1 entra
  * aqui e sai v2 sem perder nada — todo lançamento antigo é avulso. */
+/**
+ * A fronteira do sistema: aqui entra o que estava no localStorage ou num arquivo
+ * de backup, e o tipo de entrada é `any` de propósito. Prometer uma forma para
+ * um dado que pode ter sido editado à mão, ou vir de uma versão futura do app,
+ * seria mentir para o conferidor — o corpo desta função existe justamente para
+ * transformar qualquer coisa em algo utilizável.
+ *
+ * @param {any} bruto
+ * @returns {Estado}
+ */
 export function normalizarEstado(bruto) {
   if (!bruto || typeof bruto !== 'object' || !Array.isArray(bruto.lancamentos)) {
     return estadoVazio();
   }
 
+  /** @type {Lancamento[]} */
   const lancamentos = [];
 
   for (const cru of bruto.lancamentos) {
     if (!cru || typeof cru !== 'object') continue;
 
+    /* Anotado porque a inferência alarga `tipo` para `string`, e aí ele não
+       serve mais como a metade discriminante de Avulso|Fixo. */
+    /** @type {{ id: string, tipo: TipoDeLancamento, descricao: string }} */
     const base = {
       id: String(cru.id ?? ''),
       tipo: cru.tipo === 'entrada' ? 'entrada' : 'saida',
@@ -275,6 +450,7 @@ export function normalizarEstado(bruto) {
     }
   }
 
+  /** @type {Realizados} */
   const realizados = {};
   const cruRealizados = bruto.realizados;
   if (cruRealizados && typeof cruRealizados === 'object') {
@@ -293,14 +469,31 @@ export function normalizarEstado(bruto) {
 
 /* ---------- Realizado ---------- */
 
+/**
+ * @param {string} id
+ * @param {Mes} mes
+ * @returns {string}
+ */
 export function chaveDeRealizado(id, mes) {
   return id + '|' + mes;
 }
 
+/**
+ * @param {Realizados} realizados
+ * @param {string} id
+ * @param {Mes} mes
+ * @returns {boolean}
+ */
 export function estaRealizado(realizados, id, mes) {
   return Boolean(realizados[chaveDeRealizado(id, mes)]);
 }
 
+/**
+ * @param {Realizados} realizados
+ * @param {string} id
+ * @param {Mes} mes
+ * @returns {Realizados}
+ */
 export function alternarRealizado(realizados, id, mes) {
   const chave = chaveDeRealizado(id, mes);
   const copia = { ...realizados };
@@ -309,6 +502,12 @@ export function alternarRealizado(realizados, id, mes) {
   return copia;
 }
 
+/**
+ * @param {Realizados} realizados
+ * @param {string} id
+ * @param {Mes} [mes] Sem mês, limpa todos os meses daquele id.
+ * @returns {Realizados}
+ */
 export function limparRealizadosDe(realizados, id, mes) {
   const copia = { ...realizados };
   if (mes) {
@@ -324,6 +523,11 @@ export function limparRealizadosDe(realizados, id, mes) {
 /* ---------- Seleção ---------- */
 
 /* Um mês "vê" um fixo se está dentro da janela e não foi pulado. */
+/**
+ * @param {Fixo} lancamento
+ * @param {Mes} mes
+ * @returns {boolean}
+ */
 export function fixoApareceEm(lancamento, mes) {
   if (mes < lancamento.inicio) return false;
   if (lancamento.fim && mes > lancamento.fim) return false;
@@ -339,6 +543,11 @@ export function fixoApareceEm(lancamento, mes) {
  *
  * O dia do fixo é limitado ao tamanho do mês: sem isso o aluguel do dia 31
  * desaparece em fevereiro. */
+/**
+ * @param {Lancamento[]} lancamentos
+ * @param {Mes} mes
+ * @returns {LancamentoDoMes[]}
+ */
 export function lancamentosDoMes(lancamentos, mes) {
   return lancamentos
     .filter((l) => (l.fixo ? fixoApareceEm(l, mes) : mesDe(l.data) === mes))
@@ -362,6 +571,12 @@ export function lancamentosDoMes(lancamentos, mes) {
  * "previsto" é o mês inteiro como planejado; "realizado" é o que já foi
  * marcado como recebido ou pago. A diferença entre os dois é o que torna isto
  * um planejador e não um diário. */
+/**
+ * @param {Lancamento[]} lancamentos
+ * @param {Realizados} realizados
+ * @param {Mes} mes
+ * @returns {Resumo}
+ */
 export function resumoDoMes(lancamentos, realizados, mes) {
   const doMes = lancamentosDoMes(lancamentos, mes);
 
@@ -392,9 +607,21 @@ export function resumoDoMes(lancamentos, realizados, mes) {
  * que "vai sair mais do que entra" seja visível de relance. Dentro de cada
  * barra, o trecho cheio é o que já aconteceu e o claro é o que ainda falta; os
  * dois somados dão o previsto do lado. */
+/**
+ * Pede só os dois números de cada lado, e não o `Resumo` inteiro: é tudo que a
+ * conta usa, e prometer menos deixa a função reaproveitável — foi o conferidor
+ * de tipos que apontou a diferença, a partir de um teste que já passava um
+ * resumo parcial.
+ *
+ * @param {{ entradas: { previsto: number, realizado: number },
+ *           despesas: { previsto: number, realizado: number } }} resumo
+ * @returns {{ entradas: { realizado: number, previsto: number },
+ *             despesas: { realizado: number, previsto: number } }}
+ */
 export function proporcoesDasBarras(resumo) {
   const referencia = Math.max(resumo.entradas.previsto, resumo.despesas.previsto);
 
+  /** @param {{ previsto: number, realizado: number }} lado */
   const fatiar = (lado) =>
     referencia === 0
       ? { realizado: 0, previsto: 0 }
@@ -412,12 +639,23 @@ export function proporcoesDasBarras(resumo) {
  * recorrência, e por isso vivem aqui, puras e testadas, em vez de espalhadas
  * pelos manipuladores de clique. */
 
+/**
+ * @param {Lancamento[]} lancamentos
+ * @param {string} id
+ * @returns {Lancamento[]}
+ */
 export function excluirLancamento(lancamentos, id) {
   return lancamentos.filter((l) => l.id !== id);
 }
 
 /* "Excluir só neste mês": o fixo continua existindo, mas este mês passa a ser
    pulado. */
+/**
+ * @param {Lancamento[]} lancamentos
+ * @param {string} id
+ * @param {Mes} mes
+ * @returns {Lancamento[]}
+ */
 export function pularMes(lancamentos, id, mes) {
   return lancamentos.map((l) =>
     l.id === id && l.fixo && !l.pulados.includes(mes)
@@ -427,6 +665,12 @@ export function pularMes(lancamentos, id, mes) {
 }
 
 /* "Encerrar deste mês em diante": o fixo passa a valer até o mês anterior. */
+/**
+ * @param {Lancamento[]} lancamentos
+ * @param {string} id
+ * @param {Mes} mes
+ * @returns {Lancamento[]}
+ */
 export function encerrarFixo(lancamentos, id, mes) {
   const fim = deslocarMes(mes, -1);
   return lancamentos.map((l) => (l.id === id && l.fixo ? { ...l, fim } : l));
@@ -445,6 +689,11 @@ export function encerrarFixo(lancamentos, id, mes) {
 
 export const APP_DO_BACKUP = 'zenny';
 
+/**
+ * @param {Estado} estado
+ * @param {Date} agora
+ * @returns {{ app: string, versao: number, exportadoEm: string, estado: Estado }}
+ */
 export function montarBackup(estado, agora) {
   return {
     app: APP_DO_BACKUP,
@@ -456,6 +705,10 @@ export function montarBackup(estado, agora) {
 
 /* Data LOCAL, e não UTC: o nome é lido por gente, e uma cópia feita às 21h no
    Brasil não pode aparecer com a data de amanhã. */
+/**
+ * @param {Date} agora
+ * @returns {string}
+ */
 export function nomeDoArquivo(agora) {
   const ano = agora.getFullYear();
   const mes = String(agora.getMonth() + 1).padStart(2, '0');
@@ -469,6 +722,10 @@ export function nomeDoArquivo(agora) {
  * O fim de um fixo sem `fim` não entra no intervalo: ele é aberto, e afirmar um
  * último mês que não existe seria inventar. Por isso o fixo aberto contribui
  * com o próprio início nas duas pontas. */
+/**
+ * @param {Partial<Estado> | null | undefined} estado
+ * @returns {{ total: number, fixos: number, avulsos: number, primeiroMes: Mes|null, ultimoMes: Mes|null }}
+ */
 export function resumirEstado(estado) {
   const lancamentos = (estado && estado.lancamentos) || [];
 
@@ -501,6 +758,12 @@ export function resumirEstado(estado) {
  * perder a tela é pior que perder um lançamento torto. Aqui o silêncio se
  * inverte: a pessoa lê "pronto" e acredita que está tudo de volta. Então a
  * conta é feita e quem chama decide o que dizer. */
+/**
+ * @param {string} texto
+ * @returns {{ ok: false, erro: 'nao-e-json'|'nao-e-zenny' }
+ *   | { ok: true, estado: Estado, resumo: ReturnType<typeof resumirEstado>,
+ *       descartados: number, exportadoEm: string|null }}
+ */
 export function lerBackup(texto) {
   let cru;
   try {
@@ -531,6 +794,11 @@ export function lerBackup(texto) {
  * diferença bruta de milissegundos por 86.400.000 erra na virada do horário de
  * verão, quando um dia tem 23 ou 25 horas — o tipo de defeito que aparece uma
  * vez por ano e não se reproduz quando alguém vai procurar. */
+/**
+ * @param {string|Date} inicio
+ * @param {string|Date} fim
+ * @returns {number|null} `null` se alguma das datas for inválida.
+ */
 export function diasEntre(inicio, fim) {
   const a = new Date(inicio);
   const b = new Date(fim);
@@ -543,6 +811,11 @@ export function diasEntre(inicio, fim) {
 
 /* A frase do lembrete. Fica aqui, e não no app.js, porque tem regra: sem cópia,
    hoje, ontem, e o resto em dias. Regra tem teste. */
+/**
+ * @param {string|null|undefined} iso
+ * @param {Date} agora
+ * @returns {string}
+ */
 export function textoDoUltimoBackup(iso, agora) {
   if (!iso) return 'Você ainda não guardou nenhuma cópia.';
 

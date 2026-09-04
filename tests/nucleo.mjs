@@ -49,14 +49,102 @@ import {
  * troca de getDate() por toISOString().slice(0, 10) falha em qualquer lugar. */
 process.env.TZ = 'America/Sao_Paulo';
 
+/**
+ * @typedef {import('../nucleo.js').Lancamento} Lancamento
+ * @typedef {import('../nucleo.js').LancamentoDoMes} LancamentoDoMes
+ * @typedef {import('../nucleo.js').Fixo} Fixo
+ * @typedef {import('../nucleo.js').Avulso} Avulso
+ * @typedef {import('../nucleo.js').Estado} Estado
+ * @typedef {import('../nucleo.js').Realizados} Realizados
+ */
+
 let passaram = 0;
+
+/** @type {string[]} */
 const falhas = [];
 
+/**
+ * @param {string} descricao
+ * @param {unknown} obtido
+ * @param {unknown} esperado
+ */
 function conferir(descricao, obtido, esperado) {
   const a = JSON.stringify(obtido);
   const b = JSON.stringify(esperado);
   if (a === b) passaram++;
   else falhas.push(`${descricao}\n    esperado: ${b}\n    obtido:   ${a}`);
+}
+
+/**
+ * Passa de propósito um valor que o tipo proíbe.
+ *
+ * Boa parte do núcleo existe para sobreviver a dado torto — é literalmente o
+ * contrato de normalizarEstado, e o de analisarValor. Testar isso significa
+ * violar a assinatura de propósito, e este nome deixa a intenção explícita em
+ * vez de esconder um cast no meio da linha.
+ *
+ * @param {unknown} v
+ * @returns {any}
+ */
+const lixo = (v) => v;
+
+/**
+ * Acha um lançamento pelo id, ou falha alto.
+ *
+ * `.find()` devolve `undefined` quando não acha, e um `.dia` em cima disso
+ * estoura com "cannot read properties of undefined" — que não diz qual
+ * lançamento faltou. Aqui o teste falha dizendo o id.
+ *
+ * @param {LancamentoDoMes[]} lista
+ * @param {string} id
+ * @returns {LancamentoDoMes}
+ */
+function achar(lista, id) {
+  const encontrado = lista.find((l) => l.id === id);
+  if (!encontrado) throw new Error(`nenhum lançamento com id ${id} neste mês`);
+  return encontrado;
+}
+
+/**
+ * O mesmo, para quando o teste sabe que aquele lançamento é fixo.
+ *
+ * @param {Lancamento[]} lista
+ * @param {string} id
+ * @returns {Fixo}
+ */
+function acharFixo(lista, id) {
+  const encontrado = lista.find((l) => l.id === id);
+  if (!encontrado || !encontrado.fixo) throw new Error(`nenhum fixo com id ${id}`);
+  return encontrado;
+}
+
+/**
+ * Lê um backup exigindo que tenha dado certo.
+ *
+ * `lerBackup` devolve uma união discriminada — ou `{ok: false, erro}`, ou
+ * `{ok: true, estado, ...}` — e sem checar `ok` não existe `.estado`. Isso é o
+ * tipo cobrando o que já era verdade: um teste que lê `.estado` de um arquivo
+ * recusado estaria testando `undefined`.
+ *
+ * @param {string} texto
+ * @returns {Extract<ReturnType<typeof lerBackup>, { ok: true }>}
+ */
+function lerOk(texto) {
+  const lido = lerBackup(texto);
+  if (!lido.ok) throw new Error(`esperava um backup válido, veio erro "${lido.erro}"`);
+  return lido;
+}
+
+/**
+ * O outro lado da mesma união: devolve o motivo da recusa, ou `null` quando o
+ * arquivo foi aceito.
+ *
+ * @param {string} texto
+ * @returns {string|null}
+ */
+function erroDe(texto) {
+  const lido = lerBackup(texto);
+  return lido.ok ? null : lido.erro;
 }
 
 /* ---------- analisarValor: o campo de valor aceita o que a pessoa digitar ---------- */
@@ -95,7 +183,7 @@ conferir('formata milhar', formatarDinheiro(123456), `R$${NBSP}1.234,56`);
 conferir('formata zero', formatarDinheiro(0), `R$${NBSP}0,00`);
 conferir('formata centavos', formatarDinheiro(7), `R$${NBSP}0,07`);
 conferir('formata negativo', formatarDinheiro(-500), `-R$${NBSP}5,00`);
-conferir('formata indefinido como zero', formatarDinheiro(undefined), `R$${NBSP}0,00`);
+conferir('formata indefinido como zero', formatarDinheiro(lixo(undefined)), `R$${NBSP}0,00`);
 
 conferir('valor para o campo', valorParaCampo(123456), '1234,56');
 conferir('valor para o campo, centavos', valorParaCampo(7), '0,07');
@@ -139,7 +227,7 @@ conferir('depois da virada', valorVigenteEm(LINHA, '2027-05'), 300000);
 conferir('no último trecho', valorVigenteEm(LINHA, '2028-02'), 320000);
 conferir('antes de tudo cai no primeiro, em vez de zero', valorVigenteEm(LINHA, '2026-01'), 267526);
 conferir('linha vazia', valorVigenteEm([], '2026-09'), 0);
-conferir('linha ausente', valorVigenteEm(undefined, '2026-09'), 0);
+conferir('linha ausente', valorVigenteEm(lixo(undefined), '2026-09'), 0);
 
 conferir(
   'definir a partir de um mês novo insere o trecho',
@@ -247,7 +335,8 @@ conferir(
 
 conferir(
   'a linha do tempo é ordenada, sem repetidos, e cobre desde o início',
-  normalizarEstado({
+  acharFixo(
+    normalizarEstado({
     lancamentos: [
       {
         id: 'a', tipo: 'saida', descricao: 'Aluguel', fixo: true, dia: 10, inicio: '2026-09',
@@ -260,7 +349,9 @@ conferir(
         ],
       },
     ],
-  }).lancamentos[0].valores,
+    }).lancamentos,
+    'a'
+  ).valores,
   [{ desde: '2026-09', valor: 500 }, { desde: '2027-01', valor: 700 }]
 );
 
@@ -298,6 +389,7 @@ conferir(
 
 /* ---------- janela do fixo ---------- */
 
+/** @type {Fixo} */
 const FIXO = {
   id: 'f', tipo: 'saida', descricao: 'Aluguel', fixo: true, dia: 10,
   inicio: '2026-09', fim: null, pulados: [], valores: [{ desde: '2026-09', valor: 50000 }],
@@ -312,18 +404,22 @@ conferir('não aparece depois do fim', fixoApareceEm({ ...FIXO, fim: '2026-11' }
 
 /* ---------- seleção ---------- */
 
+/** @type {Fixo} */
 const SALARIO = {
   id: '1', tipo: 'entrada', descricao: 'Salário', fixo: true, dia: 5,
   inicio: '2026-09', fim: null, pulados: [],
   valores: [{ desde: '2026-09', valor: 267526 }, { desde: '2027-01', valor: 300000 }],
 };
+/** @type {Fixo} */
 const ALUGUEL = {
   id: '2', tipo: 'saida', descricao: 'Aluguel', fixo: true, dia: 31,
   inicio: '2026-09', fim: null, pulados: [],
   valores: [{ desde: '2026-09', valor: 180000 }],
 };
+/** @type {Avulso} */
 const MERCADO = { id: '3', tipo: 'saida', descricao: 'Mercado', fixo: false, valor: 32450, data: '2026-09-03' };
 
+/** @type {Lancamento[]} */
 const LANCAMENTOS = [SALARIO, ALUGUEL, MERCADO];
 
 conferir(
@@ -335,12 +431,12 @@ conferir(
 /* Setembro tem 30 dias: o fixo do dia 31 não pode sumir. */
 conferir(
   'dia 31 encolhe para o tamanho do mês',
-  lancamentosDoMes(LANCAMENTOS, '2026-09').find((l) => l.id === '2').dia,
+  achar(lancamentosDoMes(LANCAMENTOS, '2026-09'), '2').dia,
   30
 );
 conferir(
   'e em fevereiro encolhe mais ainda',
-  lancamentosDoMes(LANCAMENTOS, '2027-02').find((l) => l.id === '2').dia,
+  achar(lancamentosDoMes(LANCAMENTOS, '2027-02'), '2').dia,
   28
 );
 conferir(
@@ -353,17 +449,17 @@ conferir('antes do início, mês vazio', lancamentosDoMes(LANCAMENTOS, '2026-08'
 /* O ponto do bloco: cada mês recebe o valor que valia NELE. */
 conferir(
   'setembro usa o valor antigo do salário',
-  lancamentosDoMes(LANCAMENTOS, '2026-09').find((l) => l.id === '1').valor,
+  achar(lancamentosDoMes(LANCAMENTOS, '2026-09'), '1').valor,
   267526
 );
 conferir(
   'dezembro ainda usa o valor antigo',
-  lancamentosDoMes(LANCAMENTOS, '2026-12').find((l) => l.id === '1').valor,
+  achar(lancamentosDoMes(LANCAMENTOS, '2026-12'), '1').valor,
   267526
 );
 conferir(
   'janeiro já usa o valor novo',
-  lancamentosDoMes(LANCAMENTOS, '2027-01').find((l) => l.id === '1').valor,
+  achar(lancamentosDoMes(LANCAMENTOS, '2027-01'), '1').valor,
   300000
 );
 
@@ -381,6 +477,7 @@ conferir(
 
 /* ---------- resumo: previsto contra realizado ---------- */
 
+/** @type {Realizados} */
 const REALIZADOS = { '1|2026-09': true, '3|2026-09': true };
 const resumo = resumoDoMes(LANCAMENTOS, REALIZADOS, '2026-09');
 
@@ -406,8 +503,9 @@ conferir('mês vazio', [semNada.sobra, semNada.naContaAgora, semNada.vazio], [0,
 /* A REGRESSÃO QUE ESTE BLOCO EXISTE PARA IMPEDIR: registrar um aumento não pode
    mexer em nenhum mês anterior — nem no valor, nem no que já foi marcado. */
 const antesDoAumento = resumoDoMes(LANCAMENTOS, REALIZADOS, '2026-09');
+/** @type {Lancamento[]} */
 const comAumento = LANCAMENTOS.map((l) =>
-  l.id === '1' ? { ...l, valores: definirValorDesde(l.valores, '2027-03', 400000) } : l
+  l.id === '1' && l.fixo ? { ...l, valores: definirValorDesde(l.valores, '2027-03', 400000) } : l
 );
 conferir(
   'o passado fica intacto depois de um aumento futuro',
@@ -422,12 +520,13 @@ conferir(
 
 /* Corrigir "para sempre" — o caso do erro de digitação — muda o passado de
    propósito, que é o contrário do aumento. */
+/** @type {Lancamento[]} */
 const corrigido = LANCAMENTOS.map((l) =>
-  l.id === '2' ? { ...l, valores: definirValorSempre(50000, l.inicio) } : l
+  l.id === '2' && l.fixo ? { ...l, valores: definirValorSempre(50000, l.inicio) } : l
 );
 conferir(
   'corrigir para sempre alcança os meses antigos',
-  lancamentosDoMes(corrigido, '2026-09').find((l) => l.id === '2').valor,
+  achar(lancamentosDoMes(corrigido, '2026-09'), '2').valor,
   50000
 );
 
@@ -482,7 +581,7 @@ conferir(
 );
 conferir(
   'pular o mesmo mês duas vezes não duplica',
-  pularMes(pulado, '2', '2026-10').find((l) => l.id === '2').pulados,
+  acharFixo(pularMes(pulado, '2', '2026-10'), '2').pulados,
   ['2026-10']
 );
 
@@ -518,6 +617,7 @@ conferir('nome do arquivo usa o dia local, nao o UTC', nomeDoArquivo(AGORA), 'ze
 
 /* ---------- resumirEstado ---------- */
 
+/** @type {Avulso} */
 const AVULSO = {
   id: 'a1',
   tipo: 'saida',
@@ -527,6 +627,7 @@ const AVULSO = {
   data: '2026-10-15',
 };
 
+/** @type {Fixo} */
 const FIXO_ABERTO = {
   id: 'f1',
   tipo: 'entrada',
@@ -539,6 +640,7 @@ const FIXO_ABERTO = {
   valores: [{ desde: '2026-09', valor: 300000 }],
 };
 
+/** @type {Fixo} */
 const FIXO_ENCERRADO = {
   id: 'f2',
   tipo: 'saida',
@@ -576,11 +678,12 @@ conferir(
 
 /* ---------- lerBackup ---------- */
 
+/** @type {Estado} */
 const ESTADO_CHEIO = { versao: 3, lancamentos: [AVULSO, FIXO_ABERTO], realizados: { 'a1|2026-10': true } };
 
 {
   const texto = JSON.stringify(montarBackup(ESTADO_CHEIO, AGORA));
-  const lido = lerBackup(texto);
+  const lido = lerOk(texto);
   conferir('le o envelope', lido.ok, true);
   conferir('a ida e a volta preservam os lancamentos', lido.estado.lancamentos, ESTADO_CHEIO.lancamentos);
   conferir('a ida e a volta preservam os realizados', lido.estado.realizados, ESTADO_CHEIO.realizados);
@@ -591,20 +694,20 @@ const ESTADO_CHEIO = { versao: 3, lancamentos: [AVULSO, FIXO_ABERTO], realizados
 /* Ser liberal na leitura: quem editou o arquivo a mao e tirou o envelope nao
    pode ficar trancado para fora dos proprios dados. */
 {
-  const lido = lerBackup(JSON.stringify(ESTADO_CHEIO));
+  const lido = lerOk(JSON.stringify(ESTADO_CHEIO));
   conferir('aceita o estado cru, sem envelope', lido.ok, true);
   conferir('estado cru traz os lancamentos', lido.estado.lancamentos.length, 2);
 }
 
-conferir('recusa texto que nao e JSON', lerBackup('isto nao e json').erro, 'nao-e-json');
-conferir('recusa JSON que nao e objeto', lerBackup('42').erro, 'nao-e-json');
-conferir('recusa JSON sem lancamentos', lerBackup('{"algo":1}').erro, 'nao-e-zenny');
-conferir('recusa lancamentos que nao e lista', lerBackup('{"lancamentos":"varios"}').erro, 'nao-e-zenny');
+conferir('recusa texto que nao e JSON', erroDe('isto nao e json'), 'nao-e-json');
+conferir('recusa JSON que nao e objeto', erroDe('42'), 'nao-e-json');
+conferir('recusa JSON sem lancamentos', erroDe('{"algo":1}'), 'nao-e-zenny');
+conferir('recusa lancamentos que nao e lista', erroDe('{"lancamentos":"varios"}'), 'nao-e-zenny');
 
 /* Um app ainda vazio tem backup valido. Recusar seria dizer que o arquivo esta
    quebrado quando ele so esta vazio. */
 {
-  const lido = lerBackup(JSON.stringify(montarBackup(estadoVazio(), AGORA)));
+  const lido = lerOk(JSON.stringify(montarBackup(estadoVazio(), AGORA)));
   conferir('backup de app vazio e valido', lido.ok, true);
   conferir('backup de app vazio nao descarta nada', lido.descartados, 0);
 }
@@ -620,7 +723,7 @@ conferir('recusa lancamentos que nao e lista', lerBackup('{"lancamentos":"varios
     ],
     realizados: {},
   };
-  const lido = lerBackup(JSON.stringify(comLixo));
+  const lido = lerOk(JSON.stringify(comLixo));
   conferir('sobrevive ao lixo', lido.ok, true);
   conferir('mantem o que presta', lido.estado.lancamentos.length, 1);
   conferir('conta o que jogou fora', lido.descartados, 3);
@@ -629,7 +732,7 @@ conferir('recusa lancamentos que nao e lista', lerBackup('{"lancamentos":"varios
 /* Marcacao apontando para lancamento que nao existe e limpeza, nao perda: nao
    entra na conta de descartados, que fala de lancamentos. */
 {
-  const lido = lerBackup(
+  const lido = lerOk(
     JSON.stringify({ lancamentos: [AVULSO], realizados: { 'a1|2026-10': true, 'sumiu|2026-10': true } })
   );
   conferir('marcacao orfa nao conta como descarte', lido.descartados, 0);

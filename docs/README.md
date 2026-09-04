@@ -20,18 +20,18 @@ histórico se perde.
 | [b3-valor-com-data.md](b3-valor-com-data.md) | O valor do fixo passa a ter linha do tempo, para que editar um aumento não reescreva o passado |
 | [b4-backup.md](b4-backup.md) | O plano do backup: as 10 decisões, o formato do arquivo, e por que este bloco absorveu o antigo B5 |
 | [cache-e-deploy.md](cache-e-deploy.md) | Por que o código do app vem sempre da rede, e o defeito de versão misturada que isso evita |
+| [tipos-sem-build.md](tipos-sem-build.md) | Por que o Drive não exigia migrar para Vite, e como o projeto ganhou verificação de tipos sem build: as 7 decisões e os 3 achados do conferidor |
 | [pendencias.md](pendencias.md) | Ressalvas conhecidas e o que foi para a `main` sem verificação |
 
 ## Estado atual
 
 O B0 (esqueleto), o B1 (o mês e os avulsos), o B2 (fixos, planejado ×
 realizado e a tela do MVP), o B3 (o valor do fixo com data) e o B4 (backup,
-Ajustes e apagar tudo) estão implementados. O app já planeja um mês de verdade
-— fixos que se repetem, marcação do que já aconteceu, o resumo separando o
-previsto do realizado — e agora o trabalho investido nisso tem cópia de
-segurança.
+Ajustes e apagar tudo) estão implementados, e o layout do desktop foi alinhado.
 
-`tests/nucleo.mjs` cobre 149 casos.
+O código tem **verificação de tipos sem build**: `npm run conferir` roda o
+conferidor e os 149 testes. Nada disso vai para o navegador — o porquê está em
+[tipos-sem-build.md](tipos-sem-build.md).
 
 Próximo: **B5 — categorias sugeridas e limites**. O roteiro está em
 [conceito.md](conceito.md#roteiro-proposto). Antes disso, vale ler a
