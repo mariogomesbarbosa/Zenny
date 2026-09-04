@@ -81,7 +81,7 @@ import {
  * @typedef {{ lancamentos: Lancamento[], realizados: Realizados, categorias: CategoriaDoUsuario[], limites: Limites }} Instantaneo
  */
 
-const TELAS = ['inicio', 'metas', 'ajustes'];
+const TELAS = ['inicio', 'metas', 'ajustes', 'relatorio'];
 const TELA_PADRAO = 'inicio';
 const CHAVE_TEMA = 'zenny-tema';
 
@@ -246,6 +246,7 @@ function desenhar() {
   desenharGrupo('entradas', doMes.filter((l) => l.tipo === 'entrada'), resumo.entradas, 'recebido');
   desenharGrupo('despesas', doMes.filter((l) => l.tipo === 'saida'), resumo.despesas, 'pago');
   desenharAjustes();
+  desenharRelatorio();
 }
 
 function desenharCabecalho() {
@@ -697,7 +698,6 @@ for (const id of [
   'dialogo-restaurar',
   'dialogo-apagar',
   'dialogo-categoria',
-  'dialogo-detalhamento',
   'dialogo-limite',
 ]) {
   $dialogo(id).addEventListener('click', (evento) => {
@@ -1286,28 +1286,60 @@ $('categoria-cancelar').addEventListener('click', () => {
   $dialogo('dialogo-categoria').close();
 });
 
-/* ---------- Para onde foi: o detalhamento do mês ---------- */
+/* ---------- Relatório: para onde o dinheiro foi ---------- */
 
-function abrirDetalhamento() {
-  desenharDetalhamento();
-  $dialogo('dialogo-detalhamento').showModal();
+/* A tela é alcançada pelo link "Para onde foi" do painel do Início — ver
+ * index.html — e não por um botão com listener: é a mesma navegação por hash
+ * que já existe para Início/Metas/Ajustes, e ganhar um segundo jeito de trocar
+ * de tela seria dívida.
+ *
+ * Ela some do <body data-tela> sozinha quando outra tela fica visível
+ * (mostrarTela cuida disso), e é desenhada sempre que `desenhar()` roda — a
+ * mesma regra que os Ajustes já seguem — para que mês e estado nunca fiquem
+ * defasados quando a pessoa volta a ela.
+ */
+
+function desenharRelatorio() {
+  const linhas = linhasDoRelatorio(mesVisivel);
+
+  $('relatorio-mes').textContent = 'Em ' + rotuloDoMes(mesVisivel) + '.';
+
+  const lista = $('lista-relatorio');
+  lista.textContent = '';
+  for (const linha of linhas) lista.appendChild(linhaDoRelatorio(linha));
+
+  lista.hidden = linhas.length === 0;
+  $('relatorio-vazio').hidden = linhas.length > 0;
 }
 
-function desenharDetalhamento() {
-  const fatias = gastosPorCategoria(estado.lancamentos, estado.realizados, mesVisivel);
+/**
+ * Junta o que já foi gasto no mês com quem tem limite definido mas ficou em
+ * R$ 0,00 (decisão 6 do B5, corrigida): sem esta segunda parte, um limite
+ * posto num mês sem gasto naquela categoria fica sem porta de saída — a falha
+ * que o `juiz` apontou na primeira versão deste bloco.
+ *
+ * É só junção, filtro e ordenação por nome — nenhuma conta nova com dinheiro.
+ * O total de quem não gastou é `0`, um fato conhecido, não um valor inventado;
+ * por isso a função mora aqui, e não no núcleo.
+ * @param {Mes} mes
+ * @returns {GastoDeCategoria[]}
+ */
+function linhasDoRelatorio(mes) {
+  const fatias = gastosPorCategoria(estado.lancamentos, estado.realizados, mes);
+  const jaListadas = new Set(fatias.map((f) => f.id));
 
-  $('detalhamento-mes').textContent = 'Em ' + rotuloDoMes(mesVisivel) + '.';
+  const semGasto = Object.keys(estado.limites)
+    .filter((id) => !jaListadas.has(id))
+    .map((id) => categoriaPorId(estado, id))
+    .filter((categoria) => categoria !== null)
+    .sort((a, b) => a.nome.localeCompare(b.nome, 'pt-BR'))
+    .map((categoria) => ({ id: categoria.id, total: 0, quantidade: 0, proporcao: 0 }));
 
-  const lista = $('lista-detalhamento');
-  lista.textContent = '';
-  for (const fatia of fatias) lista.appendChild(linhaDoDetalhamento(fatia));
-
-  lista.hidden = fatias.length === 0;
-  $('detalhamento-vazio').hidden = fatias.length > 0;
+  return [...fatias, ...semGasto];
 }
 
 /** @param {GastoDeCategoria} fatia @returns {HTMLLIElement} */
-function linhaDoDetalhamento(fatia) {
+function linhaDoRelatorio(fatia) {
   const semCategoria = fatia.id === null;
   const categoria = fatia.id === null ? null : categoriaPorId(estado, fatia.id);
   // Uma categoria do usuário pode ter sido escondida depois de já ter gasto
@@ -1315,6 +1347,8 @@ function linhaDoDetalhamento(fatia) {
   // 4), então "categoria removida" só cobre o caso, teoricamente impossível
   // hoje, de um id que não existe em lugar nenhum.
   const nome = semCategoria ? 'Sem categoria' : categoria ? categoria.nome : 'Categoria removida';
+  const limite = fatia.id ? estado.limites[fatia.id] || 0 : 0;
+  const situacao = limite > 0 ? situacaoDoLimite(fatia.total, limite) : null;
 
   const item = document.createElement('li');
   item.className = 'linha-categoria';
@@ -1322,16 +1356,6 @@ function linhaDoDetalhamento(fatia) {
   const botao = document.createElement('button');
   botao.type = 'button';
   botao.className = 'barra linha-categoria-botao' + (semCategoria ? ' vazia' : '');
-  botao.setAttribute(
-    'aria-label',
-    semCategoria
-      ? `Sem categoria: ${formatarDinheiro(fatia.total)}. Toque para corrigir.`
-      : `Ver o limite de ${nome}: ${formatarDinheiro(fatia.total)}.`
-  );
-  botao.addEventListener('click', () => {
-    if (semCategoria) irCorrigirSemCategoria();
-    else if (fatia.id) abrirLimite(fatia.id, nome, fatia.total);
-  });
 
   const rotuloNome = document.createElement('span');
   rotuloNome.className = 'barra-nome';
@@ -1349,6 +1373,36 @@ function linhaDoDetalhamento(fatia) {
   trilho.appendChild(trecho);
 
   botao.append(rotuloNome, valor, trilho);
+
+  // aria-label no botão substitui todo o texto dos filhos para quem usa
+  // leitor de tela — por isso a legenda do limite entra nele também, e não só
+  // no texto visível (decisão 6b do B5).
+  let rotuloAcessivel = semCategoria
+    ? `Sem categoria: ${formatarDinheiro(fatia.total)}. Toque para corrigir.`
+    : `Ver o limite de ${nome}: ${formatarDinheiro(fatia.total)}.`;
+
+  if (situacao) {
+    const legenda = document.createElement('p');
+    legenda.className = 'legenda-limite';
+    legenda.classList.toggle('estourou', situacao.estourou);
+    // Informação, nunca bronca (decisão 5 do B5): coral, sem ícone de alerta,
+    // sem exclamação, sem a palavra "estourou" na tela. O excedente vem pronto
+    // do núcleo, em positivo — inverter o sinal aqui seria conta com dinheiro
+    // fora do lugar.
+    const base = `${formatarDinheiro(situacao.usado)} de ${formatarDinheiro(limite)}`;
+    legenda.textContent = situacao.estourou
+      ? `${base} — ${formatarDinheiro(situacao.excedente)} a mais.`
+      : `${base}.`;
+    botao.appendChild(legenda);
+    rotuloAcessivel += ` ${legenda.textContent}`;
+  }
+
+  botao.setAttribute('aria-label', rotuloAcessivel);
+  botao.addEventListener('click', () => {
+    if (semCategoria) irCorrigirSemCategoria();
+    else if (fatia.id) abrirLimite(fatia.id, nome, fatia.total);
+  });
+
   item.appendChild(botao);
   return item;
 }
@@ -1357,7 +1411,6 @@ function linhaDoDetalhamento(fatia) {
    e não existe categoria aqui. A correção mora onde ela sempre morou: no toque
    na etiqueta de cada registro (decisão 2). Esta função só leva até lá. */
 function irCorrigirSemCategoria() {
-  $dialogo('dialogo-detalhamento').close();
   location.hash = '#/inicio';
   avisar('Toque na etiqueta de um lançamento para dar uma categoria a ele.');
 }
@@ -1374,7 +1427,6 @@ let limiteEmEdicao = null;
  */
 function abrirLimite(id, nome, gasto) {
   limiteEmEdicao = { id, nome, gasto };
-  $dialogo('dialogo-detalhamento').close();
   desenharLimite();
   $dialogo('dialogo-limite').showModal();
 }
@@ -1420,11 +1472,12 @@ $('limite-salvar').addEventListener('click', () => {
   salvar();
   $dialogo('dialogo-limite').close();
   limiteEmEdicao = null;
-  /* Sem reabrir o detalhamento: um <dialog> modal vai para a top layer e torna
-     inerte todo o resto, inclusive o aviso — o Desfazer ficava atrás do véu,
-     visível e sem clique, até o timer apagá-lo. Quem quiser voltar à quebra do
-     mês toca de novo em "Para onde foi", que é um toque; ressuscitar um
-     desfazer perdido não é. */
+  /* O Relatório é uma tela, não um diálogo (decisão 6 do B5, corrigida): ela
+     já está visível atrás deste <dialog>, e `salvar()` acabou de redesenhá-la
+     — não há nada para reabrir. O que continua valendo é fechar o <dialog>
+     ANTES de chamar `avisar`: um <dialog> modal aberto vai para a top layer e
+     torna inerte todo o resto, inclusive o próprio aviso — o Desfazer ficava
+     atrás do véu, visível e sem clique, até o timer apagá-lo. */
   avisar(valor > 0 ? 'Limite salvo.' : 'Limite removido.', () => restaurar(anterior));
 });
 
@@ -1439,16 +1492,9 @@ $('limite-remover').addEventListener('click', () => {
   avisar('Limite removido.', () => restaurar(anterior));
 });
 
-/* Cancelar devolve a pessoa onde ela estava, e pode reabrir o detalhamento
-   porque não emite aviso nenhum. Salvar e remover não reabrem, justamente
-   porque emitem — e o aviso precisa ficar tocável. */
 $('limite-cancelar').addEventListener('click', () => {
   $dialogo('dialogo-limite').close();
-  abrirDetalhamento();
 });
-
-$('botao-detalhamento').addEventListener('click', abrirDetalhamento);
-$('detalhamento-fechar').addEventListener('click', () => $dialogo('dialogo-detalhamento').close());
 
 /* ---------- Service worker ---------- */
 

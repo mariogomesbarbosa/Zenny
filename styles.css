@@ -368,6 +368,10 @@ h1 { font-size: 1.75rem; line-height: 1.2; letter-spacing: -.02em; margin: 8px 0
 .painel-para-onde svg { flex: none; color: var(--tinta-fraca); }
 .painel-para-onde:hover span { text-decoration: underline; }
 
+/* Vira link ao virar porta para a tela de Relatório: o sublinhado nativo do
+   <a> some daqui, e volta só no hover, junto com o rótulo (regra acima). */
+.painel-para-onde { text-decoration: none; }
+
 /* ---------- Grupos: Entradas e Despesas ---------- */
 
 .grupo { margin-top: 26px; }
@@ -552,8 +556,10 @@ h1 { font-size: 1.75rem; line-height: 1.2; letter-spacing: -.02em; margin: 8px 0
 /* ---------- Navegação ---------- */
 
 /* Nos Ajustes o botão flutuante some. Ele adiciona lançamento, e esta tela não
-   é sobre lançamentos — pior, ele fica por cima do cartão de apagar tudo. */
-body[data-tela="ajustes"] .botao-flutuante { display: none; }
+   é sobre lançamentos — pior, ele fica por cima do cartão de apagar tudo. No
+   Relatório é a mesma história: a tela é de leitura, não de registro. */
+body[data-tela="ajustes"] .botao-flutuante,
+body[data-tela="relatorio"] .botao-flutuante { display: none; }
 
 .navegacao {
   flex: none;
@@ -750,9 +756,31 @@ dialog::backdrop { background: var(--veu); }
 .opcao-categoria.selecionada { color: var(--verde); font-weight: 600; }
 .opcao-categoria svg { flex: none; width: 16px; height: 16px; stroke: var(--verde); stroke-width: 2.4; }
 
-/* A quebra do mês por categoria (detalhamento): reusa o visual da barra do
-   painel — mesma grade, mesmo trilho — porque é a mesma ideia, uma fatia do
-   que já saiu. */
+/* ---------- Relatório ---------- */
+
+/* A tela não mora na navegação de baixo (decisão 6 do B5): um item de menu
+   para algo que se consulta uma vez por semana custa caro em 360px. Por não
+   estar lá, precisa de uma porta de saída explícita. */
+.link-voltar {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  min-height: var(--alvo);
+  margin: 0 0 2px -8px;
+  padding: 0 8px;
+  border-radius: 10px;
+  color: var(--tinta-suave);
+  text-decoration: none;
+  font-weight: 600;
+  font-size: .875rem;
+  -webkit-tap-highlight-color: transparent;
+}
+
+.link-voltar:hover { background: var(--superficie); color: var(--tinta); }
+.link-voltar svg { width: 20px; height: 20px; flex: none; }
+
+/* A quebra do mês por categoria: reusa o visual da barra do painel — mesma
+   grade, mesmo trilho — porque é a mesma ideia, uma fatia do que já saiu. */
 .quebra-categorias { list-style: none; margin: 0 0 8px; padding: 0; }
 .linha-categoria { border-bottom: 1px solid var(--borda-fraca); }
 .linha-categoria:last-child { border-bottom: 0; }
@@ -776,9 +804,12 @@ dialog::backdrop { background: var(--veu); }
 .linha-categoria-botao.vazia .barra-nome { color: var(--tinta-suave); font-style: italic; }
 .trecho.cheio.categoria-vazia { background: var(--tinta-fraca); }
 
-/* A situação do limite: informação, nunca bronca (decisão 5 do B5). Coral
-   aqui não é alarme — é a mesma cor que o app já usa para "dinheiro que sai";
-   quem carrega a notícia é o texto, não um vermelho de erro. */
+/* O quanto do limite já foi usado, na própria linha (decisão 6b do B5): um
+   aviso que precisa de três toques para aparecer é quase mudo. Ocupa a grade
+   inteira, embaixo do trilho, e nunca é bronca (decisão 5) — coral é a mesma
+   cor que o app já usa para "dinheiro que sai", não um vermelho de erro. */
+.legenda-limite { grid-column: 1 / -1; margin: 2px 0 0; font-size: .75rem; color: var(--tinta-suave); }
+.legenda-limite.estourou,
 #limite-situacao.estourou { color: var(--coral); }
 
 /* ---------- Aviso temporário ---------- */

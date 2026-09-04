@@ -107,10 +107,10 @@
         </p>
       </div>
 
-      <button type="button" class="painel-para-onde" id="botao-detalhamento">
+      <a href="#/relatorio" class="painel-para-onde" id="link-para-onde-foi">
         <span>Para onde foi</span>
         <svg viewBox="0 0 24 24" aria-hidden="true"><path d="m9 5 7 7-7 7"/></svg>
-      </button>
+      </a>
     </div>
 
     <section class="grupo" aria-labelledby="titulo-entradas">
@@ -142,6 +142,30 @@
         <span id="pe-despesas-realizado"></span>
       </div>
     </section>
+  </section>
+
+  <!-- Não entra na navegação de baixo (decisão 6 do B5): um item de menu para
+       algo que se consulta uma vez por semana custa caro em 360px. A porta é
+       só o botão "Para onde foi" do painel, e a saída é o link abaixo — sem
+       isso quem entra não teria como voltar. -->
+  <section class="tela" id="tela-relatorio" aria-labelledby="titulo-relatorio" hidden>
+    <a href="#/inicio" class="link-voltar" id="relatorio-voltar">
+      <svg viewBox="0 0 24 24" aria-hidden="true"><path d="m14.5 5-7 7 7 7"/></svg>
+      <span>Início</span>
+    </a>
+
+    <h1 id="titulo-relatorio">Relatório</h1>
+    <p class="subtitulo" id="relatorio-mes">—</p>
+
+    <ul class="quebra-categorias" id="lista-relatorio"></ul>
+
+    <div class="cartao vazio" id="relatorio-vazio" hidden>
+      <h2>Nada por aqui ainda</h2>
+      <p>
+        Assim que você marcar uma despesa como paga, ela aparece aqui — e dá
+        para definir um limite para ela.
+      </p>
+    </div>
   </section>
 
   <section class="tela" id="tela-metas" aria-labelledby="titulo-metas" hidden>
@@ -352,23 +376,6 @@
     <div class="acoes">
       <button type="button" class="botao contorno" id="categoria-cancelar">Cancelar</button>
       <button type="button" class="botao" id="categoria-criar">Criar e usar</button>
-    </div>
-  </div>
-</dialog>
-
-<dialog id="dialogo-detalhamento" aria-labelledby="titulo-do-detalhamento">
-  <div class="pegador" aria-hidden="true"></div>
-  <div class="folha">
-    <h2 id="titulo-do-detalhamento">Para onde foi</h2>
-    <p class="dica" id="detalhamento-mes"></p>
-
-    <ul class="quebra-categorias" id="lista-detalhamento"></ul>
-    <p class="nota" id="detalhamento-vazio" hidden>
-      Nenhuma despesa marcada como paga neste mês ainda.
-    </p>
-
-    <div class="pilha">
-      <button type="button" class="botao contorno" id="detalhamento-fechar">Fechar</button>
     </div>
   </div>
 </dialog>
