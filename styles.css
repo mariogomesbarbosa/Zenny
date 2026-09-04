@@ -343,6 +343,35 @@ h1 { font-size: 1.75rem; line-height: 1.2; letter-spacing: -.02em; margin: 8px 0
 .amostra.cheia { background: var(--tinta-suave); }
 .amostra.clara { background: var(--borda); }
 
+/* O botão "Para onde foi" (decisão 7 do B5): dentro do painel, com rótulo
+   visível — nem uma quarta aba, nem um toque escondido no número. */
+.painel-para-onde {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  width: 100%;
+  min-height: var(--alvo);
+  margin: 0;
+  padding: 14px 0 0;
+  border: 0;
+  border-top: 1px solid var(--borda-fraca);
+  background: none;
+  color: var(--tinta);
+  font: inherit;
+  font-weight: 600;
+  font-size: .9375rem;
+  text-align: left;
+  cursor: pointer;
+  -webkit-tap-highlight-color: transparent;
+}
+
+.painel-para-onde svg { flex: none; color: var(--tinta-fraca); }
+.painel-para-onde:hover span { text-decoration: underline; }
+
+/* Vira link ao virar porta para a tela de Relatório: o sublinhado nativo do
+   <a> some daqui, e volta só no hover, junto com o rótulo (regra acima). */
+.painel-para-onde { text-decoration: none; }
+
 /* ---------- Grupos: Entradas e Despesas ---------- */
 
 .grupo { margin-top: 26px; }
@@ -381,8 +410,8 @@ h1 { font-size: 1.75rem; line-height: 1.2; letter-spacing: -.02em; margin: 8px 0
   display: grid;
   grid-template-columns: 28px 1fr 32px;
   align-items: center;
-  gap: 8px;
-  min-height: 56px;
+  gap: 4px 8px;
+  padding: 8px 0;
   border-bottom: 1px solid var(--borda-fraca);
 }
 
@@ -446,6 +475,36 @@ h1 { font-size: 1.75rem; line-height: 1.2; letter-spacing: -.02em; margin: 8px 0
   vertical-align: 1px;
 }
 
+/* A segunda linha do registro: a etiqueta "fixa" (se houver) ao lado da
+   categoria, sempre presente — é ela que convida ao toque quando não há
+   categoria nenhuma. Recuada para alinhar com o início da descrição, não com
+   o dia. */
+.lancamento-etiquetas {
+  grid-column: 2;
+  display: flex;
+  align-items: stretch;
+  flex-wrap: wrap;
+  gap: 2px 6px;
+  min-height: var(--alvo);
+  padding-left: 34px;
+}
+
+.lancamento-etiquetas > .etiqueta { align-self: center; }
+
+.etiqueta-categoria {
+  display: inline-flex;
+  align-items: center;
+  padding: 0 2px;
+  border: 0;
+  background: none;
+  cursor: pointer;
+  -webkit-tap-highlight-color: transparent;
+}
+
+/* Sem categoria é honesto, não um erro: traço tracejado convida ao toque em
+   vez de soar como falta. */
+.etiqueta-vazia { color: var(--tinta-fraca); border-style: dashed; }
+
 .lancamento-valor { font-weight: 600; font-size: .9375rem; white-space: nowrap; }
 .lancamento-valor.entrada { color: var(--verde); }
 .lancamento-valor.saida { color: var(--coral); }
@@ -497,8 +556,10 @@ h1 { font-size: 1.75rem; line-height: 1.2; letter-spacing: -.02em; margin: 8px 0
 /* ---------- Navegação ---------- */
 
 /* Nos Ajustes o botão flutuante some. Ele adiciona lançamento, e esta tela não
-   é sobre lançamentos — pior, ele fica por cima do cartão de apagar tudo. */
-body[data-tela="ajustes"] .botao-flutuante { display: none; }
+   é sobre lançamentos — pior, ele fica por cima do cartão de apagar tudo. No
+   Relatório é a mesma história: a tela é de leitura, não de registro. */
+body[data-tela="ajustes"] .botao-flutuante,
+body[data-tela="relatorio"] .botao-flutuante { display: none; }
 
 .navegacao {
   flex: none;
@@ -660,6 +721,97 @@ dialog::backdrop { background: var(--veu); }
 
 .botao.apagado:hover { background: var(--coral-fraco); }
 
+/* ---------- Categorias e limites (B5) ---------- */
+
+/* A folha de escolher categoria: cada opção é um botão de largura cheia, a
+   atual marcada com o mesmo traço de "feito" do marcador de realizado. */
+.lista-categorias {
+  list-style: none;
+  margin: 0 0 16px;
+  padding: 0;
+  max-height: 45vh;
+  overflow-y: auto;
+}
+
+.opcao-categoria {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  width: 100%;
+  min-height: var(--alvo);
+  padding: 0 4px;
+  border: 0;
+  border-bottom: 1px solid var(--borda-fraca);
+  background: none;
+  color: inherit;
+  font: inherit;
+  font-size: .9375rem;
+  text-align: left;
+  cursor: pointer;
+  -webkit-tap-highlight-color: transparent;
+}
+
+.opcao-categoria:last-child { border-bottom: 0; }
+.opcao-categoria.selecionada { color: var(--verde); font-weight: 600; }
+.opcao-categoria svg { flex: none; width: 16px; height: 16px; stroke: var(--verde); stroke-width: 2.4; }
+
+/* ---------- Relatório ---------- */
+
+/* A tela não mora na navegação de baixo (decisão 6 do B5): um item de menu
+   para algo que se consulta uma vez por semana custa caro em 360px. Por não
+   estar lá, precisa de uma porta de saída explícita. */
+.link-voltar {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  min-height: var(--alvo);
+  margin: 0 0 2px -8px;
+  padding: 0 8px;
+  border-radius: 10px;
+  color: var(--tinta-suave);
+  text-decoration: none;
+  font-weight: 600;
+  font-size: .875rem;
+  -webkit-tap-highlight-color: transparent;
+}
+
+.link-voltar:hover { background: var(--superficie); color: var(--tinta); }
+.link-voltar svg { width: 20px; height: 20px; flex: none; }
+
+/* A quebra do mês por categoria: reusa o visual da barra do painel — mesma
+   grade, mesmo trilho — porque é a mesma ideia, uma fatia do que já saiu. */
+.quebra-categorias { list-style: none; margin: 0 0 8px; padding: 0; }
+.linha-categoria { border-bottom: 1px solid var(--borda-fraca); }
+.linha-categoria:last-child { border-bottom: 0; }
+
+.linha-categoria-botao {
+  width: 100%;
+  min-height: var(--alvo);
+  padding: 10px 0;
+  border: 0;
+  background: none;
+  color: inherit;
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+  -webkit-tap-highlight-color: transparent;
+}
+
+/* "Sem categoria" não é uma categoria de verdade: o nome recua para o tom
+   fraco, e a barra fica neutra em vez de coral — ela não compete com o
+   dinheiro de fato classificado. */
+.linha-categoria-botao.vazia .barra-nome { color: var(--tinta-suave); font-style: italic; }
+.trecho.cheio.categoria-vazia { background: var(--tinta-fraca); }
+
+/* O quanto do limite já foi usado, na própria linha (decisão 6b do B5): um
+   aviso que precisa de três toques para aparecer é quase mudo. Ocupa a grade
+   inteira, embaixo do trilho, e nunca é bronca (decisão 5) — coral é a mesma
+   cor que o app já usa para "dinheiro que sai", não um vermelho de erro. */
+.legenda-limite { grid-column: 1 / -1; margin: 2px 0 0; font-size: .75rem; color: var(--tinta-suave); }
+.legenda-limite.estourou,
+#limite-situacao.estourou { color: var(--coral); }
+
 /* ---------- Aviso temporário ---------- */
 
 .aviso {
@@ -786,6 +938,11 @@ dialog::backdrop { background: var(--veu); }
     gap: 34px;
     padding: 22px 24px;
   }
+
+  /* Sem isto o botão cai na segunda linha do grid ocupando só a primeira
+     coluna — a mesma auto-colocação que rege qualquer item extra num grid de
+     2 colunas. Ele é o rodapé do painel inteiro, não de uma metade dele. */
+  .painel-para-onde { grid-column: 1 / -1; }
 
   .botao-flutuante { bottom: 24px; right: 24px; }
   .aviso { bottom: 24px; }

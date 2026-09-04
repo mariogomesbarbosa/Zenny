@@ -44,11 +44,21 @@
  * @property {number} valor Em centavos, sempre inteiro.
  */
 
+/* `categoria` é OPCIONAL no tipo, e isso é deliberado: o formulário monta o
+ * registro com o que a pessoa digitou — o que é e quanto é — e a categoria é
+ * derivada depois, pela descrição. Exigi-la na construção obrigaria toda tela a
+ * ter uma resposta pronta, que é exatamente a fricção que o B5 recusa.
+ *
+ * `normalizarEstado` sempre preenche o campo, então o estado que vem do
+ * localStorage tem `string` ou `null` em todo registro. Quem lê trata ausente e
+ * `null` do mesmo jeito: "o app não sabe". */
+
 /**
  * @typedef {object} Avulso
  * @property {string} id
  * @property {TipoDeLancamento} tipo
  * @property {string} descricao
+ * @property {string|null} [categoria] Id de categoria, ou `null` para sem categoria.
  * @property {false} fixo
  * @property {number} valor Em centavos.
  * @property {Data} data
@@ -59,6 +69,7 @@
  * @property {string} id
  * @property {TipoDeLancamento} tipo
  * @property {string} descricao
+ * @property {string|null} [categoria] Id de categoria, ou `null` para sem categoria.
  * @property {true} fixo
  * @property {number} dia
  * @property {Mes} inicio
@@ -83,10 +94,50 @@
  */
 
 /**
+ * Uma categoria como a tela precisa dela.
+ * @typedef {object} Categoria
+ * @property {string} id
+ * @property {string} nome
+ * @property {TipoDeLancamento} tipo
+ */
+
+/**
+ * O que o estado guarda: só as categorias criadas pelo usuário, e cada uma sabe
+ * se está escondida da lista de escolha.
+ * @typedef {Categoria & { oculta: boolean }} CategoriaDoUsuario
+ */
+
+/**
+ * Limite por categoria, em centavos. A ausência da chave é a ausência de limite
+ * — não existe limite de R$ 0,00.
+ * @typedef {Record<string, number>} Limites
+ */
+
+/**
  * @typedef {object} Estado
  * @property {number} versao
  * @property {Lancamento[]} lancamentos
  * @property {Realizados} realizados
+ * @property {CategoriaDoUsuario[]} categorias Só as criadas pelo usuário.
+ * @property {Limites} limites
+ */
+
+/**
+ * Uma fatia da quebra do mês. `id` é `null` no registro que ficou sem categoria.
+ * @typedef {object} GastoDeCategoria
+ * @property {string|null} id
+ * @property {number} total Centavos já realizados.
+ * @property {number} quantidade
+ * @property {number} proporcao Largura da barra, em % do maior gasto do mês.
+ */
+
+/**
+ * @typedef {object} SituacaoDeLimite
+ * @property {number} usado Centavos.
+ * @property {number} restante Centavos. Negativo é o quanto passou.
+ * @property {number} excedente Centavos. O quanto passou, já em positivo; zero quando não passou.
+ * @property {number} proporcao Largura da barra, em %, no máximo 100.
+ * @property {boolean} estourou
  */
 
 /**
@@ -108,7 +159,7 @@
  */
 
 export const CHAVE = 'zenny:v1';
-export const VERSAO_DO_ESQUEMA = 3;
+export const VERSAO_DO_ESQUEMA = 4;
 
 /* ---------- Dinheiro ---------- */
 
@@ -267,13 +318,23 @@ export function diaDe(data) {
  *
  * O que já aconteceu vive em `realizados`, num mapa com chave "id|AAAA-MM".
  * Isso é sutil e é certo: o mesmo aluguel fixo está pago em setembro e não em
- * outubro, e o lançamento é um só. */
+ * outubro, e o lançamento é um só.
+ *
+ * `categorias` guarda SÓ as criadas pelo usuário, e `limites` só os que ele
+ * definiu. As categorias de fábrica são constante do código: ver a seção
+ * Categorias. */
 
 /**
  * @returns {Estado}
  */
 export function estadoVazio() {
-  return { versao: VERSAO_DO_ESQUEMA, lancamentos: [], realizados: {} };
+  return {
+    versao: VERSAO_DO_ESQUEMA,
+    lancamentos: [],
+    realizados: {},
+    categorias: [],
+    limites: {},
+  };
 }
 
 /** @param {unknown} v @returns {v is Mes} */
@@ -386,6 +447,305 @@ export function definirValorSempre(valor, inicio) {
   return [{ desde: inicio, valor }];
 }
 
+/* ---------- Categorias ----------
+ *
+ * Categoria é o único item do roteiro que já foi recusado uma vez, e o motivo
+ * governa esta seção inteira: uma taxonomia que a pessoa tem que aprender antes
+ * de conseguir usar o app é a barreira que o Zenny existe para remover. Então a
+ * categoria é SUGERIDA pela descrição e nunca perguntada, e o que a sugestão não
+ * acerta se corrige com um toque na etiqueta.
+ *
+ * As de fábrica são constante do código e NÃO vão para o estado. Guardá-las
+ * significaria versionar no aparelho de cada um uma lista que pode mudar no
+ * próximo deploy — e aí renomear "Comida fora" viraria migração. O estado guarda
+ * só o que é do usuário. Ver docs/b5-categorias-e-limites.md. */
+
+/* A ordem desta lista é a ordem em que a tela oferece as categorias, e "Outros"
+   é o último de propósito: ele é o balde, e balde não se oferece primeiro. */
+/** @type {Categoria[]} */
+export const CATEGORIAS_DE_FABRICA = [
+  { id: 'mercado', nome: 'Mercado', tipo: 'saida' },
+  { id: 'casa', nome: 'Casa', tipo: 'saida' },
+  { id: 'transporte', nome: 'Transporte', tipo: 'saida' },
+  { id: 'comida-fora', nome: 'Comida fora', tipo: 'saida' },
+  { id: 'assinatura', nome: 'Assinatura', tipo: 'saida' },
+  { id: 'saude', nome: 'Saúde', tipo: 'saida' },
+  { id: 'estudo', nome: 'Estudo', tipo: 'saida' },
+  { id: 'lazer', nome: 'Lazer', tipo: 'saida' },
+  { id: 'outros', nome: 'Outros', tipo: 'saida' },
+  { id: 'salario', nome: 'Salário', tipo: 'entrada' },
+  { id: 'extra', nome: 'Extra', tipo: 'entrada' },
+];
+
+/* A tabela de palavras-chave, por id de categoria.
+ *
+ * Ela vai errar, e isso está previsto: o objetivo não é acertar sempre, é
+ * acertar o suficiente para ninguém precisar categorizar à mão o que é óbvio.
+ *
+ * Escritas em minúsculas e sem acento porque é assim que a descrição chega para
+ * a comparação — um teste guarda essa regra, o que é mais barato do que
+ * normalizar a tabela inteira em cada chamada.
+ *
+ * 'outros' não tem palavra nenhuma, e é intencional: sem acerto o registro fica
+ * SEM categoria. "Sem categoria" é honesto sobre o que o app não sabe e a
+ * etiqueta convida ao toque; jogar em Outros seria fingir uma classificação. */
+/** @type {Record<string, string[]>} */
+const PALAVRAS_DA_CATEGORIA = {
+  mercado: [
+    'mercado', 'mercadinho', 'supermercado', 'mercearia', 'feira', 'hortifruti',
+    'sacolao', 'acougue', 'padaria', 'quitanda', 'atacado', 'atacadao',
+  ],
+  casa: [
+    'aluguel', 'condominio', 'luz', 'energia', 'agua', 'gas', 'botijao',
+    'internet', 'wifi', 'iptu', 'faxina', 'diarista', 'limpeza',
+  ],
+  transporte: [
+    'uber', '99', 'taxi', 'onibus', 'metro', 'trem', 'brt', 'bilhete',
+    'passagem', 'gasolina', 'combustivel', 'etanol', 'alcool', 'pedagio',
+    'estacionamento', 'oficina', 'mecanico', 'ipva',
+  ],
+  'comida-fora': [
+    'comida fora', 'ifood', 'rappi', 'lanche', 'lanchonete', 'hamburguer',
+    'burger', 'pizza', 'pizzaria', 'restaurante', 'marmita', 'delivery', 'cafe',
+    'cafeteria', 'sorvete', 'acai', 'doceria', 'bar', 'cerveja', 'almoco',
+    'janta',
+  ],
+  assinatura: [
+    'assinatura', 'streaming', 'netflix', 'spotify', 'disney', 'hbo',
+    'globoplay', 'youtube', 'deezer', 'prime', 'icloud',
+  ],
+  saude: [
+    'saude', 'farmacia', 'drogaria', 'remedio', 'medicamento', 'medico',
+    'dentista', 'consulta', 'exame', 'laboratorio', 'terapia', 'psicologo',
+    'vacina', 'oculos', 'academia',
+  ],
+  estudo: [
+    'curso', 'cursinho', 'faculdade', 'universidade', 'escola', 'mensalidade',
+    'matricula', 'apostila', 'livro', 'caderno', 'material', 'ingles', 'aula',
+  ],
+  lazer: [
+    'cinema', 'show', 'teatro', 'ingresso', 'festa', 'balada', 'jogo', 'jogos',
+    'game', 'games', 'viagem', 'passeio', 'praia', 'parque', 'hotel', 'airbnb',
+  ],
+  outros: [],
+  salario: [
+    'salario', 'pagamento', 'holerite', 'contracheque', 'adiantamento',
+    'decimo', 'ferias',
+  ],
+  extra: [
+    'extra', 'freela', 'freelance', 'bico', 'reembolso', 'estorno', 'cashback',
+    'presente', 'venda', 'vendi', 'bonus', 'premio', 'gorjeta', 'comissao',
+    'renda',
+  ],
+};
+
+/* Minúsculas e sem acento: "Café" e "cafe" são a mesma palavra para quem digita
+   com pressa no celular. */
+/**
+ * @param {unknown} texto
+ * @returns {string}
+ */
+function semAcento(texto) {
+  return String(texto ?? '')
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .toLowerCase();
+}
+
+/* A sugestão, que é o coração do bloco.
+ *
+ * A descrição vira uma frase de palavras separadas por um espaço só, com espaço
+ * nas duas pontas, e cada palavra-chave é procurada CERCADA de espaço. Assim
+ * "uber pro trampo" acha 'uber' e "casaco novo" NÃO cai em Casa.
+ *
+ * Duas alternativas foram recusadas: procurar a chave como substring solta
+ * pegaria 'casa' em "casaco" e 'gas' em "gasolina"; casar palavra por palavra
+ * num Set seria mais rápido, mas impediria chave de duas palavras, como
+ * 'comida fora'.
+ *
+ * O `tipo` filtra o lado: uma saída não pode nascer em Salário. */
+/**
+ * @param {unknown} descricao
+ * @param {TipoDeLancamento} tipo
+ * @returns {string|null} O id da categoria, ou `null` quando nada casa.
+ */
+export function sugerirCategoria(descricao, tipo) {
+  const frase = ' ' + semAcento(descricao).replace(/[^a-z0-9]+/g, ' ').trim() + ' ';
+  const lado = tipo === 'entrada' ? 'entrada' : 'saida';
+
+  for (const categoria of CATEGORIAS_DE_FABRICA) {
+    if (categoria.tipo !== lado) continue;
+    for (const palavra of PALAVRAS_DA_CATEGORIA[categoria.id] || []) {
+      if (frase.includes(' ' + palavra + ' ')) return categoria.id;
+    }
+  }
+  return null;
+}
+
+/* Quantos caracteres cabem no nome de uma categoria.
+ *
+ * Não é estética: o nome vira etiqueta dentro do registro em 360px, e um nome
+ * colado de outro lugar empurraria o layout para fora da tela. Cortar aqui é
+ * mais honesto que cortar com reticências na hora de desenhar, porque o que a
+ * pessoa vê na lista passa a ser o que ficou guardado. */
+const LIMITE_DO_NOME = 24;
+
+/* Espaços colapsados, pontas limpas e primeira letra maiúscula — para a lista do
+   usuário não parecer de segunda classe ao lado das de fábrica. */
+/**
+ * @param {unknown} nome
+ * @returns {string}
+ */
+function normalizarNome(nome) {
+  const limpo = String(nome ?? '')
+    .replace(/\s+/g, ' ')
+    .trim()
+    .slice(0, LIMITE_DO_NOME)
+    .trim();
+  return limpo ? limpo[0].toUpperCase() + limpo.slice(1) : '';
+}
+
+/* Fábrica + as do usuário, sem as ocultas.
+ *
+ * As de fábrica vêm primeiro, na ordem da constante; as do usuário vêm depois,
+ * em ordem alfabética. Ordem de criação foi recusada: a lista é de escolha, e
+ * uma lista de escolha que muda de ordem conforme o histórico obriga a pessoa a
+ * procurar de novo o que ela já sabia onde estava. */
+/**
+ * @param {Estado} estado
+ * @param {TipoDeLancamento} tipo
+ * @returns {Categoria[]}
+ */
+export function categoriasDisponiveis(estado, tipo) {
+  const doUsuario = estado.categorias
+    .filter((c) => c.tipo === tipo && !c.oculta)
+    .map((c) => ({ id: c.id, nome: c.nome, tipo: c.tipo }))
+    .sort((a, b) => a.nome.localeCompare(b.nome, 'pt-BR'));
+
+  /* Devolve cópias das de fábrica, e não as próprias: a constante é global ao
+     módulo, e um `.nome = ...` de quem desenha a lista contaminaria o app todo
+     até recarregar. */
+  const daFabrica = CATEGORIAS_DE_FABRICA.filter((c) => c.tipo === tipo).map((c) => ({ ...c }));
+
+  return [...daFabrica, ...doUsuario];
+}
+
+/* Acha inclusive a categoria OCULTA, de propósito: o registro antigo continua
+   apontando para ela, e a etiqueta precisa do nome. Esconder tira da lista de
+   escolha, não do passado (decisão 4). */
+/**
+ * @param {Estado} estado
+ * @param {string|null|undefined} id
+ * @returns {Categoria|null}
+ */
+export function categoriaPorId(estado, id) {
+  if (!id) return null;
+
+  const achada = [...CATEGORIAS_DE_FABRICA, ...estado.categorias].find((c) => c.id === id);
+  return achada ? { id: achada.id, nome: achada.nome, tipo: achada.tipo } : null;
+}
+
+/* O id que `criarCategoria` vai derivar deste nome.
+ *
+ * Existe exportado porque quem cria uma categoria precisa, no mesmo gesto,
+ * apontar o registro para ela — e descobrir o id comparando a lista antes e
+ * depois seria frágil. O contrato é: depois de `criarCategoria(estado, nome,
+ * tipo)`, este id acha a categoria em `categoriaPorId`.
+ *
+ * O id vem do nome, e não de um contador ou do relógio, porque assim ele é
+ * estável e legível no arquivo de backup: "cabelo-e-unha", não "k3f9x".
+ *
+ * Quando o id derivado já existe com OUTRO tipo — "Extra" como saída, quando já
+ * existe a entrada de fábrica — ele ganha sufixo, senão `categoriaPorId`
+ * devolveria a categoria do lado errado. Quando já existe com o MESMO tipo, o id
+ * é o mesmo de propósito: pedir "Mercado" de novo não inventa um segundo
+ * Mercado. */
+/**
+ * @param {Estado} estado
+ * @param {string} nome
+ * @param {TipoDeLancamento} tipo
+ * @returns {string}
+ */
+export function idDeCategoriaPeloNome(estado, nome, tipo) {
+  /* Nome que sobra vazio depois de tirar acento e pontuação ainda precisa de um
+     id: sem esta base, um nome só de emoji geraria id ''. */
+  const base =
+    semAcento(normalizarNome(nome))
+      .replace(/[^a-z0-9]+/g, '-')
+      .replace(/^-+|-+$/g, '') || 'categoria';
+
+  /** @type {Map<string, TipoDeLancamento>} */
+  const tipoPorId = new Map();
+  for (const c of [...CATEGORIAS_DE_FABRICA, ...estado.categorias]) tipoPorId.set(c.id, c.tipo);
+
+  let id = base;
+  let n = 1;
+  while (tipoPorId.has(id) && tipoPorId.get(id) !== tipo) {
+    n += 1;
+    id = base + '-' + n;
+  }
+  return id;
+}
+
+/**
+ * @param {Estado} estado
+ * @param {string} nome
+ * @param {TipoDeLancamento} tipo
+ * @returns {Estado}
+ */
+export function criarCategoria(estado, nome, tipo) {
+  const limpo = normalizarNome(nome);
+  if (!limpo) return estado;
+
+  const id = idDeCategoriaPeloNome(estado, limpo, tipo);
+
+  // Já é de fábrica: nada a guardar, e guardar seria sombrear a de fábrica com
+  // uma cópia que não migra quando a lista de fábrica mudar.
+  if (CATEGORIAS_DE_FABRICA.some((c) => c.id === id)) return estado;
+
+  if (estado.categorias.some((c) => c.id === id)) {
+    /* Recriar um nome que se escondeu é pedir ele de volta. Um segundo "Padaria"
+       ao lado do primeiro seria pior: a lista mostraria dois nomes iguais e o
+       passado ficaria dividido entre os dois. */
+    return {
+      ...estado,
+      categorias: estado.categorias.map((c) =>
+        c.id === id ? { ...c, nome: limpo, oculta: false } : c
+      ),
+    };
+  }
+
+  return {
+    ...estado,
+    categorias: [...estado.categorias, { id, nome: limpo, tipo, oculta: false }],
+  };
+}
+
+/* Esconde, não apaga (decisão 4).
+ *
+ * Apagar exigiria decidir o que fazer com os registros que apontam para ela, e
+ * qualquer resposta — virar sem categoria, virar Outros, apagar junto —
+ * reescreveria história que ninguém pediu para reescrever. É a mesma lógica do
+ * `fim` do fixo no B2: o passado não se mexe.
+ *
+ * O limite dela sobrevive: a categoria oculta continua aparecendo na quebra dos
+ * meses antigos, onde o limite ainda quer dizer algo.
+ *
+ * Categoria de fábrica não se oculta, e a chamada simplesmente não faz nada: ela
+ * não está no estado, e guardar essa exceção obrigaria a versionar a lista de
+ * fábrica no aparelho — exatamente o que o modelo recusou. */
+/**
+ * @param {Estado} estado
+ * @param {string} id
+ * @returns {Estado}
+ */
+export function ocultarCategoria(estado, id) {
+  return {
+    ...estado,
+    categorias: estado.categorias.map((c) => (c.id === id ? { ...c, oculta: true } : c)),
+  };
+}
+
 /* Aceita qualquer coisa vinda do localStorage e devolve um estado utilizável.
  *
  * Dado corrompido, de outra versão ou simplesmente estranho não pode derrubar o
@@ -394,7 +754,13 @@ export function definirValorSempre(valor, inicio) {
  * passa é descartado, e o resto sobrevive.
  *
  * Migração da versão 1: lá não havia fixos nem realizados. Um estado v1 entra
- * aqui e sai v2 sem perder nada — todo lançamento antigo é avulso. */
+ * aqui e sai v2 sem perder nada — todo lançamento antigo é avulso.
+ *
+ * Migração da versão 3: lá nenhum registro tinha categoria, e aqui cada um
+ * recebe a sugestão pela própria descrição (decisão 8 do B5). Isso faz a tela de
+ * "para onde foi" nascer útil no primeiro uso, em vez de vazia pedindo trabalho.
+ * Não perde dado — só acrescenta —, e cada acerto ou erro se corrige com um
+ * toque. */
 /**
  * A fronteira do sistema: aqui entra o que estava no localStorage ou num arquivo
  * de backup, e o tipo de entrada é `any` de propósito. Prometer uma forma para
@@ -409,6 +775,35 @@ export function normalizarEstado(bruto) {
   if (!bruto || typeof bruto !== 'object' || !Array.isArray(bruto.lancamentos)) {
     return estadoVazio();
   }
+
+  /* As categorias do usuário são validadas ANTES dos lançamentos, de propósito:
+     é a lista de ids válidos que decide se a categoria de um registro
+     sobrevive. */
+  /** @type {CategoriaDoUsuario[]} */
+  const categorias = [];
+  const idsDaFabrica = new Set(CATEGORIAS_DE_FABRICA.map((c) => c.id));
+
+  for (const cru of Array.isArray(bruto.categorias) ? bruto.categorias : []) {
+    if (!cru || typeof cru !== 'object') continue;
+
+    const id = String(cru.id ?? '').trim();
+    const nome = normalizarNome(cru.nome);
+
+    /* Id repetido, ou igual ao de uma de fábrica, sombrearia a categoria certa
+       em categoriaPorId — e a lista mostraria dois nomes para o mesmo id. */
+    if (!id || !nome || idsDaFabrica.has(id) || categorias.some((c) => c.id === id)) continue;
+
+    categorias.push({
+      id,
+      nome,
+      tipo: cru.tipo === 'entrada' ? 'entrada' : 'saida',
+      oculta: Boolean(cru.oculta),
+    });
+  }
+
+  /** @type {Map<string, TipoDeLancamento>} */
+  const tipoPorCategoria = new Map();
+  for (const c of [...CATEGORIAS_DE_FABRICA, ...categorias]) tipoPorCategoria.set(c.id, c.tipo);
 
   /** @type {Lancamento[]} */
   const lancamentos = [];
@@ -427,6 +822,28 @@ export function normalizarEstado(bruto) {
 
     if (!base.id || !base.descricao) continue;
 
+    /* A categoria de um registro: ou uma que existe e serve para o lado dele, ou
+     * nada.
+     *
+     * - Id que não existe mais vira `null`, do mesmo jeito que a marcação órfã de
+     *   realizado é descartada aqui embaixo.
+     * - Id do outro lado — uma saída apontando para Salário — também vira
+     *   `null`: guardaria o registro numa fatia que a pessoa não pode nem
+     *   escolher para corrigir.
+     * - AUSENTE ganha a sugestão pela descrição. É a migração da v3.
+     *
+     * O gatilho da sugestão é a ausência do campo, e não `bruto.versao < 4`:
+     * `versao` é dado de fora como qualquer outro, e um registro gravado por uma
+     * versão que não conhecia categoria merece a sugestão do mesmo jeito.
+     * `categoria: null` explícito é respeitado — a pessoa tirou a etiqueta, e
+     * sugerir de novo a cada leitura desfaria isso em silêncio. */
+    const categoria =
+      cru.categoria === undefined
+        ? sugerirCategoria(base.descricao, base.tipo)
+        : tipoPorCategoria.get(String(cru.categoria)) === base.tipo
+          ? String(cru.categoria)
+          : null;
+
     const valorSolto = Math.abs(Math.trunc(Number(cru.valor))) || 0;
 
     if (cru.fixo) {
@@ -437,6 +854,7 @@ export function normalizarEstado(bruto) {
 
       lancamentos.push({
         ...base,
+        categoria,
         fixo: true,
         dia: limitarDia(cru.dia),
         inicio: cru.inicio,
@@ -446,7 +864,7 @@ export function normalizarEstado(bruto) {
       });
     } else {
       if (!ehData(cru.data) || valorSolto <= 0) continue;
-      lancamentos.push({ ...base, fixo: false, valor: valorSolto, data: cru.data });
+      lancamentos.push({ ...base, categoria, fixo: false, valor: valorSolto, data: cru.data });
     }
   }
 
@@ -464,7 +882,20 @@ export function normalizarEstado(bruto) {
     }
   }
 
-  return { versao: VERSAO_DO_ESQUEMA, lancamentos, realizados };
+  /* Passa por definirLimite em vez de repetir a regra: assim "zero ou lixo não é
+     limite" vale igual para o que vem do arquivo e para o que a tela define. */
+  /** @type {Limites} */
+  let limites = {};
+  const crusLimites = bruto.limites;
+  if (crusLimites && typeof crusLimites === 'object') {
+    for (const id of Object.keys(crusLimites)) {
+      // Limite de categoria que não existe mais sai, como a marcação órfã: ele
+      // não teria onde aparecer.
+      if (tipoPorCategoria.has(id)) limites = definirLimite(limites, id, Number(crusLimites[id]));
+    }
+  }
+
+  return { versao: VERSAO_DO_ESQUEMA, lancamentos, realizados, categorias, limites };
 }
 
 /* ---------- Realizado ---------- */
@@ -631,6 +1062,139 @@ export function proporcoesDasBarras(resumo) {
         };
 
   return { entradas: fatiar(resumo.entradas), despesas: fatiar(resumo.despesas) };
+}
+
+/* ---------- Para onde o dinheiro foi, e os limites ---------- */
+
+/* A quebra do mês, do maior para o menor.
+ *
+ * Só SAÍDAS, e só o que já foi marcado como pago (decisão 9): um limite compara
+ * com o que já saiu. Dizer "você já usou 380 dos 400" sobre dinheiro que ainda
+ * não saiu seria mentir sobre o presente — o previsto continua sendo assunto do
+ * painel.
+ *
+ * O valor de cada fixo vem de `lancamentosDoMes`, e não de `valores`: é o que
+ * mantém a linha do tempo do B3 invisível aqui, e o que garante que a quebra de
+ * dezembro use o salário de dezembro.
+ *
+ * O registro sem categoria entra na lista com `id: null`, e NÃO somado em
+ * Outros: a tela precisa poder convidar ao toque justo em cima do que o app não
+ * soube classificar.
+ *
+ * `proporcao` é largura de barra, em porcentagem do MAIOR gasto do mês — e não
+ * da soma. Proporção da soma foi recusada: com oito categorias parecidas nenhuma
+ * barra passaria de 20% da tela em 360px, e a comparação que a pessoa faz ali é
+ * entre categorias, não contra um total que o painel já mostra. A divisão fica
+ * aqui, e não no app.js, porque a interface não faz conta com dinheiro. */
+/**
+ * @param {Lancamento[]} lancamentos
+ * @param {Realizados} realizados
+ * @param {Mes} mes
+ * @returns {GastoDeCategoria[]}
+ */
+export function gastosPorCategoria(lancamentos, realizados, mes) {
+  /** @type {Map<string|null, { id: string|null, total: number, quantidade: number }>} */
+  const porCategoria = new Map();
+
+  for (const l of lancamentosDoMes(lancamentos, mes)) {
+    if (l.tipo !== 'saida') continue;
+    if (!estaRealizado(realizados, l.id, mes)) continue;
+
+    const id = l.categoria ?? null;
+    const fatia = porCategoria.get(id) || { id, total: 0, quantidade: 0 };
+    fatia.total += l.valor;
+    fatia.quantidade += 1;
+    porCategoria.set(id, fatia);
+  }
+
+  const fatias = [...porCategoria.values()];
+  const maior = fatias.reduce((m, f) => Math.max(m, f.total), 0);
+
+  /* Empate desempata pelo id, e "sem categoria" fica por último: a ordem só
+     precisa ser ESTÁVEL — duas categorias com o mesmo total tanto faz quem vem
+     antes, mas a lista não pode trocar de ordem entre dois desenhos iguais.
+     Comparação direta, e não localeCompare, porque id é sempre ASCII. */
+  const ordem = (/** @type {{ id: string|null }} */ f) => (f.id === null ? '\uffff' : f.id);
+
+  return fatias
+    .map((f) => ({ ...f, proporcao: maior === 0 ? 0 : (f.total / maior) * 100 }))
+    .sort((a, b) => b.total - a.total || (ordem(a) < ordem(b) ? -1 : ordem(a) > ordem(b) ? 1 : 0));
+}
+
+/* Zero, vazio ou lixo REMOVE o limite, em vez de gravar um limite de R$ 0,00.
+ *
+ * Um limite de zero diria "você já estourou" para quem só quis apagar o limite,
+ * e não existe pessoa que queira um limite de zero. A ausência da chave é a
+ * ausência de limite, e é o mesmo desenho de `realizados`: o mapa só guarda o
+ * que é verdade.
+ *
+ * Negativo também remove, e aqui o núcleo foge da própria regra de "o sinal é
+ * descartado, quem decide o lado é o tipo do lançamento": limite não tem lado,
+ * é sempre um teto. Um `-1` só chega aqui por arquivo editado à mão, e virar um
+ * teto de R$ 0,01 deixaria a pessoa estourada em toda categoria — pior que
+ * simplesmente não ter limite. */
+/**
+ * @param {Limites} limites
+ * @param {string} id
+ * @param {number} valor Centavos. Zero, negativo, vazio ou inválido remove.
+ * @returns {Limites}
+ */
+export function definirLimite(limites, id, valor) {
+  const copia = { ...limites };
+  if (!id) return copia;
+
+  const bruto = Number(valor);
+
+  if (Number.isFinite(bruto) && bruto >= 1) copia[id] = Math.trunc(bruto);
+  else delete copia[id];
+
+  return copia;
+}
+
+/* O que a tela precisa saber sobre um limite — sem dizer nada de ríspido.
+ *
+ * O conceito é explícito: estourar um limite gera informação, não bronca. Por
+ * isso aqui não existe "gravidade" nem "alerta": existe quanto se usou, quanto
+ * resta, e um `estourou` que a tela lê para trocar a frase.
+ *
+ * `restante` é ASSINADO: negativo é o quanto passou. `excedente` é o mesmo
+ * número já em positivo — os dois existem porque a tela precisa dos dois, e
+ * fazer a inversão de sinal lá seria conta com dinheiro fora do núcleo.
+ *
+ * `proporcao` para em 100 porque é largura de barra: quem gastou o dobro do
+ * limite tem a barra cheia, e quem conta o "passou" é `estourou`.
+ *
+ * Sem limite (zero ou ausente) não existe estouro. Tratar a ausência como um
+ * limite de zero faria toda categoria nascer estourada — o oposto de aliado. */
+/**
+ * @param {number} gasto Centavos já realizados na categoria.
+ * @param {number} limite Centavos. Zero é "sem limite".
+ * @returns {SituacaoDeLimite}
+ */
+export function situacaoDoLimite(gasto, limite) {
+  const usado = Math.max(Math.trunc(Number(gasto)) || 0, 0);
+  const teto = Math.max(Math.trunc(Number(limite)) || 0, 0);
+
+  if (teto <= 0) return { usado, restante: 0, excedente: 0, proporcao: 0, estourou: false };
+
+  const restante = teto - usado;
+
+  return {
+    usado,
+    restante,
+    /* Quanto passou do teto, já em positivo.
+     *
+     * Este campo foi recusado na primeira versão, com o argumento de que a
+     * frase da tela — "você já usou X dos Y" — não precisava dele. A tela
+     * escreveu outra frase, que precisava, e inverteu o sinal do `restante` por
+     * conta própria. Era conta com dinheiro fora do núcleo, que é justamente o
+     * que o CLAUDE.md proíbe. O campo passa a existir, e o cálculo volta para
+     * onde há teste. */
+    excedente: Math.max(-restante, 0),
+    proporcao: Math.min((usado / teto) * 100, 100),
+    // Gastar exatamente o limite não é estourar: usou o que tinha para usar.
+    estourou: usado > teto,
+  };
 }
 
 /* ---------- Alterações que envolvem recorrência ----------

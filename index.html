@@ -106,6 +106,11 @@
           <span><i class="amostra clara"></i>claro = ainda previsto</span>
         </p>
       </div>
+
+      <a href="#/relatorio" class="painel-para-onde" id="link-para-onde-foi">
+        <span>Para onde foi</span>
+        <svg viewBox="0 0 24 24" aria-hidden="true"><path d="m9 5 7 7-7 7"/></svg>
+      </a>
     </div>
 
     <section class="grupo" aria-labelledby="titulo-entradas">
@@ -137,6 +142,37 @@
         <span id="pe-despesas-realizado"></span>
       </div>
     </section>
+  </section>
+
+  <!-- Não entra na navegação de baixo (decisão 6 do B5): um item de menu para
+       algo que se consulta uma vez por semana custa caro em 360px. A porta é
+       só o botão "Para onde foi" do painel, e a saída é o link abaixo — sem
+       isso quem entra não teria como voltar. -->
+  <section class="tela" id="tela-relatorio" aria-labelledby="titulo-relatorio" hidden>
+    <a href="#/inicio" class="link-voltar" id="relatorio-voltar">
+      <svg viewBox="0 0 24 24" aria-hidden="true"><path d="m14.5 5-7 7 7 7"/></svg>
+      <span>Início</span>
+    </a>
+
+    <h1 id="titulo-relatorio">Relatório</h1>
+    <p class="subtitulo" id="relatorio-mes">—</p>
+
+    <ul class="quebra-categorias" id="lista-relatorio"></ul>
+
+    <div class="cartao vazio" id="relatorio-vazio" hidden>
+      <h2>Nada por aqui ainda</h2>
+      <p>
+        Assim que você marcar uma despesa como paga, ela aparece aqui. Mas dá
+        para combinar um limite desde já.
+      </p>
+    </div>
+
+    <!-- A porta para quem ainda não gastou. Sem ela, um limite só podia ser
+         definido a partir de uma linha da lista — e no dia 1º do mês, ou numa
+         categoria em que nunca se gastou, não havia linha nenhuma. -->
+    <button type="button" class="botao contorno" id="botao-definir-limite">
+      Combinar um limite
+    </button>
   </section>
 
   <section class="tela" id="tela-metas" aria-labelledby="titulo-metas" hidden>
@@ -327,6 +363,54 @@
       <button type="button" class="botao contorno" id="apagar-guardar-antes">Guardar uma cópia antes</button>
       <button type="button" class="botao perigo" id="apagar-confirmar">Apagar tudo</button>
       <button type="button" class="botao apagado" id="apagar-cancelar">Cancelar</button>
+    </div>
+  </div>
+</dialog>
+
+<dialog id="dialogo-categoria" aria-labelledby="titulo-do-dialogo-categoria">
+  <div class="pegador" aria-hidden="true"></div>
+  <div class="folha">
+    <h2 id="titulo-do-dialogo-categoria">Categoria</h2>
+
+    <ul class="lista-categorias" id="lista-categorias"></ul>
+
+    <div class="campo" id="campo-da-nova-categoria">
+      <label for="campo-nova-categoria">Criar uma categoria nova</label>
+      <input type="text" id="campo-nova-categoria" autocomplete="off" enterkeyhint="done"
+             placeholder="Nome da categoria" maxlength="24">
+    </div>
+
+    <div class="acoes">
+      <button type="button" class="botao contorno" id="categoria-cancelar">Cancelar</button>
+      <button type="button" class="botao" id="categoria-criar">Criar e usar</button>
+    </div>
+  </div>
+</dialog>
+
+<dialog id="dialogo-limite" aria-labelledby="titulo-do-limite">
+  <div class="pegador" aria-hidden="true"></div>
+  <div class="folha">
+    <h2 id="titulo-do-limite">Categoria</h2>
+    <p class="dica" id="limite-situacao"></p>
+
+    <div class="trilho" id="limite-trilho" hidden>
+      <div class="trecho cheio saida" id="limite-trecho"></div>
+    </div>
+
+    <div class="campo">
+      <label for="campo-limite">Definir um limite (opcional)</label>
+      <input type="text" id="campo-limite" inputmode="decimal" enterkeyhint="done"
+             placeholder="0,00" class="tabular">
+    </div>
+
+    <!-- Empilhados, como os outros diálogos de folha do app. Em linha, os três
+         não cabem em 360px: "Remover limite" não encolhe, e o "Salvar" saía da
+         tela — cortado, sem nem gerar rolagem visível, porque o overflow-y do
+         <dialog> também torna o eixo X rolável. -->
+    <div class="pilha">
+      <button type="button" class="botao" id="limite-salvar">Salvar</button>
+      <button type="button" class="botao contorno" id="limite-remover" hidden>Remover limite</button>
+      <button type="button" class="botao apagado" id="limite-cancelar">Cancelar</button>
     </div>
   </div>
 </dialog>

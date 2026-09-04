@@ -19,6 +19,7 @@ histórico se perde.
 | [b2-fixos-e-realizado.md](b2-fixos-e-realizado.md) | Os fixos, o planejado × realizado e a volta da tela do MVP: as 9 decisões, e as 3 decisões do B1 que isto reverte |
 | [b3-valor-com-data.md](b3-valor-com-data.md) | O valor do fixo passa a ter linha do tempo, para que editar um aumento não reescreva o passado |
 | [b4-backup.md](b4-backup.md) | O plano do backup: as 10 decisões, o formato do arquivo, e por que este bloco absorveu o antigo B5 |
+| [b5-categorias-e-limites.md](b5-categorias-e-limites.md) | Categorias sugeridas pela descrição e limites que avisam sem repreender: as 9 decisões, e a resolução da mescla que este bloco cumpre |
 | [cache-e-deploy.md](cache-e-deploy.md) | Por que o código do app vem sempre da rede, e o defeito de versão misturada que isso evita |
 | [tipos-sem-build.md](tipos-sem-build.md) | Por que o Drive não exigia migrar para Vite, e como o projeto ganhou verificação de tipos sem build: as 7 decisões e os 3 achados do conferidor |
 | [agentes.md](agentes.md) | Os quatro agentes especializados, as fronteiras que eles não cruzam, e por que subagente não economiza por si |
@@ -26,15 +27,16 @@ histórico se perde.
 
 ## Estado atual
 
-O B0 (esqueleto), o B1 (o mês e os avulsos), o B2 (fixos, planejado ×
-realizado e a tela do MVP), o B3 (o valor do fixo com data) e o B4 (backup,
-Ajustes e apagar tudo) estão implementados, e o layout do desktop foi alinhado.
+Na `main`: B0 (esqueleto), B1 (o mês e os avulsos), B2 (fixos e planejado ×
+realizado), B3 (o valor do fixo com data) e B4 (backup, Ajustes e apagar tudo).
+Mais o layout do desktop alinhado, verificação de tipos sem build, e quatro
+agentes especializados em `.claude/agents/`.
 
-O código tem **verificação de tipos sem build**: `npm run conferir` roda o
-conferidor e os 149 testes. Nada disso vai para o navegador — o porquê está em
-[tipos-sem-build.md](tipos-sem-build.md).
+`npm run conferir` roda o conferidor e os 149 testes.
 
-Próximo: **B5 — categorias sugeridas e limites**. O roteiro está em
-[conceito.md](conceito.md#roteiro-proposto). Antes disso, vale ler a
-[pendência 3](pendencias.md): o menu de compartilhar do Android, que é o que
-faz a cópia sair do celular, ainda não foi exercitado num aparelho real.
+Em planejamento: o **B5 — categorias e limites**, com o plano escrito em
+[b5-categorias-e-limites.md](b5-categorias-e-limites.md).
+
+Vale ler antes de seguir: a [pendência 3](pendencias.md) — o menu de
+compartilhar do Android, que é o que faz a cópia sair do celular, ainda não foi
+exercitado num aparelho real.
