@@ -36,6 +36,14 @@ import {
   nomeDoArquivo,
   lerBackup,
   textoDoUltimoBackup,
+  sugerirCategoria,
+  categoriasDisponiveis,
+  categoriaPorId,
+  criarCategoria,
+  idDeCategoriaPeloNome,
+  gastosPorCategoria,
+  definirLimite,
+  situacaoDoLimite,
 } from './nucleo.js';
 
 /**
@@ -51,6 +59,9 @@ import {
  * @typedef {import('./nucleo.js').Data} Data
  * @typedef {import('./nucleo.js').TipoDeLancamento} TipoDeLancamento
  * @typedef {import('./nucleo.js').TrechoDeValor} TrechoDeValor
+ * @typedef {import('./nucleo.js').CategoriaDoUsuario} CategoriaDoUsuario
+ * @typedef {import('./nucleo.js').Limites} Limites
+ * @typedef {import('./nucleo.js').GastoDeCategoria} GastoDeCategoria
  */
 
 /**
@@ -67,7 +78,7 @@ import {
 /**
  * O par que o desfazer guarda. Como nada é mutado no lugar, as referências
  * antigas seguem válidas.
- * @typedef {{ lancamentos: Lancamento[], realizados: Realizados }} Instantaneo
+ * @typedef {{ lancamentos: Lancamento[], realizados: Realizados, categorias: CategoriaDoUsuario[], limites: Limites }} Instantaneo
  */
 
 const TELAS = ['inicio', 'metas', 'ajustes'];
@@ -205,9 +216,17 @@ function salvar() {
 }
 
 /* Guarda o que dá para desfazer. Como nada é mutado no lugar, as referências
-   antigas continuam válidas — não é preciso copiar em profundidade. */
+   antigas continuam válidas — não é preciso copiar em profundidade.
+   Categorias e limites entraram aqui junto com o B5: sem eles, desfazer a
+   criação de uma categoria (ou uma mudança de limite) deixava a metade da
+   alteração no lugar. */
 function instantaneo() {
-  return { lancamentos: estado.lancamentos, realizados: estado.realizados };
+  return {
+    lancamentos: estado.lancamentos,
+    realizados: estado.realizados,
+    categorias: estado.categorias,
+    limites: estado.limites,
+  };
 }
 
 /** @param {Instantaneo} anterior */
@@ -335,13 +354,6 @@ function linhaDoLancamento(lancamento) {
   descricao.className = 'lancamento-descricao';
   descricao.textContent = lancamento.descricao;
 
-  if (lancamento.fixo) {
-    const etiqueta = document.createElement('span');
-    etiqueta.className = 'etiqueta';
-    etiqueta.textContent = 'fixa';
-    descricao.append(' ', etiqueta);
-  }
-
   const valor = document.createElement('span');
   valor.className = 'lancamento-valor tabular ' + (entrada ? 'entrada' : 'saida');
   valor.textContent = formatarDinheiro(lancamento.valor);
@@ -355,8 +367,50 @@ function linhaDoLancamento(lancamento) {
   excluir.innerHTML = '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6 6l12 12M18 6 6 18"/></svg>';
   excluir.addEventListener('click', () => pedirExclusao(lancamento));
 
-  item.append(marcador, toque, excluir);
+  // A etiqueta de categoria vive FORA do botão de editar (toque): um <button>
+  // dentro de outro <button> é HTML inválido, e é a mesma razão pela qual o
+  // marcador e o excluir já eram irmãos do toque, não filhos.
+  const etiquetas = document.createElement('div');
+  etiquetas.className = 'lancamento-etiquetas';
+
+  if (lancamento.fixo) {
+    const fixa = document.createElement('span');
+    fixa.className = 'etiqueta';
+    fixa.textContent = 'fixa';
+    etiquetas.appendChild(fixa);
+  }
+
+  etiquetas.appendChild(botaoDeCategoria(lancamento));
+
+  item.append(marcador, toque, excluir, etiquetas);
   return item;
+}
+
+/**
+ * A etiqueta de categoria do registro. Mostra o nome quando há categoria, e um
+ * convite honesto ("Sem categoria") quando não há — a etiqueta vazia É o
+ * convite ao toque, não um erro a esconder (decisão do B5).
+ * @param {LancamentoDoMes} lancamento
+ * @returns {HTMLButtonElement}
+ */
+function botaoDeCategoria(lancamento) {
+  const categoria = categoriaPorId(estado, lancamento.categoria);
+
+  const botao = document.createElement('button');
+  botao.type = 'button';
+  botao.className = 'etiqueta-categoria';
+  botao.setAttribute(
+    'aria-label',
+    (categoria ? `Categoria: ${categoria.nome}` : 'Sem categoria') + '. Toque para mudar.'
+  );
+  botao.addEventListener('click', () => abrirEscolhaDeCategoria(lancamento));
+
+  const texto = document.createElement('span');
+  texto.className = 'etiqueta' + (categoria ? '' : ' etiqueta-vazia');
+  texto.textContent = categoria ? categoria.nome : 'Sem categoria';
+  botao.appendChild(texto);
+
+  return botao;
 }
 
 /* ---------- Marcar como recebido / pago ---------- */
@@ -636,12 +690,23 @@ $('botao-adicionar').addEventListener('click', () => abrirFormulario(null));
    no fundo — e sair tocando fora é o gesto que todo mundo tenta primeiro, tanto
    na folha do celular quanto no modal do desktop. O alvo só é o próprio
    <dialog> quando o clique caiu fora da caixa. */
-for (const id of ['dialogo', 'dialogo-exclusao', 'dialogo-valor', 'dialogo-restaurar', 'dialogo-apagar']) {
+for (const id of [
+  'dialogo',
+  'dialogo-exclusao',
+  'dialogo-valor',
+  'dialogo-restaurar',
+  'dialogo-apagar',
+  'dialogo-categoria',
+  'dialogo-detalhamento',
+  'dialogo-limite',
+]) {
   $dialogo(id).addEventListener('click', (evento) => {
     if (evento.target === $dialogo(id)) {
       if (id === 'dialogo-exclusao') pendenteDeExclusao = null;
       if (id === 'dialogo-valor') pendenteDeValor = null;
       if (id === 'dialogo-restaurar') pendenteDeRestauracao = null;
+      if (id === 'dialogo-categoria') lancamentoParaCategoria = null;
+      if (id === 'dialogo-limite') limiteEmEdicao = null;
       $dialogo(id).close();
     }
   });
@@ -686,6 +751,24 @@ function linhaDoTempoDoFixo(valor, inicio, modo) {
   return antigo.valores;
 }
 
+/* A categoria que o registro ganha ao ser salvo.
+ *
+ * Editando um registro que JÁ tem categoria (e do mesmo tipo — trocar de
+ * receita para despesa invalida a categoria antiga), o toque manual na
+ * etiqueta é preservado: um ajuste de texto ou valor não pode apagar em
+ * silêncio uma correção que a pessoa já fez. Fora isso — registro novo, ou sem
+ * categoria ainda —, a sugestão tenta de novo em cima da descrição atual. */
+/**
+ * @param {string} descricao
+ * @returns {string|null}
+ */
+function categoriaParaAlteracao(descricao) {
+  if (editando && editando.categoria && editando.tipo === tipoDoFormulario) {
+    return editando.categoria;
+  }
+  return sugerirCategoria(descricao, tipoDoFormulario);
+}
+
 /**
  * @param {Alteracao} alteracao
  * @param {'daqui'|'sempre'|'inalterado'} modo
@@ -693,7 +776,12 @@ function linhaDoTempoDoFixo(valor, inicio, modo) {
 function aplicarAlteracao(alteracao, modo) {
   const { descricao, valor, ehFixa, data, dia, jaAconteceu } = alteracao;
   const antigo = fixoEmEdicao();
-  const base = { id: editando ? editando.id : novoId(), tipo: tipoDoFormulario, descricao };
+  const base = {
+    id: editando ? editando.id : novoId(),
+    tipo: tipoDoFormulario,
+    descricao,
+    categoria: categoriaParaAlteracao(descricao),
+  };
 
   /** @type {Lancamento} */
   let novo;
@@ -1049,8 +1137,10 @@ $('apagar-guardar-antes').addEventListener('click', async (evento) => {
 $('apagar-confirmar').addEventListener('click', () => {
   $dialogo('dialogo-apagar').close();
 
-  const lancamentos = estado.lancamentos;
-  const realizados = estado.realizados;
+  // instantaneo() guarda lançamentos, realizados, categorias e limites — os
+  // quatro precisam voltar juntos, senão desfazer devolve os lançamentos com
+  // as categorias que a pessoa criou já apagadas de vez.
+  const anterior = instantaneo();
   // A data da última cópia vai junto: ela é um fato deste aparelho, e o aparelho
   // acabou de ser esvaziado. O tema fica, porque é preferência, não dado.
   const ultimoBackup = armazenamento.ler(CHAVE_BACKUP);
@@ -1060,11 +1150,275 @@ $('apagar-confirmar').addEventListener('click', () => {
   salvar();
 
   avisar('Tudo apagado.', () => {
-    estado = { ...estado, lancamentos, realizados };
     if (ultimoBackup) armazenamento.gravar(CHAVE_BACKUP, ultimoBackup);
-    salvar();
+    restaurar(anterior);
   });
 });
+
+/* ---------- Categorias: a folha de escolher ---------- */
+
+/* O registro que está recebendo uma categoria nova, enquanto a folha de
+   escolha está aberta. `null` fora desse momento. */
+/** @type {LancamentoDoMes|null} */
+let lancamentoParaCategoria = null;
+
+/** @param {LancamentoDoMes} lancamento */
+function abrirEscolhaDeCategoria(lancamento) {
+  lancamentoParaCategoria = lancamento;
+  $campo('campo-nova-categoria').value = '';
+  desenharEscolhaDeCategoria();
+  $dialogo('dialogo-categoria').showModal();
+}
+
+function desenharEscolhaDeCategoria() {
+  if (!lancamentoParaCategoria) return;
+  const { tipo, categoria } = lancamentoParaCategoria;
+  const atual = categoria ?? null;
+
+  const lista = $('lista-categorias');
+  lista.textContent = '';
+
+  lista.appendChild(opcaoDeCategoria(null, 'Sem categoria', atual === null));
+  for (const c of categoriasDisponiveis(estado, tipo)) {
+    lista.appendChild(opcaoDeCategoria(c.id, c.nome, c.id === atual));
+  }
+}
+
+/**
+ * @param {string|null} id
+ * @param {string} nome
+ * @param {boolean} selecionada
+ * @returns {HTMLLIElement}
+ */
+function opcaoDeCategoria(id, nome, selecionada) {
+  const item = document.createElement('li');
+
+  const botao = document.createElement('button');
+  botao.type = 'button';
+  botao.className = 'opcao-categoria' + (selecionada ? ' selecionada' : '');
+  botao.setAttribute('aria-pressed', String(selecionada));
+  botao.addEventListener('click', () => selecionarCategoria(id));
+
+  const texto = document.createElement('span');
+  texto.textContent = nome;
+  botao.appendChild(texto);
+
+  if (selecionada) {
+    // Estático, sem dado do usuário: o mesmo traço de "marcado" que o
+    // marcador-realizado já usa.
+    botao.insertAdjacentHTML(
+      'beforeend',
+      '<svg viewBox="0 0 12 12" aria-hidden="true"><path d="M1.5 6.4 4.4 9.3 10.5 3"/></svg>'
+    );
+  }
+
+  item.appendChild(botao);
+  return item;
+}
+
+/** @param {string} id @param {string|null} categoriaId */
+function aplicarCategoria(id, categoriaId) {
+  estado = {
+    ...estado,
+    lancamentos: estado.lancamentos.map((l) => (l.id === id ? { ...l, categoria: categoriaId } : l)),
+  };
+}
+
+/** @param {string|null} id */
+function selecionarCategoria(id) {
+  const alvo = lancamentoParaCategoria;
+  if (!alvo) return;
+
+  const mudou = id !== (alvo.categoria ?? null);
+  const anterior = instantaneo();
+  aplicarCategoria(alvo.id, id);
+
+  $dialogo('dialogo-categoria').close();
+  lancamentoParaCategoria = null;
+  salvar();
+
+  if (mudou) avisar('Categoria atualizada.', () => restaurar(anterior));
+}
+
+$('categoria-criar').addEventListener('click', () => {
+  const alvo = lancamentoParaCategoria;
+  if (!alvo) return;
+
+  const nome = $campo('campo-nova-categoria').value.trim();
+  if (!nome) return;
+
+  const anterior = instantaneo();
+  const id = idDeCategoriaPeloNome(estado, nome, alvo.tipo);
+  estado = criarCategoria(estado, nome, alvo.tipo);
+  aplicarCategoria(alvo.id, id);
+
+  const nomeFinal = categoriaPorId(estado, id)?.nome ?? nome;
+
+  $dialogo('dialogo-categoria').close();
+  lancamentoParaCategoria = null;
+  salvar();
+  avisar(`Categoria "${nomeFinal}" criada e aplicada.`, () => restaurar(anterior));
+});
+
+$('categoria-cancelar').addEventListener('click', () => {
+  lancamentoParaCategoria = null;
+  $dialogo('dialogo-categoria').close();
+});
+
+/* ---------- Para onde foi: o detalhamento do mês ---------- */
+
+function abrirDetalhamento() {
+  desenharDetalhamento();
+  $dialogo('dialogo-detalhamento').showModal();
+}
+
+function desenharDetalhamento() {
+  const fatias = gastosPorCategoria(estado.lancamentos, estado.realizados, mesVisivel);
+
+  $('detalhamento-mes').textContent = 'Em ' + rotuloDoMes(mesVisivel) + '.';
+
+  const lista = $('lista-detalhamento');
+  lista.textContent = '';
+  for (const fatia of fatias) lista.appendChild(linhaDoDetalhamento(fatia));
+
+  lista.hidden = fatias.length === 0;
+  $('detalhamento-vazio').hidden = fatias.length > 0;
+}
+
+/** @param {GastoDeCategoria} fatia @returns {HTMLLIElement} */
+function linhaDoDetalhamento(fatia) {
+  const semCategoria = fatia.id === null;
+  const categoria = fatia.id === null ? null : categoriaPorId(estado, fatia.id);
+  // Uma categoria do usuário pode ter sido escondida depois de já ter gasto
+  // registrado em meses anteriores — categoriaPorId ainda a encontra (decisão
+  // 4), então "categoria removida" só cobre o caso, teoricamente impossível
+  // hoje, de um id que não existe em lugar nenhum.
+  const nome = semCategoria ? 'Sem categoria' : categoria ? categoria.nome : 'Categoria removida';
+
+  const item = document.createElement('li');
+  item.className = 'linha-categoria';
+
+  const botao = document.createElement('button');
+  botao.type = 'button';
+  botao.className = 'barra linha-categoria-botao' + (semCategoria ? ' vazia' : '');
+  botao.setAttribute(
+    'aria-label',
+    semCategoria
+      ? `Sem categoria: ${formatarDinheiro(fatia.total)}. Toque para corrigir.`
+      : `Ver o limite de ${nome}: ${formatarDinheiro(fatia.total)}.`
+  );
+  botao.addEventListener('click', () => {
+    if (semCategoria) irCorrigirSemCategoria();
+    else if (fatia.id) abrirLimite(fatia.id, nome, fatia.total);
+  });
+
+  const rotuloNome = document.createElement('span');
+  rotuloNome.className = 'barra-nome';
+  rotuloNome.textContent = nome;
+
+  const valor = document.createElement('span');
+  valor.className = 'barra-valor tabular';
+  valor.textContent = formatarDinheiro(fatia.total);
+
+  const trilho = document.createElement('div');
+  trilho.className = 'trilho';
+  const trecho = document.createElement('div');
+  trecho.className = 'trecho cheio ' + (semCategoria ? 'categoria-vazia' : 'saida');
+  trecho.style.width = fatia.proporcao + '%';
+  trilho.appendChild(trecho);
+
+  botao.append(rotuloNome, valor, trilho);
+  item.appendChild(botao);
+  return item;
+}
+
+/* "Sem categoria" não tem para onde levar um limite — limite é por categoria,
+   e não existe categoria aqui. A correção mora onde ela sempre morou: no toque
+   na etiqueta de cada registro (decisão 2). Esta função só leva até lá. */
+function irCorrigirSemCategoria() {
+  $dialogo('dialogo-detalhamento').close();
+  location.hash = '#/inicio';
+  avisar('Toque na etiqueta de um lançamento para dar uma categoria a ele.');
+}
+
+/* ---------- O limite de uma categoria ---------- */
+
+/** @type {{ id: string, nome: string, gasto: number }|null} */
+let limiteEmEdicao = null;
+
+/**
+ * @param {string} id
+ * @param {string} nome
+ * @param {number} gasto
+ */
+function abrirLimite(id, nome, gasto) {
+  limiteEmEdicao = { id, nome, gasto };
+  $dialogo('dialogo-detalhamento').close();
+  desenharLimite();
+  $dialogo('dialogo-limite').showModal();
+}
+
+function desenharLimite() {
+  if (!limiteEmEdicao) return;
+  const { nome, gasto } = limiteEmEdicao;
+  const limiteAtual = estado.limites[limiteEmEdicao.id] || 0;
+  const situacao = situacaoDoLimite(gasto, limiteAtual);
+
+  $('titulo-do-limite').textContent = nome;
+
+  // Informação, nunca bronca (decisão 5 do B5): coral, sem ícone de alerta,
+  // sem exclamação, sem a palavra "estourou" na tela.
+  const situacaoTexto = $('limite-situacao');
+  if (limiteAtual > 0) {
+    situacaoTexto.textContent = situacao.estourou
+      ? `Você já usou ${formatarDinheiro(situacao.usado)} dos ${formatarDinheiro(limiteAtual)} — ` +
+        `${formatarDinheiro(-situacao.restante)} além do combinado.`
+      : `Você já usou ${formatarDinheiro(situacao.usado)} dos ${formatarDinheiro(limiteAtual)}.`;
+  } else {
+    situacaoTexto.textContent = `Você já usou ${formatarDinheiro(situacao.usado)} este mês.`;
+  }
+  situacaoTexto.classList.toggle('estourou', situacao.estourou);
+
+  $('limite-trilho').hidden = limiteAtual <= 0;
+  $('limite-trecho').style.width = situacao.proporcao + '%';
+
+  $campo('campo-limite').value = limiteAtual > 0 ? valorParaCampo(limiteAtual) : '';
+  $('limite-remover').hidden = limiteAtual <= 0;
+}
+
+$('limite-salvar').addEventListener('click', () => {
+  if (!limiteEmEdicao) return;
+  const anterior = instantaneo();
+  const valor = analisarValor($campo('campo-limite').value);
+
+  estado = { ...estado, limites: definirLimite(estado.limites, limiteEmEdicao.id, valor) };
+  salvar();
+  $dialogo('dialogo-limite').close();
+  limiteEmEdicao = null;
+  avisar(valor > 0 ? 'Limite salvo.' : 'Limite removido.', () => restaurar(anterior));
+  abrirDetalhamento();
+});
+
+$('limite-remover').addEventListener('click', () => {
+  if (!limiteEmEdicao) return;
+  const anterior = instantaneo();
+
+  estado = { ...estado, limites: definirLimite(estado.limites, limiteEmEdicao.id, 0) };
+  salvar();
+  $dialogo('dialogo-limite').close();
+  limiteEmEdicao = null;
+  avisar('Limite removido.', () => restaurar(anterior));
+  abrirDetalhamento();
+});
+
+$('limite-cancelar').addEventListener('click', () => {
+  $dialogo('dialogo-limite').close();
+  limiteEmEdicao = null;
+  abrirDetalhamento();
+});
+
+$('botao-detalhamento').addEventListener('click', abrirDetalhamento);
+$('detalhamento-fechar').addEventListener('click', () => $dialogo('dialogo-detalhamento').close());
 
 /* ---------- Service worker ---------- */
 

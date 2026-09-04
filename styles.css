@@ -343,6 +343,31 @@ h1 { font-size: 1.75rem; line-height: 1.2; letter-spacing: -.02em; margin: 8px 0
 .amostra.cheia { background: var(--tinta-suave); }
 .amostra.clara { background: var(--borda); }
 
+/* O botão "Para onde foi" (decisão 7 do B5): dentro do painel, com rótulo
+   visível — nem uma quarta aba, nem um toque escondido no número. */
+.painel-para-onde {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  width: 100%;
+  min-height: var(--alvo);
+  margin: 0;
+  padding: 14px 0 0;
+  border: 0;
+  border-top: 1px solid var(--borda-fraca);
+  background: none;
+  color: var(--tinta);
+  font: inherit;
+  font-weight: 600;
+  font-size: .9375rem;
+  text-align: left;
+  cursor: pointer;
+  -webkit-tap-highlight-color: transparent;
+}
+
+.painel-para-onde svg { flex: none; color: var(--tinta-fraca); }
+.painel-para-onde:hover span { text-decoration: underline; }
+
 /* ---------- Grupos: Entradas e Despesas ---------- */
 
 .grupo { margin-top: 26px; }
@@ -381,8 +406,8 @@ h1 { font-size: 1.75rem; line-height: 1.2; letter-spacing: -.02em; margin: 8px 0
   display: grid;
   grid-template-columns: 28px 1fr 32px;
   align-items: center;
-  gap: 8px;
-  min-height: 56px;
+  gap: 4px 8px;
+  padding: 8px 0;
   border-bottom: 1px solid var(--borda-fraca);
 }
 
@@ -445,6 +470,36 @@ h1 { font-size: 1.75rem; line-height: 1.2; letter-spacing: -.02em; margin: 8px 0
   color: var(--tinta-suave);
   vertical-align: 1px;
 }
+
+/* A segunda linha do registro: a etiqueta "fixa" (se houver) ao lado da
+   categoria, sempre presente — é ela que convida ao toque quando não há
+   categoria nenhuma. Recuada para alinhar com o início da descrição, não com
+   o dia. */
+.lancamento-etiquetas {
+  grid-column: 2;
+  display: flex;
+  align-items: stretch;
+  flex-wrap: wrap;
+  gap: 2px 6px;
+  min-height: var(--alvo);
+  padding-left: 34px;
+}
+
+.lancamento-etiquetas > .etiqueta { align-self: center; }
+
+.etiqueta-categoria {
+  display: inline-flex;
+  align-items: center;
+  padding: 0 2px;
+  border: 0;
+  background: none;
+  cursor: pointer;
+  -webkit-tap-highlight-color: transparent;
+}
+
+/* Sem categoria é honesto, não um erro: traço tracejado convida ao toque em
+   vez de soar como falta. */
+.etiqueta-vazia { color: var(--tinta-fraca); border-style: dashed; }
 
 .lancamento-valor { font-weight: 600; font-size: .9375rem; white-space: nowrap; }
 .lancamento-valor.entrada { color: var(--verde); }
@@ -660,6 +715,72 @@ dialog::backdrop { background: var(--veu); }
 
 .botao.apagado:hover { background: var(--coral-fraco); }
 
+/* ---------- Categorias e limites (B5) ---------- */
+
+/* A folha de escolher categoria: cada opção é um botão de largura cheia, a
+   atual marcada com o mesmo traço de "feito" do marcador de realizado. */
+.lista-categorias {
+  list-style: none;
+  margin: 0 0 16px;
+  padding: 0;
+  max-height: 45vh;
+  overflow-y: auto;
+}
+
+.opcao-categoria {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  width: 100%;
+  min-height: var(--alvo);
+  padding: 0 4px;
+  border: 0;
+  border-bottom: 1px solid var(--borda-fraca);
+  background: none;
+  color: inherit;
+  font: inherit;
+  font-size: .9375rem;
+  text-align: left;
+  cursor: pointer;
+  -webkit-tap-highlight-color: transparent;
+}
+
+.opcao-categoria:last-child { border-bottom: 0; }
+.opcao-categoria.selecionada { color: var(--verde); font-weight: 600; }
+.opcao-categoria svg { flex: none; width: 16px; height: 16px; stroke: var(--verde); stroke-width: 2.4; }
+
+/* A quebra do mês por categoria (detalhamento): reusa o visual da barra do
+   painel — mesma grade, mesmo trilho — porque é a mesma ideia, uma fatia do
+   que já saiu. */
+.quebra-categorias { list-style: none; margin: 0 0 8px; padding: 0; }
+.linha-categoria { border-bottom: 1px solid var(--borda-fraca); }
+.linha-categoria:last-child { border-bottom: 0; }
+
+.linha-categoria-botao {
+  width: 100%;
+  min-height: var(--alvo);
+  padding: 10px 0;
+  border: 0;
+  background: none;
+  color: inherit;
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+  -webkit-tap-highlight-color: transparent;
+}
+
+/* "Sem categoria" não é uma categoria de verdade: o nome recua para o tom
+   fraco, e a barra fica neutra em vez de coral — ela não compete com o
+   dinheiro de fato classificado. */
+.linha-categoria-botao.vazia .barra-nome { color: var(--tinta-suave); font-style: italic; }
+.trecho.cheio.categoria-vazia { background: var(--tinta-fraca); }
+
+/* A situação do limite: informação, nunca bronca (decisão 5 do B5). Coral
+   aqui não é alarme — é a mesma cor que o app já usa para "dinheiro que sai";
+   quem carrega a notícia é o texto, não um vermelho de erro. */
+#limite-situacao.estourou { color: var(--coral); }
+
 /* ---------- Aviso temporário ---------- */
 
 .aviso {
@@ -786,6 +907,11 @@ dialog::backdrop { background: var(--veu); }
     gap: 34px;
     padding: 22px 24px;
   }
+
+  /* Sem isto o botão cai na segunda linha do grid ocupando só a primeira
+     coluna — a mesma auto-colocação que rege qualquer item extra num grid de
+     2 colunas. Ele é o rodapé do painel inteiro, não de uma metade dele. */
+  .painel-para-onde { grid-column: 1 / -1; }
 
   .botao-flutuante { bottom: 24px; right: 24px; }
   .aviso { bottom: 24px; }
