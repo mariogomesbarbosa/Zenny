@@ -25,9 +25,13 @@ media query usa `min-width`. **Nenhuma usa `max-width`** — `max-width` signifi
 "o desktop é o padrão e o celular é a exceção", que é o contrário deste projeto.
 
 **Nada de jargão.** Proibidos na interface: "fluxo de caixa", "aporte",
-"provisionamento", "saldo disponível", "lançamento", "livro-caixa", "exportar",
-"importar". Escreva como se explicasse para um amigo: "o que sobrou", "guardar
-uma cópia", "trazer de volta".
+"provisionamento", "saldo disponível", "livro-caixa", "exportar", "importar".
+Escreva como se explicasse para um amigo: "o que sobrou", "guardar uma cópia",
+"trazer de volta".
+
+**"Lançamento" é permitido**, e isso é decisão registrada — ver a ressalva em
+`docs/conceito.md`, seção "O que o Zenny NÃO vai ser". Não a troque por conta
+própria.
 
 **Uma pergunta por tela.** "Dá para chegar no fim do mês?" e "para onde foi?"
 são telas diferentes. Nada de duas colunas lado a lado como planilha.
