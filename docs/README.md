@@ -32,10 +32,11 @@ realizado), B3 (o valor do fixo com data) e B4 (backup, Ajustes e apagar tudo).
 Mais o layout do desktop alinhado, verificação de tipos sem build, e quatro
 agentes especializados em `.claude/agents/`.
 
-`npm run conferir` roda o conferidor e os 149 testes.
+Em revisão: o **B5 — categorias e limites**, com o plano e a implementação em
+[b5-categorias-e-limites.md](b5-categorias-e-limites.md). O app passa a sugerir
+a categoria pela descrição, e ganha a tela de Relatório.
 
-Em planejamento: o **B5 — categorias e limites**, com o plano escrito em
-[b5-categorias-e-limites.md](b5-categorias-e-limites.md).
+`npm run conferir` roda o conferidor e os **256 testes**.
 
 Vale ler antes de seguir: a [pendência 3](pendencias.md) — o menu de
 compartilhar do Android, que é o que faz a cópia sair do celular, ainda não foi
