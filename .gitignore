@@ -5,4 +5,10 @@ node_modules/
 # Local settings & OS files
 .DS_Store
 Thumbs.db
-.claude/
+
+# De .claude, o que e DESTA MAQUINA nao entra; o que e do PROJETO entra.
+# Os agentes em .claude/agents/ carregam o contexto do Zenny e as regras deste
+# arquivo, entao pertencem ao repositorio: sem isso eles morrem junto com a
+# sessao que os criou. Ver docs/agentes.md.
+.claude/settings.local.json
+.claude/*.local.json
