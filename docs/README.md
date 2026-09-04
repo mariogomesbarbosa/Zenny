@@ -27,16 +27,17 @@ histórico se perde.
 
 ## Estado atual
 
-Na `main`: B0 (esqueleto), B1 (o mês e os avulsos), B2 (fixos e planejado ×
-realizado), B3 (o valor do fixo com data) e B4 (backup, Ajustes e apagar tudo).
-Mais o layout do desktop alinhado, verificação de tipos sem build, e quatro
-agentes especializados em `.claude/agents/`.
+Na `main`, do B0 ao B5: o esqueleto, o mês com entradas e saídas, os fixos com
+planejado × realizado, o valor do fixo com data, o backup com a tela de
+Ajustes, e as categorias com limites e a tela de Relatório.
 
-Em revisão: o **B5 — categorias e limites**, com o plano e a implementação em
-[b5-categorias-e-limites.md](b5-categorias-e-limites.md). O app passa a sugerir
-a categoria pela descrição, e ganha a tela de Relatório.
+Mais o layout do desktop alinhado, verificação de tipos sem build, e três
+agentes especializados em `.claude/agents/` — ver [agentes.md](agentes.md).
 
-`npm run conferir` roda o conferidor e os **256 testes**.
+`npm run conferir` roda o conferidor de tipos e os **256 testes**.
+
+Próximo no roteiro: **B6 — guardar para algo** (as metas). É o que resolve a
+aba Metas, que hoje existe na navegação mostrando um estado vazio.
 
 Vale ler antes de seguir: a [pendência 3](pendencias.md) — o menu de
 compartilhar do Android, que é o que faz a cópia sair do celular, ainda não foi
