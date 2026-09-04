@@ -10,22 +10,43 @@ verificação no navegador antes do PR, e essa verificação é você.
 
 ## Como subir o app
 
-O Zenny é estático, sem build:
+O Zenny é estático e sem build, então **qualquer** servidor de arquivos serve.
+Use o que existir no ambiente:
 
 ```
-python3 -m http.server 8099    # a partir da raiz do repositório
+npx http-server -p 8099      # onde houver Node
+python3 -m http.server 8099  # onde houver Python 3
+py -m http.server 8099       # Windows, quando o entrypoint é `py`
 ```
 
-Playwright está disponível em `/opt/node22/lib/node_modules/playwright`, e o
-Chromium já vem instalado — **nunca** rode `playwright install`.
+Confirme que subiu antes de navegar — um `curl` na porta, ou o próprio
+navegador acusando conexão recusada.
 
-```js
-import { chromium } from '/opt/node22/lib/node_modules/playwright/index.mjs';
+## Como automatizar, quando der
+
+Playwright pode estar instalado ou não, e **isso muda por ambiente**. Descubra
+em vez de supor:
+
+```
+node -e "console.log(require.resolve('playwright'))"   # onde ele está
+npm ls -g --depth=0 | grep playwright                   # se é global
 ```
 
-Escreva o roteiro num arquivo temporário no diretório de scratchpad da sessão,
-nunca dentro do repositório: esses roteiros não são versionados hoje (é a
-pendência 6).
+Em ambientes de nuvem deste projeto ele costuma estar no `node_modules` global
+do Node, com o Chromium já baixado — ali **não** rode `playwright install`,
+porque o navegador já existe e a variável `PLAYWRIGHT_BROWSERS_PATH` aponta para
+ele. Numa máquina local sem Playwright, instalar é legítimo: diga isso a quem
+pediu, em vez de instalar por conta própria.
+
+**Se não houver forma de automatizar, verifique à mão e diga que foi à mão.** É
+melhor um relato honesto de navegação manual que um roteiro que não rodou.
+
+Escreva o roteiro fora do repositório — num diretório temporário da sessão.
+Esses roteiros não são versionados hoje: a pendência é a das *"verificações de
+navegador que vivem fora do repositório"*, em `docs/pendencias.md`.
+
+Aponte pendência **pelo nome**, nunca pelo número: a lista já foi reordenada uma
+vez, e todo ponteiro numérico envelheceu junto.
 
 ## O que conferir, sempre
 
