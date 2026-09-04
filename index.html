@@ -139,30 +139,40 @@
     </section>
   </section>
 
-  <!-- Não entra na navegação de baixo (decisão 6 do B5): um item de menu para
-       algo que se consulta uma vez por semana custa caro em 360px. A porta é
-       só o botão "Para onde foi" do painel, e a saída é o link abaixo — sem
-       isso quem entra não teria como voltar. -->
+  <!-- A decisão 6 do B5 deixava esta tela fora da navegação de baixo: um item
+       de menu para algo que se consulta uma vez por semana custava caro em
+       360px. A porta era um texto "Para onde foi" no painel, e o custo real
+       apareceu no uso — não ficava óbvio que era clicável nem para onde ia.
+       Um item de menu com ícone diz as duas coisas antes do toque. -->
   <section class="tela" id="tela-relatorio" aria-labelledby="titulo-relatorio" hidden>
     <h1 id="titulo-relatorio">Relatório</h1>
     <p class="subtitulo" id="relatorio-mes">—</p>
 
-    <ul class="quebra-categorias" id="lista-relatorio"></ul>
+    <!-- A tela vai abrigar mais seções além desta. Cada uma tem seu próprio
+         título e responde a uma pergunta: aqui, "para onde o dinheiro foi".
+         O h2 é o que dá a hierarquia, e é por ele que um leitor de tela navega
+         entre as seções. -->
+    <section class="secao-relatorio" aria-labelledby="titulo-dos-gastos">
+      <h2 id="titulo-dos-gastos">Gastos</h2>
+      <p class="nota">O que já saiu neste mês, por categoria.</p>
 
-    <div class="cartao vazio" id="relatorio-vazio" hidden>
-      <h2>Nada por aqui ainda</h2>
-      <p>
-        Assim que você marcar uma despesa como paga, ela aparece aqui. Mas dá
-        para combinar um limite desde já.
-      </p>
-    </div>
+      <ul class="quebra-categorias" id="lista-relatorio"></ul>
 
-    <!-- A porta para quem ainda não gastou. Sem ela, um limite só podia ser
-         definido a partir de uma linha da lista — e no dia 1º do mês, ou numa
-         categoria em que nunca se gastou, não havia linha nenhuma. -->
-    <button type="button" class="botao contorno" id="botao-definir-limite">
-      Combinar um limite
-    </button>
+      <div class="cartao vazio" id="relatorio-vazio" hidden>
+        <h3>Nada por aqui ainda</h3>
+        <p>
+          Assim que você marcar uma despesa como paga, ela aparece aqui. Mas dá
+          para combinar um limite desde já.
+        </p>
+      </div>
+
+      <!-- A porta para quem ainda não gastou. Sem ela, um limite só podia ser
+           definido a partir de uma linha da lista — e no dia 1º do mês, ou numa
+           categoria em que nunca se gastou, não havia linha nenhuma. -->
+      <button type="button" class="botao contorno" id="botao-definir-limite">
+        Combinar um limite
+      </button>
+    </section>
   </section>
 
   <section class="tela" id="tela-metas" aria-labelledby="titulo-metas" hidden>

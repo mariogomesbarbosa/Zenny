@@ -739,9 +739,14 @@ dialog::backdrop { background: var(--veu); }
 
 /* ---------- Relatório ---------- */
 
-/* A tela não mora na navegação de baixo (decisão 6 do B5): um item de menu
-   para algo que se consulta uma vez por semana custa caro em 360px. Por não
-   estar lá, precisa de uma porta de saída explícita. */
+/* Cada seção do Relatório é um bloco fechado com seu próprio título. A regra
+   existe para quando houver a segunda: sem espaço entre elas, duas listas
+   seguidas leem como uma lista só. */
+.secao-relatorio { margin-bottom: 32px; }
+.secao-relatorio:last-child { margin-bottom: 0; }
+.secao-relatorio h2 { font-size: 1.125rem; margin: 0 0 2px; letter-spacing: -.01em; }
+.secao-relatorio > .nota { margin: 0 0 14px; }
+.secao-relatorio .cartao.vazio h3 { font-size: 1.05rem; margin: 0 0 6px; }
 
 /* A quebra do mês por categoria: reusa o visual da barra do painel — mesma
    grade, mesmo trilho — porque é a mesma ideia, uma fatia do que já saiu. */
