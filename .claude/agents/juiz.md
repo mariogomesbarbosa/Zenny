@@ -39,9 +39,11 @@ passo de build? Alguma media query `max-width`? Cor literal fora do `:root`?
 `node_modules` versionado?
 
 **As palavras da tela.** Jargão de banco: "fluxo de caixa", "aporte",
-"provisionamento", "saldo disponível", "lançamento", "livro-caixa", "exportar",
-"importar". Tom de fiscal em vez de aliado. Vermelho de erro onde devia ser
-coral.
+"provisionamento", "saldo disponível", "livro-caixa", "exportar", "importar".
+Tom de fiscal em vez de aliado. Vermelho de erro onde devia ser coral.
+
+**"Lançamento" não é achado.** A palavra foi aceita por decisão registrada em
+`docs/conceito.md`. Levantá-la de novo é gastar a atenção de quem lê o relato.
 
 **A régua do conceito.** A mudança acrescenta fricção antes de entregar valor?
 Pede mais de um dado para dar a primeira resposta? Se aproxima de algo que o

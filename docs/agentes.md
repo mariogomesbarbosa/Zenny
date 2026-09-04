@@ -12,7 +12,7 @@ O segundo objetivo é direto. O primeiro precisou de uma correção antes de vir
 desenho, porque **subagente não economiza por si**:
 
 - **Economiza** quando isola contexto — o agente de interface não carrega as
-  setecentas linhas do `nucleo.js` — e quando roda em modelo menor onde cabe.
+  oitocentas e trinta linhas do `nucleo.js` — e quando roda em modelo menor onde cabe.
 - **Gasta mais** quando a tarefa é pequena: cada subagente recarrega o
   `CLAUDE.md` e o contexto do projeto do zero. Delegar um ajuste de três linhas
   custa mais que fazer direto.
@@ -79,20 +79,28 @@ depender de alguém lembrar de pedir.
   paralelo. Quem conduz a sessão escolhe, porque só ali se sabe se a tarefa
   paga o carregamento.
 
-## Uma característica operacional que custou uma tentativa
+## Um erro de generalização, e o que ele ensina
 
-**Agentes são carregados no início da sessão.** Criar um arquivo em
-`.claude/agents/` no meio de uma sessão não o disponibiliza nela — a tentativa
-de invocar o `juiz` para revisar o próprio PR que o criou falhou com "agent type
-not found".
+Ao tentar invocar o `juiz` para revisar o próprio PR que o criou, a chamada
+falhou com `agent type 'juiz' not found`. Disso foi escrita, aqui mesmo e em
+negrito, uma regra geral: *"agentes são carregados no início da sessão, logo a
+sessão precisa ser reiniciada"*.
 
-Consequência prática: depois de criar ou editar um agente, a sessão precisa ser
-reiniciada para usá-lo. Vale para o Mário no PC e para qualquer sessão de nuvem.
+**A regra era falsa.** Depois do merge na `main`, os quatro agentes ficaram
+disponíveis na mesma sessão, sem reinício — e o primeiro relato do `juiz` foi
+justamente a revisão daquele PR.
 
-Por isso o PR que introduziu os agentes não passou pelo `juiz`, e as checagens
-que ele faria foram feitas à mão — fronteiras conferidas por `grep`,
-`.gitignore` por `git check-ignore`, numeração do fluxo por leitura. Está
-registrado como pendência.
+O que a evidência sustentava era só o sintoma: uma invocação falhou enquanto os
+arquivos existiam apenas na branch. A explicação simples — o agente precisa estar
+onde o carregador olha — foi trocada por uma regra maior, mais confiante e
+errada. O custo seria concreto: alguém reiniciando sessão por nada, para sempre.
+
+Fica como método: quando uma observação tem explicação estreita e explicação
+larga, escreva a estreita. A larga precisa de mais de um caso.
+
+Por isso aquele PR não passou pelo `juiz` — a única razão verdadeira é que ele
+ainda não estava na `main`. As checagens foram feitas à mão, e o `juiz` as
+repetiu depois, achando cinco coisas que a passada manual não viu.
 
 ## Como saber se valeu
 
@@ -101,5 +109,12 @@ tarefas caem num agente só, sem precisar de dois. Se você se vê chamando
 `nucleo` e `interface` para a mesma coisa toda vez, a fronteira está no lugar
 errado — e o certo é mudá-la, não conviver.
 
-O sinal de que o `juiz` funciona é ele reprovar algo que teria passado. Se ele
-nunca discordar, ou está redundante ou está com medo.
+O sinal de que o `juiz` funciona é ele **discordar** de algo que teria passado —
+não reprovar, que é o que a decisão 2 tirou dele. Se ele nunca discordar, ou está
+redundante ou está com medo.
+
+Na primeira vez que rodou, ele achou cinco coisas que a revisão manual do mesmo
+diff não tinha visto: um ponteiro de pendência que um commit deste próprio PR
+quebrou, a generalização falsa acima, o `verificador` amarrado a um ambiente só,
+e duas regras que os agentes declaram e que a `main` viola hoje. Isso é o teto de
+evidência que existe sobre ele até agora.

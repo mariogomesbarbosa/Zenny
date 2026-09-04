@@ -6,8 +6,11 @@
  *    media query usa min-width. Nenhuma usa max-width — max-width significa
  *    "o desktop é o padrão e o celular é a exceção", que é o contrário do que
  *    este projeto é.
- * 2. TEMA POR VARIÁVEL. Nenhuma cor literal fora dos blocos de :root. O tema
- *    escuro troca as variáveis, e nada mais precisa saber que ele existe.
+ * 2. TEMA POR VARIÁVEL. Nenhuma cor literal fora dos blocos de :root — nenhuma
+ *    mesmo, incluindo sombra e véu de diálogo. O tema escuro troca as
+ *    variáveis, e nada mais precisa saber que ele existe. A regra dizia isso
+ *    desde o começo e havia oito exceções caladas; o juiz as apontou, e elas
+ *    viraram token em vez de virarem ressalva.
  *
  * A tipografia é a pilha do sistema, de propósito: o público-alvo está em
  * Android de entrada com dado móvel limitado, e baixar uma fonte da Google
@@ -29,6 +32,22 @@
   --borda: #e4e0d8;
   --borda-fraca: #efece5;
   --sombra: 0 1px 2px rgba(20, 24, 28, .06), 0 8px 24px rgba(20, 24, 28, .06);
+
+  /* O que fica EM CIMA de verde ou coral: o texto do botão sólido, o traço do
+     marcador. É branco nos dois temas de propósito — o verde escuro e o coral
+     escuro seguem escuros o bastante para carregar texto branco. */
+  --sobre-cor: #fff;
+
+  /* Estas quatro NÃO seguem --sombra, que vira `none` no tema escuro.
+     Elemento que flutua por cima do conteúdo precisa de separação nos dois
+     temas: sem ela a folha do diálogo encosta no fundo e o botão flutuante
+     parece colado na lista. */
+  --sombra-sutil: 0 1px 3px rgba(20, 24, 28, .16);
+  --sombra-flutuante: 0 8px 22px -6px rgba(20, 24, 28, .45);
+  --sombra-folha: 0 -8px 40px -10px rgba(20, 24, 28, .4);
+  --sombra-aviso: 0 6px 20px rgba(20, 24, 28, .25);
+  --sombra-modal: 0 24px 60px -20px rgba(20, 24, 28, .35);
+  --veu: rgba(20, 24, 28, .45);
 
   --raio: 16px;
   --alvo: 44px;          /* alvo mínimo de toque; abaixo disso o dedo erra */
@@ -381,7 +400,7 @@ h1 { font-size: 1.75rem; line-height: 1.2; letter-spacing: -.02em; margin: 8px 0
 
 .marcador-realizado svg {
   width: 13px; height: 13px;
-  stroke: #fff; stroke-width: 2.4;
+  stroke: var(--sobre-cor); stroke-width: 2.4;
   opacity: 0; transform: scale(.7);
   transition: opacity .12s ease, transform .12s ease;
 }
@@ -464,10 +483,10 @@ h1 { font-size: 1.75rem; line-height: 1.2; letter-spacing: -.02em; margin: 8px 0
   border: 0;
   border-radius: 27px;
   background: var(--verde);
-  color: #fff;
+  color: var(--sobre-cor);
   font: inherit;
   font-weight: 600;
-  box-shadow: 0 8px 22px -6px rgba(20, 24, 28, .45);
+  box-shadow: var(--sombra-flutuante);
   cursor: pointer;
   -webkit-tap-highlight-color: transparent;
 }
@@ -518,10 +537,10 @@ dialog {
   background: var(--superficie);
   color: var(--tinta);
   border-radius: 20px 20px 0 0;
-  box-shadow: 0 -8px 40px -10px rgba(20, 24, 28, .4);
+  box-shadow: var(--sombra-folha);
 }
 
-dialog::backdrop { background: rgba(20, 24, 28, .45); }
+dialog::backdrop { background: var(--veu); }
 
 .pegador {
   width: 38px; height: 4px;
@@ -556,7 +575,7 @@ dialog::backdrop { background: rgba(20, 24, 28, .45); }
 
 .alternador button[aria-pressed="true"] {
   background: var(--superficie);
-  box-shadow: 0 1px 3px rgba(20, 24, 28, .16);
+  box-shadow: var(--sombra-sutil);
 }
 
 #tipo-entrada[aria-pressed="true"] { color: var(--verde); }
@@ -612,7 +631,7 @@ dialog::backdrop { background: rgba(20, 24, 28, .45); }
   border: 1px solid var(--verde);
   border-radius: 12px;
   background: var(--verde);
-  color: #fff;
+  color: var(--sobre-cor);
   font: inherit;
   font-weight: 600;
   cursor: pointer;
@@ -628,7 +647,7 @@ dialog::backdrop { background: rgba(20, 24, 28, .45); }
  * embaixo da outra. Com as duas em texto coral — que é como o resto do app
  * escreve tanto "Excluir" quanto "Cancelar" — elas viravam gêmeas, e o botão de
  * escape não pode parecer o botão de destruir. */
-.botao.perigo { background: var(--coral); border-color: var(--coral); color: #fff; }
+.botao.perigo { background: var(--coral); border-color: var(--coral); color: var(--sobre-cor); }
 .botao.perigo:hover { filter: brightness(.94); }
 
 .botao.apagado {
@@ -658,7 +677,7 @@ dialog::backdrop { background: rgba(20, 24, 28, .45); }
   background: var(--tinta);
   color: var(--areia);
   font-size: .875rem;
-  box-shadow: 0 6px 20px rgba(20, 24, 28, .25);
+  box-shadow: var(--sombra-aviso);
 }
 
 .aviso span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
@@ -779,7 +798,7 @@ dialog::backdrop { background: rgba(20, 24, 28, .45); }
     max-height: 88vh;
     border: 1px solid var(--borda);
     border-radius: 16px;
-    box-shadow: 0 24px 60px -20px rgba(20, 24, 28, .35);
+    box-shadow: var(--sombra-modal);
   }
 
   .pegador { display: none; }

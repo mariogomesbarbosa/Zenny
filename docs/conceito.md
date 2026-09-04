@@ -75,9 +75,17 @@ Registrar aqui é tão importante quanto registrar o que ele é — cada item ab
   celular, a pergunta está errada.
 - **Não tem login obrigatório.** Dados no aparelho. Se algum dia houver nuvem,
   é opcional e para backup.
-- **Não vira livro-caixa.** Ser um planejador não autoriza a linguagem nem a
-  forma da contabilidade: "lançamento", "livro-caixa", entradas e despesas em
-  duas colunas lado a lado. Essa é a aparência que o público-alvo evita.
+- **Não vira livro-caixa.** Ser um planejador não autoriza a **forma** da
+  contabilidade: "livro-caixa", entradas e despesas em duas colunas lado a lado,
+  relatório de doze colunas. Essa é a aparência que o público-alvo evita.
+
+  > **"Lançamento" saiu desta lista.** A palavra estava proibida aqui desde o
+  > começo, e a interface a usava em dezoito lugares — o agente `juiz` apontou a
+  > contradição na primeira revisão que fez. O Mário decidiu remover a regra, e
+  > não a palavra: sem ela falta um substantivo para "a coisa que você anotou", e
+  > as alternativas testadas ficaram piores ou mais longas. O que continua
+  > proibido é o resto do vocabulário de banco — "fluxo de caixa", "aporte",
+  > "provisionamento", "saldo disponível" — e, sobretudo, a *forma* de planilha.
 
 ## Roteiro proposto
 
