@@ -21,6 +21,7 @@ histórico se perde.
 | [b4-backup.md](b4-backup.md) | O plano do backup: as 10 decisões, o formato do arquivo, e por que este bloco absorveu o antigo B5 |
 | [cache-e-deploy.md](cache-e-deploy.md) | Por que o código do app vem sempre da rede, e o defeito de versão misturada que isso evita |
 | [tipos-sem-build.md](tipos-sem-build.md) | Por que o Drive não exigia migrar para Vite, e como o projeto ganhou verificação de tipos sem build: as 7 decisões e os 3 achados do conferidor |
+| [agentes.md](agentes.md) | Os quatro agentes especializados, as fronteiras que eles não cruzam, e por que subagente não economiza por si |
 | [pendencias.md](pendencias.md) | Ressalvas conhecidas e o que foi para a `main` sem verificação |
 
 ## Estado atual
