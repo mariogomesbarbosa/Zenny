@@ -343,35 +343,6 @@ h1 { font-size: 1.75rem; line-height: 1.2; letter-spacing: -.02em; margin: 8px 0
 .amostra.cheia { background: var(--tinta-suave); }
 .amostra.clara { background: var(--borda); }
 
-/* O botão "Para onde foi" (decisão 7 do B5): dentro do painel, com rótulo
-   visível — nem uma quarta aba, nem um toque escondido no número. */
-.painel-para-onde {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  width: 100%;
-  min-height: var(--alvo);
-  margin: 0;
-  padding: 14px 0 0;
-  border: 0;
-  border-top: 1px solid var(--borda-fraca);
-  background: none;
-  color: var(--tinta);
-  font: inherit;
-  font-weight: 600;
-  font-size: .9375rem;
-  text-align: left;
-  cursor: pointer;
-  -webkit-tap-highlight-color: transparent;
-}
-
-.painel-para-onde svg { flex: none; color: var(--tinta-fraca); }
-.painel-para-onde:hover span { text-decoration: underline; }
-
-/* Vira link ao virar porta para a tela de Relatório: o sublinhado nativo do
-   <a> some daqui, e volta só no hover, junto com o rótulo (regra acima). */
-.painel-para-onde { text-decoration: none; }
-
 /* ---------- Grupos: Entradas e Despesas ---------- */
 
 .grupo { margin-top: 26px; }
@@ -583,6 +554,16 @@ body[data-tela="relatorio"] .botao-flutuante { display: none; }
 
 .navegacao a[aria-current="page"] { color: var(--verde); }
 
+/* Com quatro abas, cada uma fica com 90px em 360px. "Relatório" é a palavra
+   mais longa da barra e precisa caber inteira: sem isto ela quebra em duas
+   linhas e a barra cresce, ou é cortada no meio. */
+.navegacao a span {
+  max-width: 100%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
 /* ---------- Diálogos: folha por baixo no celular ---------- */
 
 dialog {
@@ -761,23 +742,6 @@ dialog::backdrop { background: var(--veu); }
 /* A tela não mora na navegação de baixo (decisão 6 do B5): um item de menu
    para algo que se consulta uma vez por semana custa caro em 360px. Por não
    estar lá, precisa de uma porta de saída explícita. */
-.link-voltar {
-  display: inline-flex;
-  align-items: center;
-  gap: 4px;
-  min-height: var(--alvo);
-  margin: 0 0 2px -8px;
-  padding: 0 8px;
-  border-radius: 10px;
-  color: var(--tinta-suave);
-  text-decoration: none;
-  font-weight: 600;
-  font-size: .875rem;
-  -webkit-tap-highlight-color: transparent;
-}
-
-.link-voltar:hover { background: var(--superficie); color: var(--tinta); }
-.link-voltar svg { width: 20px; height: 20px; flex: none; }
 
 /* A quebra do mês por categoria: reusa o visual da barra do painel — mesma
    grade, mesmo trilho — porque é a mesma ideia, uma fatia do que já saiu. */
@@ -938,11 +902,6 @@ dialog::backdrop { background: var(--veu); }
     gap: 34px;
     padding: 22px 24px;
   }
-
-  /* Sem isto o botão cai na segunda linha do grid ocupando só a primeira
-     coluna — a mesma auto-colocação que rege qualquer item extra num grid de
-     2 colunas. Ele é o rodapé do painel inteiro, não de uma metade dele. */
-  .painel-para-onde { grid-column: 1 / -1; }
 
   .botao-flutuante { bottom: 24px; right: 24px; }
   .aviso { bottom: 24px; }
