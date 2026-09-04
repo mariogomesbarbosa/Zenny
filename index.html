@@ -55,13 +55,19 @@
     </button>
   </nav>
 
-  <!-- Só aparece quando o mês visível não é o atual: botão que não faz nada não
-       merece ocupar espaço numa tela de 360px. -->
-  <button id="botao-hoje" class="botao-texto" type="button" hidden>Hoje</button>
+  <!-- Os dois andam juntos porque no desktop saem do fluxo, encostados à
+       direita. Se ocupassem uma coluna do grid, a largura deles entraria na
+       conta do centro — e o mês pularia de lugar toda vez que o botão "Hoje"
+       aparecesse ou sumisse. -->
+  <div class="controles">
+    <!-- "Hoje" só aparece quando o mês visível não é o atual: botão que não faz
+         nada não merece ocupar espaço numa tela de 360px. -->
+    <button id="botao-hoje" class="botao-texto" type="button" hidden>Hoje</button>
 
-  <button id="botao-tema" class="botao-icone" type="button" aria-label="Alternar tema">
-    <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M21 12.8A9 9 0 1 1 11.2 3a7 7 0 0 0 9.8 9.8Z"/></svg>
-  </button>
+    <button id="botao-tema" class="botao-icone" type="button" aria-label="Alternar tema">
+      <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M21 12.8A9 9 0 1 1 11.2 3a7 7 0 0 0 9.8 9.8Z"/></svg>
+    </button>
+  </div>
 </header>
 
 <main id="conteudo">
