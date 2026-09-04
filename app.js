@@ -1332,7 +1332,7 @@ $('categoria-cancelar').addEventListener('click', () => {
 
 /* ---------- Relatório: para onde o dinheiro foi ---------- */
 
-/* A tela é alcançada pelo link "Para onde foi" do painel do Início — ver
+/* A tela é alcançada pela aba do Relatório na navegação de baixo — ver
  * index.html — e não por um botão com listener: é a mesma navegação por hash
  * que já existe para Início/Metas/Ajustes, e ganhar um segundo jeito de trocar
  * de tela seria dívida.

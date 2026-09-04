@@ -77,10 +77,26 @@ linha do Relatório que tem teto mostra o quanto dele foi usado, junto do valor 
 o aviso passa a existir onde a pessoa já está olhando. O Início não muda: ele
 continua respondendo uma pergunta só.
 
-**7. "Para onde foi" é um botão visível no Início.** Não uma quarta aba — que em
-360px deixaria cada item com 90px — e não um toque escondido no número das
-despesas, que ninguém descobre. Um botão dentro do painel, com rótulo, que abre
-o detalhamento. Assim a navegação não cresce e a tela se anuncia.
+**7. O Relatório é uma aba da navegação, com ícone.**
+
+> **Esta decisão foi revertida depois de ver na tela.** Ela dizia que o
+> Relatório seria alcançado por um botão dentro do painel do Início — *"não uma
+> quarta aba, que em 360px deixaria cada item com 90px"* —, e o argumento
+> parecia bom no papel. Usando, o Mário apontou o óbvio: *"tá só um texto que
+> não fica óbvio que é clicável nem o que faz"*.
+>
+> Os 90px eram uma preocupação legítima e se mostraram um não-problema: com
+> quatro abas, cada uma fica com exatamente 90px, "Relatório" cabe inteiro, e a
+> barra não cresceu um pixel. O que era caro não era o espaço — era a porta
+> invisível.
+
+A barra passa a ter Início, Relatório, Metas e Ajustes. O atalho do painel saiu
+junto: com a aba, ele viraria uma segunda porta para o mesmo lugar, e era
+justamente ele que não se anunciava. O link de voltar dentro da tela também
+saiu, porque a navegação passou a ser a saída.
+
+A lição vale além deste bloco: **um argumento de layout que só existe no papel
+perde para trinta segundos olhando a tela.**
 
 **8. A migração categoriza o passado pela descrição.** Um estado que vem da v3
 não tem categoria em nenhum registro. Aplicar a sugestão na travessia faz a tela
