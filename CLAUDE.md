@@ -67,7 +67,6 @@ isso morreriam junto com a sessão que os criou.
 | `nucleo` | As funções puras: dinheiro, meses, estado, resumo, migração. Escreve a função **e** o teste | opus |
 | `interface` | `index.html`, `styles.css` e o DOM em `app.js`. Mobile first em 360px | sonnet |
 | `verificador` | Exercita no navegador de verdade e relata. Não corrige | sonnet |
-| `juiz` | Revisa contra este arquivo e o conceito, e aponta por gravidade. Não altera código | opus |
 
 O recorte é grande de propósito: subagente isola contexto e economiza quando o
 escopo paga o próprio carregamento, e encarece quando se delega um ajuste de
@@ -78,35 +77,28 @@ Duas fronteiras que não se cruzam: o `nucleo` nunca toca DOM, e a `interface`
 nunca faz conta com dinheiro. Quando um deles precisar do outro lado, ele
 **para e diz** — em vez de resolver no lugar errado.
 
-O `juiz` **aponta, não bloqueia**: ele separa o que viola regra escrita do que é
-opinião dele, e a decisão de corrigir ou seguir é do Mário, caso a caso.
+## Fluxo de trabalho
 
-## Fluxo de trabalho — obrigatório
-
-Nada entra na `main` por commit direto. Todo trabalho segue este ciclo:
+Nada entra na `main` por commit direto. Cinco passos:
 
 1. **Planejar antes de codar.** Bloco novo começa com um documento em `docs/`
-   descrevendo as decisões e o que fica de fora. O plano é revisado antes da
-   implementação.
-2. **Branch por bloco**: `feat/descricao-curta`, `fix/descricao-curta`,
-   `docs/descricao-curta`. Sempre a partir da `main` atualizada.
+   descrevendo as decisões e o que fica de fora. Ele entra no **mesmo PR** da
+   implementação, como primeiro commit — não é etapa separada com aprovação
+   própria. O que importa é que a decisão exista escrita antes do código, não
+   que ela passe por um rito.
+2. **Branch por bloco**, a partir da `main` atualizada: `feat/descricao-curta`,
+   `fix/descricao-curta`, `docs/descricao-curta`.
 3. **Commits em português, no imperativo, sem acentos no título** (o terminal do
    Windows corrompe acentos no log). Prefixo `feat:`, `fix:`, `docs:`,
-   `refactor:`, `test:`. O corpo do commit pode ter acentos.
-4. **Verificar no navegador antes de abrir o PR**, com o agente `verificador`.
-   Subir o preview, exercitar a mudança, conferir console e layout em 360px.
-   "Deve funcionar" não conta. O que só um aparelho real prova — compartilhar no
-   Android, PWA instalado, offline — não se declara verificado: vai para
-   `docs/pendencias.md`.
-5. **Passar pelo `juiz` antes do PR.** Ele lê o diff contra este arquivo e o
-   conceito, e relata por gravidade. Os achados de regra escrita se corrigem; o
-   resto é decisão do Mário.
-6. **Abrir PR** com o que mudou, por quê, e como verificar. Se houve desvio do
-   plano, o desvio vai no corpo do PR — desvio escondido é dívida.
-7. **Esperar o OK do Mário para fazer o merge.** O merge é feito pelo Claude,
-   com `gh pr merge --merge --delete-branch`, só depois da aprovação explícita.
-8. **Documentar o que ficou pendente** em `docs/pendencias.md`, em especial o
-   que foi para a `main` sem verificação visual.
+   `refactor:`, `test:`. O corpo pode ter acentos, e é onde o porquê mora.
+4. **Verificar antes do PR.** `npm run conferir` em silêncio, e o navegador
+   exercitado — com o agente `verificador` quando o bloco for grande, direto
+   quando for pequeno. "Deve funcionar" não conta. O que só um aparelho real
+   prova não se declara verificado: vai para `docs/pendencias.md`, junto de
+   qualquer outra ressalva que o bloco deixar.
+5. **Abrir PR** com o que mudou, por quê, e como verificar. Desvio do plano vai
+   no corpo — desvio escondido é dívida. O merge é feito pelo Claude depois do
+   OK do Mário.
 
 ## Testes
 
