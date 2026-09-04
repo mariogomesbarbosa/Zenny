@@ -163,6 +163,13 @@ svg {
   text-overflow: ellipsis;
 }
 
+.controles {
+  display: flex;
+  align-items: center;
+  gap: 2px;
+  flex: none;
+}
+
 .botao-icone {
   display: grid;
   place-items: center;
@@ -677,6 +684,10 @@ dialog::backdrop { background: rgba(20, 24, 28, .45); }
  */
 
 @media (min-width: 768px) {
+  /* Com espaço sobrando, a coluna respira mais que os 760px do celular — sem
+     virar a planilha de 12 colunas que o conceito recusa. */
+  :root { --largura-maxima: 1040px; }
+
   /* Grid explícito em vez de flex com quebra de linha: com flex-wrap a altura
      da segunda linha depende do conteúdo, e a coluna que rola perde a altura
      definida de que o overflow precisa. */
@@ -686,15 +697,29 @@ dialog::backdrop { background: rgba(20, 24, 28, .45); }
     grid-template-rows: auto minmax(0, 1fr);
   }
 
+  /* A barra repete as colunas do corpo: a marca sobre a navegação, e o seletor
+     de mês centrado na MESMA coluna em que o conteúdo vive. Antes ele
+     centralizava na janela inteira, e numa tela larga acabava apontando para um
+     lugar onde não há conteúdo nenhum. O padding lateral sai daqui e vai para
+     os filhos, senão as colunas da barra não coincidem com as do corpo. */
   .barra-superior {
     grid-column: 1 / -1;
-    padding-inline: 16px 24px;
-    gap: 8px;
+    position: relative;
+    display: grid;
+    grid-template-columns: 200px minmax(0, 1fr);
+    align-items: center;
+    padding-inline: 0;
+    gap: 0;
   }
 
+  .marca { grid-column: 1; padding-left: 16px; }
   .marca-nome { display: inline; }
-  .seletor-de-mes { flex: 0 1 auto; margin-inline: auto; }
+
+  .seletor-de-mes { grid-column: 2; justify-self: center; flex: 0 1 auto; }
   .rotulo-do-mes { min-width: 190px; font-size: 1rem; }
+
+  /* Fora do fluxo do grid, pelo motivo explicado no index.html. */
+  .controles { position: absolute; right: 24px; top: 50%; transform: translateY(-50%); }
 
   .navegacao {
     grid-row: 2;
@@ -725,11 +750,14 @@ dialog::backdrop { background: rgba(20, 24, 28, .45); }
   .navegacao a:hover,
   .navegacao a[aria-current="page"] { background: var(--superficie); }
 
+  /* `margin-inline: 0` era o que grudava o conteúdo na borda esquerda da
+     coluna: ele cancelava o `auto` do estado base, e numa tela de 1730px
+     sobravam 794px de vazio só do lado direito. */
   #conteudo {
     grid-row: 2;
     grid-column: 2;
     padding: 16px 24px 40px;
-    margin-inline: 0;
+    margin-inline: auto;
   }
 
   /* Com largura sobrando, o número da sobra e as barras cabem lado a lado — e
