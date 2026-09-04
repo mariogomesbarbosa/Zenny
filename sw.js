@@ -42,7 +42,7 @@
  * servir uma mistura de duas versoes.
  */
 
-const VERSAO = 'zenny-v8';
+const VERSAO = 'zenny-v9';
 
 /* Depois disto o cache atende, mesmo que a rede ainda venha a responder. Tres
    segundos e o limite do que se aceita olhando para uma tela em branco. */

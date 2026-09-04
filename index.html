@@ -162,10 +162,17 @@
     <div class="cartao vazio" id="relatorio-vazio" hidden>
       <h2>Nada por aqui ainda</h2>
       <p>
-        Assim que você marcar uma despesa como paga, ela aparece aqui — e dá
-        para definir um limite para ela.
+        Assim que você marcar uma despesa como paga, ela aparece aqui. Mas dá
+        para combinar um limite desde já.
       </p>
     </div>
+
+    <!-- A porta para quem ainda não gastou. Sem ela, um limite só podia ser
+         definido a partir de uma linha da lista — e no dia 1º do mês, ou numa
+         categoria em que nunca se gastou, não havia linha nenhuma. -->
+    <button type="button" class="botao contorno" id="botao-definir-limite">
+      Combinar um limite
+    </button>
   </section>
 
   <section class="tela" id="tela-metas" aria-labelledby="titulo-metas" hidden>
@@ -367,7 +374,7 @@
 
     <ul class="lista-categorias" id="lista-categorias"></ul>
 
-    <div class="campo">
+    <div class="campo" id="campo-da-nova-categoria">
       <label for="campo-nova-categoria">Criar uma categoria nova</label>
       <input type="text" id="campo-nova-categoria" autocomplete="off" enterkeyhint="done"
              placeholder="Nome da categoria" maxlength="24">

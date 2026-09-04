@@ -713,7 +713,10 @@ for (const id of [
     if (id === 'dialogo-exclusao') pendenteDeExclusao = null;
     if (id === 'dialogo-valor') pendenteDeValor = null;
     if (id === 'dialogo-restaurar') pendenteDeRestauracao = null;
-    if (id === 'dialogo-categoria') lancamentoParaCategoria = null;
+    if (id === 'dialogo-categoria') {
+      lancamentoParaCategoria = null;
+      escolhendoParaLimite = false;
+    }
     if (id === 'dialogo-limite') limiteEmEdicao = null;
   });
 }
@@ -1177,6 +1180,12 @@ $('apagar-confirmar').addEventListener('click', () => {
 /** @type {LancamentoDoMes|null} */
 let lancamentoParaCategoria = null;
 
+/* A folha de categoria serve a dois propósitos: escolher a categoria de um
+ * registro, e escolher a categoria de um limite novo. O segundo caso não tem
+ * registro nenhum por trás — é alguém que quer combinar um teto antes de
+ * gastar —, então "Sem categoria" e "criar uma categoria" saem de cena. */
+let escolhendoParaLimite = false;
+
 /** @param {LancamentoDoMes} lancamento */
 function abrirEscolhaDeCategoria(lancamento) {
   lancamentoParaCategoria = lancamento;
@@ -1185,13 +1194,34 @@ function abrirEscolhaDeCategoria(lancamento) {
   $dialogo('dialogo-categoria').showModal();
 }
 
+/* Abre a mesma folha para escolher de que categoria será o limite. */
+function abrirEscolhaParaLimite() {
+  escolhendoParaLimite = true;
+  lancamentoParaCategoria = null;
+  desenharEscolhaDeCategoria();
+  $dialogo('dialogo-categoria').showModal();
+}
+
 function desenharEscolhaDeCategoria() {
+  const lista = $('lista-categorias');
+  lista.textContent = '';
+
+  $('titulo-do-dialogo-categoria').textContent = escolhendoParaLimite
+    ? 'Limite de qual categoria?'
+    : 'Categoria';
+  $('campo-da-nova-categoria').hidden = escolhendoParaLimite;
+
+  if (escolhendoParaLimite) {
+    // Limite é de despesa: não se combina um teto para o salário.
+    for (const c of categoriasDisponiveis(estado, 'saida')) {
+      lista.appendChild(opcaoDeCategoria(c.id, c.nome, false));
+    }
+    return;
+  }
+
   if (!lancamentoParaCategoria) return;
   const { tipo, categoria } = lancamentoParaCategoria;
   const atual = categoria ?? null;
-
-  const lista = $('lista-categorias');
-  lista.textContent = '';
 
   lista.appendChild(opcaoDeCategoria(null, 'Sem categoria', atual === null));
   for (const c of categoriasDisponiveis(estado, tipo)) {
@@ -1241,6 +1271,20 @@ function aplicarCategoria(id, categoriaId) {
 
 /** @param {string|null} id */
 function selecionarCategoria(id) {
+  if (escolhendoParaLimite) {
+    if (id === null) return;
+    const categoria = categoriaPorId(estado, id);
+    if (!categoria) return;
+
+    /* O gasto vem da lista do mês, e não de uma soma feita aqui: quem não
+       aparece na lista não gastou nada, e zero é um fato, não uma conta. */
+    const fatia = linhasDoRelatorio(mesVisivel).find((linha) => linha.id === id);
+
+    $dialogo('dialogo-categoria').close();
+    abrirLimite(id, categoria.nome, fatia ? fatia.total : 0);
+    return;
+  }
+
   const alvo = lancamentoParaCategoria;
   if (!alvo) return;
 
@@ -1491,6 +1535,8 @@ $('limite-remover').addEventListener('click', () => {
   limiteEmEdicao = null;
   avisar('Limite removido.', () => restaurar(anterior));
 });
+
+$('botao-definir-limite').addEventListener('click', abrirEscolhaParaLimite);
 
 $('limite-cancelar').addEventListener('click', () => {
   $dialogo('dialogo-limite').close();
