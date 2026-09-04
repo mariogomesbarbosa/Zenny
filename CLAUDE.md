@@ -31,10 +31,17 @@ propor qualquer funcionalidade: metade das decisões deste projeto é sobre o qu
 
 ## Regras técnicas
 
-- **Sem build e sem dependências.** HTML, CSS e JavaScript puros, servidos como
-  arquivos estáticos. Nada de npm no runtime, nada de framework, nada de
-  transpilação. Se uma biblioteca parecer necessária, isso é assunto de PR
-  próprio com justificativa — não se resolve no meio de outro bloco.
+- **Sem build e sem dependências em runtime.** HTML, CSS e JavaScript puros,
+  servidos como arquivos estáticos. Nada de framework, nada de transpilação,
+  nada de npm no que o navegador baixa. O arquivo que o usuário recebe é o que
+  está no repositório, byte por byte. Se uma biblioteca de runtime parecer
+  necessária, isso é assunto de PR próprio com justificativa — não se resolve no
+  meio de outro bloco.
+- **Ferramenta de desenvolvimento é outra categoria.** `npm install` traz o
+  conferidor de tipos, e só isso; `node_modules` não é servido e está no
+  `.gitignore`. O contrato é simples: se aparece no navegador, não tem
+  dependência; se ajuda a escrever, pode ter. Ver
+  [docs/tipos-sem-build.md](docs/tipos-sem-build.md).
 - **Arquivos separados**: `index.html`, `styles.css`, `app.js`. Esta é uma
   divergência deliberada do Daysk, que vive num único `index.html` de 10 mil
   linhas. Zenny começa separado porque separar depois custa caro.
@@ -76,5 +83,9 @@ Nada entra na `main` por commit direto. Todo trabalho segue este ciclo:
 funções puras — cálculo, formatação de valores, regras de categoria. Interface
 se verifica no navegador; lógica de dinheiro se verifica com teste.
 
-Regra dura: **toda função que faz conta com dinheiro tem teste.** Erro de
+Regra dura: **toda função que faz conta com dinheiro tem teste e tipo.** Erro de
 centavo destrói a confiança no app inteiro.
+
+`npm run conferir` roda o conferidor de tipos e os testes de uma vez. Ele tem
+que ficar em silêncio antes de abrir PR. O conferidor não substitui o navegador:
+interface se verifica olhando, como sempre.

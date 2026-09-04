@@ -1,0 +1,17 @@
+{
+  "name": "zenny",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "description": "Cuidar do seu dinheiro sem medo. O app nao usa nada disto em runtime: ver docs/tipos-sem-build.md.",
+  "license": "MIT",
+  "scripts": {
+    "tipos": "tsc",
+    "testes": "node tests/nucleo.mjs",
+    "conferir": "npm run tipos && npm run testes"
+  },
+  "devDependencies": {
+    "@types/node": "^26.4.1",
+    "typescript": "^7.0.2"
+  }
+}

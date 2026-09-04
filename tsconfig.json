@@ -1,0 +1,28 @@
+{
+  "$comment": [
+    "Verificacao de tipos SEM BUILD. O TypeScript aqui e um conferidor, nao um",
+    "compilador: noEmit garante que nada e gerado, e os arquivos servidos ao",
+    "navegador continuam sendo os .js que estao no repositorio. Ver",
+    "docs/tipos-sem-build.md.",
+    "",
+    "sw.js fica fora de proposito: service worker roda no escopo WebWorker, cujos",
+    "tipos (self, caches, clients) conflitam com os do DOM que o resto do app usa.",
+    "Incluir os dois no mesmo programa produz erro em todo lugar."
+  ],
+  "compilerOptions": {
+    "noEmit": true,
+    "allowJs": true,
+    "checkJs": true,
+    "strict": true,
+    "target": "ES2022",
+    "module": "ESNext",
+    "moduleResolution": "bundler",
+    "lib": ["ES2022", "DOM", "DOM.Iterable"],
+    "types": ["node"],
+    "noUnusedLocals": true,
+    "noImplicitReturns": true,
+    "forceConsistentCasingInFileNames": true,
+    "skipLibCheck": true
+  },
+  "include": ["nucleo.js", "app.js", "tests/**/*.mjs", "tools/**/*.mjs"]
+}

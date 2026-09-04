@@ -1,3 +1,7 @@
+# Dependencias de DESENVOLVIMENTO. Nada aqui vai para o navegador: o app
+# servido sao os .js que estao no repositorio. Ver docs/tipos-sem-build.md.
+node_modules/
+
 # Local settings & OS files
 .DS_Store
 Thumbs.db
