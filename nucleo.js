@@ -59,6 +59,7 @@
  * @property {TipoDeLancamento} tipo
  * @property {string} descricao
  * @property {string|null} [categoria] Id de categoria, ou `null` para sem categoria.
+ * @property {string|null} [cartao] Id do cartão em que foi pago, ou `null`.
  * @property {false} fixo
  * @property {number} valor Em centavos.
  * @property {Data} data
@@ -70,6 +71,7 @@
  * @property {TipoDeLancamento} tipo
  * @property {string} descricao
  * @property {string|null} [categoria] Id de categoria, ou `null` para sem categoria.
+ * @property {string|null} [cartao] Id do cartão em que é pago, ou `null`.
  * @property {true} fixo
  * @property {number} dia
  * @property {Mes} inicio
@@ -114,12 +116,57 @@
  */
 
 /**
+ * Um cartão de crédito (B6).
+ * @typedef {object} Cartao
+ * @property {string} id
+ * @property {string} nome
+ * @property {number} limite Centavos. Zero é "não informou" — não existe cartão de limite zero.
+ * @property {number} vencimento Dia do mês, 1–31.
+ * @property {boolean} arquivado
+ */
+
+/**
+ * Valor informado da fatura, em centavos, com chave "<cartaoId>|AAAA-MM".
+ * A ausência da chave é a ausência de valor informado — que NÃO é o mesmo que
+ * uma fatura de R$ 0,00.
+ * @typedef {Record<string, number>} Faturas
+ */
+
+/**
+ * A fatura de um mês, sempre derivada — nunca gravada. Ver `faturaDoMes`.
+ *
+ * Ela tem de propósito os mesmos campos de um `LancamentoDoMes` (id, tipo,
+ * descricao, categoria, dia, valor): assim a lista do mês desenha as duas
+ * coisas com o mesmo código, e o resumo soma as duas no mesmo laço.
+ * @typedef {object} Fatura
+ * @property {string} id "fatura:<cartaoId>" — estável, para `realizados` marcar como paga.
+ * @property {'saida'} tipo
+ * @property {string} descricao
+ * @property {null} categoria Cartão é forma de pagamento, não categoria.
+ * @property {number} dia O vencimento, limitado aos dias que o mês tem.
+ * @property {number} valor O que vale: o informado, ou a soma das compras.
+ * @property {true} ehFatura
+ * @property {string} cartaoId
+ * @property {string} cartao Nome do cartão, para a tela não ter que procurar.
+ * @property {number} soma Soma das compras anotadas nesta fatura.
+ * @property {number|null} informado O total que a pessoa digitou, ou `null`.
+ * @property {number} quantidade Quantas compras foram anotadas.
+ */
+
+/**
+ * O que a lista do mês mostra: lançamentos da conta e faturas, lado a lado.
+ * @typedef {(LancamentoDoMes & { ehFatura?: false }) | Fatura} ItemDoMes
+ */
+
+/**
  * @typedef {object} Estado
  * @property {number} versao
  * @property {Lancamento[]} lancamentos
  * @property {Realizados} realizados
  * @property {CategoriaDoUsuario[]} categorias Só as criadas pelo usuário.
  * @property {Limites} limites
+ * @property {Cartao[]} cartoes
+ * @property {Faturas} faturas
  */
 
 /**
@@ -159,7 +206,7 @@
  */
 
 export const CHAVE = 'zenny:v1';
-export const VERSAO_DO_ESQUEMA = 4;
+export const VERSAO_DO_ESQUEMA = 5;
 
 /* ---------- Dinheiro ---------- */
 
@@ -334,6 +381,8 @@ export function estadoVazio() {
     realizados: {},
     categorias: [],
     limites: {},
+    cartoes: [],
+    faturas: {},
   };
 }
 
@@ -605,6 +654,23 @@ function normalizarNome(nome) {
   return limpo ? limpo[0].toUpperCase() + limpo.slice(1) : '';
 }
 
+/** @param {unknown} nome @returns {string} */
+function normalizarNomeDoCartao(nome) {
+  return String(nome ?? '')
+    .replace(/\s+/g, ' ')
+    .trim()
+    .slice(0, LIMITE_DO_NOME_DO_CARTAO)
+    .trim();
+}
+
+/* Limite negativo ou lixo vira zero, e zero significa "não informou" — a tela
+   esconde a barra em vez de desenhar uma comparação contra nada. */
+/** @param {unknown} limite @returns {number} */
+function normalizarLimiteDoCartao(limite) {
+  const bruto = Math.trunc(Number(limite));
+  return Number.isFinite(bruto) && bruto > 0 ? bruto : 0;
+}
+
 /* Fábrica + as do usuário, sem as ocultas.
  *
  * As de fábrica vêm primeiro, na ordem da constante; as do usuário vêm depois,
@@ -805,6 +871,32 @@ export function normalizarEstado(bruto) {
   const tipoPorCategoria = new Map();
   for (const c of [...CATEGORIAS_DE_FABRICA, ...categorias]) tipoPorCategoria.set(c.id, c.tipo);
 
+  /* Os cartões são lidos ANTES dos lançamentos: é a lista de ids válidos que
+     decide se o vínculo de uma compra com um cartão sobrevive — a mesma ordem
+     que as categorias já seguem logo acima. */
+  /** @type {Cartao[]} */
+  const cartoes = [];
+
+  for (const cru of Array.isArray(bruto.cartoes) ? bruto.cartoes : []) {
+    if (!cru || typeof cru !== 'object') continue;
+
+    const id = String(cru.id ?? '').trim();
+    const nome = normalizarNomeDoCartao(cru.nome);
+
+    // Id repetido sombrearia o cartão certo em cartaoPorId.
+    if (!id || !nome || cartoes.some((c) => c.id === id)) continue;
+
+    cartoes.push({
+      id,
+      nome,
+      limite: normalizarLimiteDoCartao(cru.limite),
+      vencimento: limitarDia(cru.vencimento),
+      arquivado: Boolean(cru.arquivado),
+    });
+  }
+
+  const idsDeCartao = new Set(cartoes.map((c) => c.id));
+
   /** @type {Lancamento[]} */
   const lancamentos = [];
 
@@ -844,6 +936,11 @@ export function normalizarEstado(bruto) {
           ? String(cru.categoria)
           : null;
 
+    /* Cartão que não existe mais vira `null`, como a categoria órfã logo acima.
+       A consequência é boa e precisa ser dita: a compra volta a ser despesa
+       comum do mês em que foi feita, em vez de sumir junto com o cartão. */
+    const cartao = idsDeCartao.has(String(cru.cartao)) ? String(cru.cartao) : null;
+
     const valorSolto = Math.abs(Math.trunc(Number(cru.valor))) || 0;
 
     if (cru.fixo) {
@@ -855,6 +952,7 @@ export function normalizarEstado(bruto) {
       lancamentos.push({
         ...base,
         categoria,
+        cartao,
         fixo: true,
         dia: limitarDia(cru.dia),
         inicio: cru.inicio,
@@ -864,7 +962,14 @@ export function normalizarEstado(bruto) {
       });
     } else {
       if (!ehData(cru.data) || valorSolto <= 0) continue;
-      lancamentos.push({ ...base, categoria, fixo: false, valor: valorSolto, data: cru.data });
+      lancamentos.push({
+        ...base,
+        categoria,
+        cartao,
+        fixo: false,
+        valor: valorSolto,
+        data: cru.data,
+      });
     }
   }
 
@@ -872,7 +977,18 @@ export function normalizarEstado(bruto) {
   const realizados = {};
   const cruRealizados = bruto.realizados;
   if (cruRealizados && typeof cruRealizados === 'object') {
-    const idsValidos = new Set(lancamentos.map((l) => l.id));
+    /* Os ids que podem estar marcados como realizados são os dos lançamentos E
+       os das faturas.
+       
+       A fatura paga usa o id sintético `fatura:<cartaoId>`, que por construção
+       NUNCA está em `lancamentos` — ela é derivada, não gravada. Sem esta
+       segunda metade, toda fatura marcada como paga seria descartada no
+       primeiro recarregamento, em silêncio: o app abriria dizendo que a conta
+       de outubro não foi paga depois de a pessoa ter dito que foi. */
+    const idsValidos = new Set([
+      ...lancamentos.map((l) => l.id),
+      ...cartoes.map((c) => idDaFatura(c.id)),
+    ]);
     for (const chave of Object.keys(cruRealizados)) {
       if (!cruRealizados[chave]) continue;
       const [id, mes] = chave.split('|');
@@ -895,7 +1011,289 @@ export function normalizarEstado(bruto) {
     }
   }
 
-  return { versao: VERSAO_DO_ESQUEMA, lancamentos, realizados, categorias, limites };
+  /* Passa por definirValorDaFatura pelo mesmo motivo que os limites passam por
+     definirLimite: a regra "zero ou lixo não é valor informado" vale igual para
+     o que vem do arquivo e para o que a tela grava. */
+  /** @type {Faturas} */
+  let faturas = {};
+  const crusFaturas = bruto.faturas;
+  if (crusFaturas && typeof crusFaturas === 'object') {
+    for (const chave of Object.keys(crusFaturas)) {
+      const separador = chave.lastIndexOf('|');
+      if (separador <= 0) continue;
+      const cartaoId = chave.slice(0, separador);
+      const mes = chave.slice(separador + 1);
+      // Valor de fatura de cartão que não existe mais sai: não teria onde aparecer.
+      if (!idsDeCartao.has(cartaoId) || !ehMes(mes)) continue;
+      faturas = definirValorDaFatura(faturas, cartaoId, mes, Number(crusFaturas[chave]));
+    }
+  }
+
+  return {
+    versao: VERSAO_DO_ESQUEMA,
+    lancamentos,
+    realizados,
+    categorias,
+    limites,
+    cartoes,
+    faturas,
+  };
+}
+
+/* ---------- Cartões de crédito (B6) ----------
+ *
+ * A fatura é SEMPRE derivada — nunca gravada. Gravá-la seria uma segunda cópia
+ * da verdade: bastaria apagar uma compra, mudar o dia do vencimento ou editar
+ * um valor para as duas discordarem, e a que estivesse errada seria justamente
+ * a que a pessoa lê. Derivar custa microssegundos e elimina a classe inteira.
+ *
+ * O que É gravado: o cartão, o vínculo da compra com o cartão, e o valor
+ * informado de cada mês. Ver docs/b6-cartoes-de-credito.md. */
+
+const LIMITE_DO_NOME_DO_CARTAO = 24;
+
+/* Onde a compra de um mês cai.
+ *
+ * Uma compra do dia 20 de setembro NÃO pode entrar numa fatura que venceu dia
+ * 10 de setembro — essa fatura já foi. Na vida real ela cai na fatura que fecha
+ * no fim de setembro e vence em outubro. Daí a regra: mês M → fatura M+1.
+ *
+ * É uma aproximação, e o certo depende da data de FECHAMENTO, que o bloco não
+ * pede (seria um terceiro campo na criação, contra o princípio dos dois
+ * campos). Para a esmagadora maioria dos cartões e das compras, M+1 acerta.
+ * A regra mora aqui, sozinha, para que trocá-la por fechamento seja mexer num
+ * lugar só. */
+/**
+ * @param {Data} data
+ * @returns {Mes}
+ */
+export function mesDaFatura(data) {
+  return deslocarMes(mesDe(data), 1);
+}
+
+/**
+ * @param {string} cartaoId
+ * @returns {string}
+ */
+export function idDaFatura(cartaoId) {
+  return 'fatura:' + cartaoId;
+}
+
+/**
+ * @param {string} cartaoId
+ * @param {Mes} mes
+ * @returns {string}
+ */
+export function chaveDeFatura(cartaoId, mes) {
+  return cartaoId + '|' + mes;
+}
+
+/**
+ * @param {Estado} estado
+ * @param {string|null|undefined} id
+ * @returns {Cartao|null}
+ */
+export function cartaoPorId(estado, id) {
+  if (!id) return null;
+  return estado.cartoes.find((c) => c.id === id) ?? null;
+}
+
+/**
+ * Os cartões que a tela oferece: os não arquivados, em ordem de nome.
+ * @param {Estado} estado
+ * @returns {Cartao[]}
+ */
+export function cartoesAtivos(estado) {
+  return estado.cartoes
+    .filter((c) => !c.arquivado)
+    .sort((a, b) => a.nome.localeCompare(b.nome, 'pt-BR') || a.id.localeCompare(b.id));
+}
+
+/* O nome do cartão não vira id, ao contrário do que acontece com categoria.
+ *
+ * Lá o id derivado do nome existe para que "Padaria" digitado duas vezes seja a
+ * mesma categoria. Aqui é o oposto: dois cartões podem legitimamente se chamar
+ * "Nubank" — o físico e o virtual, o meu e o da minha mãe — e fundi-los pelo
+ * nome misturaria duas faturas numa. */
+/**
+ * @param {Estado} estado
+ * @param {string} id
+ * @param {string} nome
+ * @param {unknown} limite Centavos.
+ * @param {unknown} vencimento Dia do mês.
+ * @returns {Estado}
+ */
+export function criarCartao(estado, id, nome, limite, vencimento) {
+  const limpo = normalizarNomeDoCartao(nome);
+  if (!id || !limpo || estado.cartoes.some((c) => c.id === id)) return estado;
+
+  return {
+    ...estado,
+    cartoes: [
+      ...estado.cartoes,
+      {
+        id,
+        nome: limpo,
+        limite: normalizarLimiteDoCartao(limite),
+        vencimento: limitarDia(vencimento),
+        arquivado: false,
+      },
+    ],
+  };
+}
+
+/**
+ * Muda só o que veio. Campo ausente fica como estava — assim a tela pode salvar
+ * o nome sem ter que reenviar limite e vencimento.
+ * @param {Estado} estado
+ * @param {string} id
+ * @param {{ nome?: string, limite?: unknown, vencimento?: unknown }} campos
+ * @returns {Estado}
+ */
+export function alterarCartao(estado, id, campos) {
+  const cartao = cartaoPorId(estado, id);
+  if (!cartao) return estado;
+
+  const nome = campos.nome === undefined ? cartao.nome : normalizarNomeDoCartao(campos.nome);
+  // Nome em branco não apaga o nome do cartão: fica o que já estava.
+  const alterado = {
+    ...cartao,
+    nome: nome || cartao.nome,
+    limite: campos.limite === undefined ? cartao.limite : normalizarLimiteDoCartao(campos.limite),
+    vencimento:
+      campos.vencimento === undefined ? cartao.vencimento : limitarDia(campos.vencimento),
+  };
+
+  return { ...estado, cartoes: estado.cartoes.map((c) => (c.id === id ? alterado : c)) };
+}
+
+/* Arquiva, não apaga — a mesma decisão que as categorias tomaram no B5.
+ *
+ * Apagar de verdade obrigaria a decidir o que fazer com as compras que apontam
+ * para o cartão e com as faturas já pagas: ou some o histórico, ou sobra lixo
+ * apontando para o nada. Arquivado, o cartão sai da lista de escolha e para de
+ * gerar fatura nos meses novos, e o passado continua contando a mesma história. */
+/**
+ * @param {Estado} estado
+ * @param {string} id
+ * @returns {Estado}
+ */
+export function arquivarCartao(estado, id) {
+  return {
+    ...estado,
+    cartoes: estado.cartoes.map((c) => (c.id === id ? { ...c, arquivado: true } : c)),
+  };
+}
+
+/**
+ * As compras que caem na fatura que vence em `mes` — ou seja, as do mês anterior.
+ * @param {Estado} estado
+ * @param {string} cartaoId
+ * @param {Mes} mes
+ * @returns {LancamentoDoMes[]}
+ */
+export function comprasDaFatura(estado, cartaoId, mes) {
+  return lancamentosDoMes(estado.lancamentos, deslocarMes(mes, -1)).filter(
+    (l) => l.tipo === 'saida' && l.cartao === cartaoId
+  );
+}
+
+/* Zero, vazio ou lixo REMOVE o valor informado, em vez de gravar R$ 0,00.
+ *
+ * Mesma regra do `definirLimite`, pelo mesmo motivo: ausência e zero são coisas
+ * diferentes. Sem valor informado a fatura vale a soma das compras; com um zero
+ * gravado ela valeria zero, e a soma das compras seria ignorada em silêncio. */
+/**
+ * @param {Faturas} faturas
+ * @param {string} cartaoId
+ * @param {Mes} mes
+ * @param {unknown} valor Centavos.
+ * @returns {Faturas}
+ */
+export function definirValorDaFatura(faturas, cartaoId, mes, valor) {
+  const copia = { ...faturas };
+  if (!cartaoId || !ehMes(mes)) return copia;
+
+  const chave = chaveDeFatura(cartaoId, mes);
+  const bruto = Number(valor);
+
+  if (Number.isFinite(bruto) && bruto >= 1) copia[chave] = Math.trunc(bruto);
+  else delete copia[chave];
+
+  return copia;
+}
+
+/* A fatura de um cartão num mês.
+ *
+ * O VALOR INFORMADO VENCE SEMPRE sobre a soma das compras. A fatura real sabe
+ * de coisas que o app não sabe — anuidade, juros, a compra que a pessoa esqueceu
+ * de anotar — e o número que ela digitou olhando o aplicativo do banco vale mais
+ * que a nossa soma. Quando os dois existem, a tela mostra os dois; aqui a
+ * escolha é uma só, e é dela.
+ *
+ * Devolve `null` para cartão que não existe. A tela nunca deveria pedir uma
+ * fatura assim, mas devolver um objeto zerado faria um cartão apagado parecer um
+ * cartão sem gastos. */
+/**
+ * @param {Estado} estado
+ * @param {string} cartaoId
+ * @param {Mes} mes
+ * @returns {Fatura|null}
+ */
+export function faturaDoMes(estado, cartaoId, mes) {
+  const cartao = cartaoPorId(estado, cartaoId);
+  if (!cartao) return null;
+
+  const compras = comprasDaFatura(estado, cartaoId, mes);
+  const soma = compras.reduce((total, l) => total + l.valor, 0);
+
+  const chave = chaveDeFatura(cartaoId, mes);
+  const informado = Object.prototype.hasOwnProperty.call(estado.faturas, chave)
+    ? estado.faturas[chave]
+    : null;
+
+  return {
+    id: idDaFatura(cartaoId),
+    tipo: 'saida',
+    descricao: 'Fatura do ' + cartao.nome,
+    categoria: null,
+    dia: Math.min(cartao.vencimento, diasNoMes(mes)),
+    valor: informado ?? soma,
+    ehFatura: true,
+    cartaoId,
+    cartao: cartao.nome,
+    soma,
+    informado,
+    quantidade: compras.length,
+  };
+}
+
+/* As faturas que entram na conta do mês.
+ *
+ * Fatura sem valor nenhum FICA DE FORA. Um cartão recém-criado, ou um mês em
+ * que não se comprou nada nem se informou total, produziria "Fatura do Nubank —
+ * R$ 0,00" em toda lista, todo mês: ruído puro. O app também não inventa um
+ * número para preencher o vazio — se a pessoa não anotou nem informou, ele não
+ * sabe, e dizer que não sabe é mais honesto que estimar.
+ *
+ * A tela do cartão mostra a fatura vazia mesmo assim: lá ela é a resposta à
+ * pergunta "quanto está vindo?", e "nada ainda" é uma resposta. */
+/**
+ * @param {Estado} estado
+ * @param {Mes} mes
+ * @returns {Fatura[]}
+ */
+export function faturasDoMes(estado, mes) {
+  /** @type {Fatura[]} */
+  const faturas = [];
+
+  for (const cartao of estado.cartoes) {
+    if (cartao.arquivado) continue;
+    const fatura = faturaDoMes(estado, cartao.id, mes);
+    if (fatura && fatura.valor > 0) faturas.push(fatura);
+  }
+
+  return faturas;
 }
 
 /* ---------- Realizado ---------- */
@@ -995,6 +1393,45 @@ export function lancamentosDoMes(lancamentos, mes) {
     );
 }
 
+/* O que de fato mexe na conta no mês: os lançamentos do mês MENOS as compras
+ * pagas no cartão.
+ *
+ * A compra no cartão continua sendo uma compra do mês em que foi feita — é
+ * assim que o Relatório a conta, e é por isso que o filtro mora AQUI e não
+ * dentro de `lancamentosDoMes`. "De que mês é" e "sai da conta quando" são
+ * perguntas diferentes, e misturá-las sumiria com a compra do "para onde foi".
+ *
+ * O que ela não faz é sair da conta em setembro: ela sai quando a fatura vence,
+ * em outubro. Por isso a lista e o resumo do mês a excluem, e põem a fatura no
+ * lugar. */
+/**
+ * @param {Lancamento[]} lancamentos
+ * @param {Mes} mes
+ * @returns {LancamentoDoMes[]}
+ */
+export function lancamentosDaConta(lancamentos, mes) {
+  return lancamentosDoMes(lancamentos, mes).filter((l) => !l.cartao);
+}
+
+/* A lista do mês, do jeito que a tela desenha: o que mexe na conta e as faturas
+   que vencem, misturados e em ordem de dia. */
+/**
+ * @param {Estado} estado
+ * @param {Mes} mes
+ * @returns {ItemDoMes[]}
+ */
+export function itensDoMes(estado, mes) {
+  /** @type {ItemDoMes[]} */
+  const itens = [...lancamentosDaConta(estado.lancamentos, mes), ...faturasDoMes(estado, mes)];
+
+  return itens.sort(
+    (a, b) =>
+      a.dia - b.dia ||
+      a.descricao.localeCompare(b.descricao, 'pt-BR') ||
+      a.id.localeCompare(b.id)
+  );
+}
+
 /* ---------- Resumo ---------- */
 
 /* Tudo que o painel do topo precisa, numa passada só.
@@ -1002,14 +1439,21 @@ export function lancamentosDoMes(lancamentos, mes) {
  * "previsto" é o mês inteiro como planejado; "realizado" é o que já foi
  * marcado como recebido ou pago. A diferença entre os dois é o que torna isto
  * um planejador e não um diário. */
+/* `faturas` é OBRIGATÓRIO, e não tem valor padrão de propósito.
+ *
+ * Um `= []` faria a chamada esquecida devolver uma sobra maior que a real, em
+ * silêncio, para quem tem cartão — exatamente o erro que o CLAUDE.md chama de
+ * destruidor de confiança. Quem não tem cartão passa `[]` e diz isso de boca. */
 /**
  * @param {Lancamento[]} lancamentos
  * @param {Realizados} realizados
  * @param {Mes} mes
+ * @param {Fatura[]} faturas As faturas que vencem neste mês. `[]` quando não há cartão.
  * @returns {Resumo}
  */
-export function resumoDoMes(lancamentos, realizados, mes) {
-  const doMes = lancamentosDoMes(lancamentos, mes);
+export function resumoDoMes(lancamentos, realizados, mes, faturas) {
+  /** @type {ItemDoMes[]} */
+  const doMes = [...lancamentosDaConta(lancamentos, mes), ...faturas];
 
   const entradas = { previsto: 0, realizado: 0, quantidade: 0 };
   const despesas = { previsto: 0, realizado: 0, quantidade: 0 };
