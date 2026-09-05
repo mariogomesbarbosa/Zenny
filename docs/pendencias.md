@@ -18,6 +18,9 @@ seis meses depois.
 | 10 | A barra de cada linha do Relatório é proporcional ao **maior gasto do mês**, e a legenda ao lado fala do **limite** — duas escalas na mesma linha | É o desenho que o plano decidiu, e é consistente com as barras do painel. Mas uma barra cheia num gasto que não estourou o limite pode confundir. Só o uso real diz se incomoda |
 | 11 | Mudar a descrição de um registro não faz o app sugerir a categoria de novo | O contrário — sugerir sempre — ressuscitaria a categoria que a pessoa tirou de propósito, que é pior. Enquanto o dado não distinguir categoria *sugerida* de categoria *escolhida*, uma das duas pontas fica errada |
 | 8 | O `sw.js` fica fora da conferência de tipos | Service worker roda no escopo `WebWorker`, cujos tipos conflitam com os do DOM. Conferir os dois exigiria um segundo `tsconfig`. Ver [tipos-sem-build.md](tipos-sem-build.md) |
+| 12 | A compra cai na fatura do mês seguinte por regra fixa, sem data de fechamento | Fechamento seria um terceiro campo na criação do cartão, contra o princípio dos dois campos, e a regra M+1 acerta na esmagadora maioria dos casos. A conta mora sozinha em `mesDaFatura`, então trocá-la depois é mexer num lugar só — e nada do que o B6 grava precisa migrar |
+| 13 | Compra parcelada não existe | Decisão do Mário: bloco próprio. É a dor mais real do cartão depois da fatura, e cada pergunta que ela abre — juros? antecipar? o que acontece ao apagar a terceira de seis? — merece plano em vez de improviso |
+| 14 | Cartão arquivado não tem como voltar | `arquivarCartao` esconde da lista e para de gerar fatura, mas não há tela para desarquivar. Mesma lacuna da pendência 9, e a mesma resposta: enquanto ninguém arquivar por engano, ela é barata |
 
 ## Resolvidas
 

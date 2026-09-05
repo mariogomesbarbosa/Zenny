@@ -101,8 +101,9 @@ entregue algo usável sozinho.
 | B3 | O valor do fixo passa a ter data | Sem isso, registrar um aumento reescrevia os meses já fechados — a história ficava errada em silêncio |
 | B4 | Backup, Ajustes e apagar tudo | Depois do B2 o usuário tem trabalho investido nos fixos. Rede de segurança não pode chegar por último. Absorveu o antigo B5: o backup não tem onde morar sem a tela de Ajustes, então os dois viraram um bloco só |
 | B5 | Categorias sugeridas, limites e a tela de Relatório | Só faz sentido depois de haver dados. Opcional de propósito: taxonomia é barreira. O Relatório nasceu aqui e é onde os gráficos futuros vão morar — ele responde a segunda pergunta do app, "para onde foi" |
-| B6 | Guardar para algo (metas com nome e prazo) | Motivação positiva; depende de sobrar dinheiro visível |
-| B7 | Pílulas de educação no contexto | Precisa de telas prontas para se ancorar |
+| B6 | Cartões de crédito: a fatura como despesa do mês | Trocou de lugar com as metas, por decisão do Mário. O cartão é a maior despesa de quem o roteiro atende, e sem ele a sobra do mês mente. Ver [b6-cartoes-de-credito.md](b6-cartoes-de-credito.md) |
+| B7 | Guardar para algo (metas com nome e prazo) | Motivação positiva; depende de sobrar dinheiro visível. Perdeu a vaga no menu para os cartões, não o lugar no roteiro |
+| B8 | Pílulas de educação no contexto | Precisa de telas prontas para se ancorar |
 
 Sem número, porque depende de decisões que ainda não foram tomadas: **backup na
 nuvem, no modelo do WhatsApp** — a cópia indo sozinha para o Google Drive da

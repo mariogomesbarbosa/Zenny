@@ -34,10 +34,15 @@ Ajustes, e as categorias com limites e a tela de Relatório.
 Mais o layout do desktop alinhado, verificação de tipos sem build, e três
 agentes especializados em `.claude/agents/` — ver [agentes.md](agentes.md).
 
-`npm run conferir` roda o conferidor de tipos e os **256 testes**.
+`npm run conferir` roda o conferidor de tipos e os **330 testes**.
 
-Próximo no roteiro: **B6 — guardar para algo** (as metas). É o que resolve a
-aba Metas, que hoje existe na navegação mostrando um estado vazio.
+Em revisão: o **B6 — cartões de crédito**, com o plano e a implementação em
+[b6-cartoes-de-credito.md](b6-cartoes-de-credito.md). A aba Metas virou
+Cartões: a fatura passa a aparecer como despesa no dia do vencimento, e a
+compra de um mês cai na fatura do mês seguinte — como no cartão de verdade.
+
+Próximo no roteiro: **B7 — guardar para algo** (as metas), que trocou de lugar
+com os cartões e ainda não tem tela.
 
 Vale ler antes de seguir: a [pendência 3](pendencias.md) — o menu de
 compartilhar do Android, que é o que faz a cópia sair do celular, ainda não foi
