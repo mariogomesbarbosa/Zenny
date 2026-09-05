@@ -27,6 +27,7 @@ import {
   alternarRealizado,
   limparRealizadosDe,
   lancamentosDoMes,
+  itensDoMes,
   resumoDoMes,
   proporcoesDasBarras,
   excluirLancamento,
@@ -43,6 +44,16 @@ import {
   idDeCategoriaPeloNome,
   gastosPorCategoria,
   definirLimite,
+  cartoesAtivos,
+  cartaoPorId,
+  criarCartao,
+  alterarCartao,
+  arquivarCartao,
+  faturaDoMes,
+  faturasDoMes,
+  comprasDaFatura,
+  definirValorDaFatura,
+  idDaFatura,
   situacaoDoLimite,
 } from './nucleo.js';
 
@@ -62,6 +73,10 @@ import {
  * @typedef {import('./nucleo.js').CategoriaDoUsuario} CategoriaDoUsuario
  * @typedef {import('./nucleo.js').Limites} Limites
  * @typedef {import('./nucleo.js').GastoDeCategoria} GastoDeCategoria
+ * @typedef {import('./nucleo.js').ItemDoMes} ItemDoMes
+ * @typedef {import('./nucleo.js').Cartao} Cartao
+ * @typedef {import('./nucleo.js').Faturas} Faturas
+ * @typedef {import('./nucleo.js').Fatura} Fatura
  */
 
 /**
@@ -73,15 +88,16 @@ import {
  * @property {Data} data
  * @property {string|number} dia
  * @property {boolean} jaAconteceu
+ * @property {string|null} cartao Id do cartão em que foi pago, ou `null`.
  */
 
 /**
  * O par que o desfazer guarda. Como nada é mutado no lugar, as referências
  * antigas seguem válidas.
- * @typedef {{ lancamentos: Lancamento[], realizados: Realizados, categorias: CategoriaDoUsuario[], limites: Limites }} Instantaneo
+ * @typedef {{ lancamentos: Lancamento[], realizados: Realizados, categorias: CategoriaDoUsuario[], limites: Limites, cartoes: Cartao[], faturas: Faturas }} Instantaneo
  */
 
-const TELAS = ['inicio', 'metas', 'ajustes', 'relatorio'];
+const TELAS = ['inicio', 'cartoes', 'ajustes', 'relatorio'];
 const TELA_PADRAO = 'inicio';
 const CHAVE_TEMA = 'zenny-tema';
 
@@ -219,13 +235,17 @@ function salvar() {
    antigas continuam válidas — não é preciso copiar em profundidade.
    Categorias e limites entraram aqui junto com o B5: sem eles, desfazer a
    criação de uma categoria (ou uma mudança de limite) deixava a metade da
-   alteração no lugar. */
+   alteração no lugar. Cartões e faturas entraram no B6 pelo mesmo motivo, e
+   TODO campo novo do estado tem que entrar aqui — é o preço de o desfazer ser
+   uma restauração de campos, e não do estado inteiro. */
 function instantaneo() {
   return {
     lancamentos: estado.lancamentos,
     realizados: estado.realizados,
     categorias: estado.categorias,
     limites: estado.limites,
+    cartoes: estado.cartoes,
+    faturas: estado.faturas,
   };
 }
 
@@ -238,8 +258,12 @@ function restaurar(anterior) {
 /* ---------- Desenho ---------- */
 
 function desenhar() {
-  const resumo = resumoDoMes(estado.lancamentos, estado.realizados, mesVisivel);
-  const doMes = lancamentosDoMes(estado.lancamentos, mesVisivel);
+  /* As faturas são calculadas UMA vez e passadas para os dois: o resumo e a
+     lista têm que estar contando exatamente as mesmas faturas, senão o painel
+     diz um número e a lista abaixo mostra outro. */
+  const faturas = faturasDoMes(estado, mesVisivel);
+  const resumo = resumoDoMes(estado.lancamentos, estado.realizados, mesVisivel, faturas);
+  const doMes = itensDoMes(estado, mesVisivel);
 
   desenharCabecalho();
   desenharPainel(resumo);
@@ -247,6 +271,7 @@ function desenhar() {
   desenharGrupo('despesas', doMes.filter((l) => l.tipo === 'saida'), resumo.despesas, 'pago');
   desenharAjustes();
   desenharRelatorio();
+  desenharCartoes();
 }
 
 function desenharCabecalho() {
@@ -301,7 +326,7 @@ function forte(texto) {
 
 /**
  * @param {string} nome
- * @param {LancamentoDoMes[]} lancamentos
+ * @param {ItemDoMes[]} lancamentos
  * @param {import('./nucleo.js').LadoDoResumo} lado
  * @param {string} verbo
  */
@@ -320,13 +345,14 @@ function desenharGrupo(nome, lancamentos, lado, verbo) {
     : '';
 }
 
-/** @param {LancamentoDoMes} lancamento @returns {HTMLLIElement} */
+/** @param {ItemDoMes} lancamento @returns {HTMLLIElement} */
 function linhaDoLancamento(lancamento) {
   const entrada = lancamento.tipo === 'entrada';
   const feito = estaRealizado(estado.realizados, lancamento.id, mesVisivel);
 
   const item = document.createElement('li');
-  item.className = 'lancamento' + (feito ? ' realizado' : '');
+  item.className =
+    'lancamento' + (feito ? ' realizado' : '') + (lancamento.ehFatura ? ' fatura' : '');
 
   const marcador = document.createElement('button');
   marcador.type = 'button';
@@ -344,8 +370,13 @@ function linhaDoLancamento(lancamento) {
   const toque = document.createElement('button');
   toque.type = 'button';
   toque.className = 'lancamento-toque';
-  toque.setAttribute('aria-label', 'Editar ' + lancamento.descricao);
-  toque.addEventListener('click', () => abrirFormulario(lancamento));
+  toque.setAttribute(
+    'aria-label',
+    (lancamento.ehFatura ? 'Abrir ' : 'Editar ') + lancamento.descricao
+  );
+  toque.addEventListener('click', () =>
+    lancamento.ehFatura ? abrirFatura(lancamento.cartaoId) : abrirFormulario(lancamento)
+  );
 
   const dia = document.createElement('span');
   dia.className = 'lancamento-dia tabular';
@@ -361,18 +392,34 @@ function linhaDoLancamento(lancamento) {
 
   toque.append(dia, descricao, valor);
 
+  // A etiqueta de categoria vive FORA do botão de editar (toque): um <button>
+  // dentro de outro <button> é HTML inválido, e é a mesma razão pela qual o
+  // marcador e o excluir já eram irmãos do toque, não filhos.
+  const etiquetas = document.createElement('div');
+  etiquetas.className = 'lancamento-etiquetas';
+
+  /* A fatura não tem botão de excluir nem etiqueta de categoria, e as duas
+     ausências são a mesma decisão: ela é DERIVADA. Não existe o que apagar —
+     apagar teria que significar apagar o cartão, as compras ou o valor
+     informado, e nenhum desses três é o que a pessoa pediu ao tocar num X. E
+     categoria ela não tem porque cartão é forma de pagamento: as compras que a
+     compõem é que carregam suas categorias, cada uma a sua. */
+  if (lancamento.ehFatura) {
+    const cartao = document.createElement('span');
+    cartao.className = 'etiqueta';
+    cartao.textContent = 'cartão';
+    etiquetas.appendChild(cartao);
+
+    item.append(marcador, toque, etiquetas);
+    return item;
+  }
+
   const excluir = document.createElement('button');
   excluir.type = 'button';
   excluir.className = 'lancamento-excluir';
   excluir.setAttribute('aria-label', 'Excluir ' + lancamento.descricao);
   excluir.innerHTML = '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6 6l12 12M18 6 6 18"/></svg>';
   excluir.addEventListener('click', () => pedirExclusao(lancamento));
-
-  // A etiqueta de categoria vive FORA do botão de editar (toque): um <button>
-  // dentro de outro <button> é HTML inválido, e é a mesma razão pela qual o
-  // marcador e o excluir já eram irmãos do toque, não filhos.
-  const etiquetas = document.createElement('div');
-  etiquetas.className = 'lancamento-etiquetas';
 
   if (lancamento.fixo) {
     const fixa = document.createElement('span');
@@ -416,7 +463,7 @@ function botaoDeCategoria(lancamento) {
 
 /* ---------- Marcar como recebido / pago ---------- */
 
-/** @param {LancamentoDoMes} lancamento */
+/** @param {ItemDoMes} lancamento */
 function alternarFeito(lancamento) {
   estado = {
     ...estado,
@@ -615,6 +662,62 @@ function definirTipo(tipo) {
   $('tipo-entrada').setAttribute('aria-pressed', String(tipo === 'entrada'));
   $('tipo-saida').setAttribute('aria-pressed', String(tipo === 'saida'));
   $('rotulo-realizado').textContent = tipo === 'entrada' ? 'Já recebi' : 'Já paguei';
+  desenharEscolhaDeCartao();
+}
+
+/* O "pago com" só existe em despesa, e só quando há cartão cadastrado.
+ *
+ * Em receita não faria sentido — cartão de crédito não recebe salário. E sem
+ * nenhum cartão o campo ofereceria uma escolha só, "nenhum", que é ruído na
+ * primeira tela de quem nunca cadastrou um. */
+function desenharEscolhaDeCartao() {
+  const cartoes = cartoesAtivos(estado);
+  const cabe = tipoDoFormulario === 'saida' && cartoes.length > 0;
+
+  $('campo-do-cartao').hidden = !cabe;
+  if (!cabe) return;
+
+  const escolha = $selecao('campo-cartao');
+  const escolhido = escolha.value;
+
+  escolha.textContent = '';
+  const nenhum = document.createElement('option');
+  nenhum.value = '';
+  nenhum.textContent = 'Dinheiro, débito ou Pix';
+  escolha.appendChild(nenhum);
+
+  for (const cartao of cartoes) {
+    const opcao = document.createElement('option');
+    opcao.value = cartao.id;
+    opcao.textContent = cartao.nome;
+    escolha.appendChild(opcao);
+  }
+
+  // Preserva a escolha ao trocar de tipo e voltar, se o cartão ainda existe.
+  escolha.value = cartoes.some((c) => c.id === escolhido) ? escolhido : '';
+  atualizarDicaDoCartao();
+}
+
+/* Diz em que mês a despesa vai cair, na hora em que a pessoa escolhe o cartão.
+ *
+ * Sem isto, escolher o cartão faria a despesa sumir do mês visível sem
+ * explicação — que é o efeito certo (o dinheiro não sai da conta agora) pela
+ * razão mais confusa possível. Educar no contexto, onde a dúvida nasce. */
+function atualizarDicaDoCartao() {
+  const escolhido = $selecao('campo-cartao').value;
+  const dica = $('dica-do-cartao');
+
+  if (!escolhido) {
+    dica.hidden = true;
+    return;
+  }
+
+  const quando = $selecao('campo-repeticao').value === 'fixa'
+    ? mesVisivel
+    : mesDe($campo('campo-data').value || hojeISO());
+
+  dica.hidden = false;
+  dica.textContent = 'Entra na fatura de ' + rotuloDoMes(deslocarMes(quando, 1)) + '.';
 }
 
 /** @param {boolean} ehFixa */
@@ -651,6 +754,9 @@ function abrirFormulario(lancamento) {
     ? estaRealizado(estado.realizados, lancamento.id, mesVisivel)
     : false;
   $('botao-excluir').hidden = !lancamento;
+
+  $selecao('campo-cartao').value = lancamento?.cartao ?? '';
+  desenharEscolhaDeCartao();
 
   definirRepeticao($selecao('campo-repeticao').value === 'fixa');
   esconderErro();
@@ -699,6 +805,8 @@ for (const id of [
   'dialogo-apagar',
   'dialogo-categoria',
   'dialogo-limite',
+  'dialogo-cartao',
+  'dialogo-fatura',
 ]) {
   $dialogo(id).addEventListener('click', (evento) => {
     if (evento.target === $dialogo(id)) $dialogo(id).close();
@@ -718,6 +826,8 @@ for (const id of [
       escolhendoParaLimite = false;
     }
     if (id === 'dialogo-limite') limiteEmEdicao = null;
+    if (id === 'dialogo-cartao') cartaoEmEdicao = null;
+    if (id === 'dialogo-fatura') faturaEmEdicao = null;
   });
 }
 
@@ -792,13 +902,14 @@ function categoriaParaAlteracao(descricao) {
  * @param {'daqui'|'sempre'|'inalterado'} modo
  */
 function aplicarAlteracao(alteracao, modo) {
-  const { descricao, valor, ehFixa, data, dia, jaAconteceu } = alteracao;
+  const { descricao, valor, ehFixa, data, dia, jaAconteceu, cartao } = alteracao;
   const antigo = fixoEmEdicao();
   const base = {
     id: editando ? editando.id : novoId(),
     tipo: tipoDoFormulario,
     descricao,
     categoria: categoriaParaAlteracao(descricao),
+    cartao,
   };
 
   /** @type {Lancamento} */
@@ -851,6 +962,7 @@ $('formulario').addEventListener('submit', (evento) => {
     data: $campo('campo-data').value || hojeISO(),
     dia: $campo('campo-dia').value,
     jaAconteceu: $campo('campo-realizado').checked,
+    cartao: tipoDoFormulario === 'saida' ? $selecao('campo-cartao').value || null : null,
   };
 
   if (!alteracao.descricao) return mostrarErro('Falta dizer o que é.', $campo('campo-descricao'));
@@ -1330,6 +1442,230 @@ $('categoria-cancelar').addEventListener('click', () => {
   $dialogo('dialogo-categoria').close();
 });
 
+/* ---------- Cartões de crédito (B6) ---------- */
+
+/* Qual cartão está sendo editado. `null` é "criando um novo" — o mesmo padrão
+   do formulário de lançamento, que distingue novo de edição por uma variável
+   assim em vez de por um sinalizador à parte. */
+/** @type {string|null} */
+let cartaoEmEdicao = null;
+
+/* De qual cartão é a fatura aberta. Guarda só o id, e não o objeto: o estado é
+   reconstruído a cada `salvar()`, e um objeto guardado aqui envelheceria. */
+/** @type {string|null} */
+let faturaEmEdicao = null;
+
+function desenharCartoes() {
+  const cartoes = cartoesAtivos(estado);
+
+  $('cartoes-mes').textContent = 'Faturas de ' + rotuloDoMes(mesVisivel) + '.';
+
+  const lista = $('lista-cartoes');
+  lista.textContent = '';
+  for (const cartao of cartoes) lista.appendChild(linhaDoCartao(cartao));
+
+  lista.hidden = cartoes.length === 0;
+  $('cartoes-vazio').hidden = cartoes.length > 0;
+}
+
+/** @param {Cartao} cartao @returns {HTMLLIElement} */
+function linhaDoCartao(cartao) {
+  const fatura = faturaDoMes(estado, cartao.id, mesVisivel);
+  const paga = estaRealizado(estado.realizados, idDaFatura(cartao.id), mesVisivel);
+
+  const item = document.createElement('li');
+  item.className = 'linha-cartao' + (paga ? ' realizado' : '');
+
+  const toque = document.createElement('button');
+  toque.type = 'button';
+  toque.className = 'cartao-toque';
+  toque.setAttribute('aria-label', 'Abrir a fatura do ' + cartao.nome);
+  toque.addEventListener('click', () => abrirFatura(cartao.id));
+
+  const nome = document.createElement('span');
+  nome.className = 'cartao-nome';
+  nome.textContent = cartao.nome;
+
+  const valor = document.createElement('span');
+  valor.className = 'cartao-valor tabular saida';
+  valor.textContent = formatarDinheiro(fatura ? fatura.valor : 0);
+
+  const quando = document.createElement('span');
+  quando.className = 'cartao-quando';
+  quando.textContent = paga
+    ? 'fatura paga'
+    : 'vence todo dia ' + String(cartao.vencimento).padStart(2, '0');
+
+  toque.append(nome, valor, quando);
+
+  /* A barra só aparece quando há limite. Sem limite, ela compararia a fatura
+     contra nada — uma barra sempre vazia, ou sempre cheia, mentiria as duas. */
+  if (cartao.limite > 0 && fatura) {
+    const situacao = situacaoDoLimite(fatura.valor, cartao.limite);
+
+    const trilho = document.createElement('div');
+    trilho.className = 'trilho';
+    const trecho = document.createElement('div');
+    trecho.className = 'trecho cheio saida';
+    trecho.style.width = situacao.proporcao + '%';
+    trilho.appendChild(trecho);
+
+    const nota = document.createElement('span');
+    nota.className = 'cartao-limite';
+    /* Sem bronca, mesmo estourado: o conceito pede informação, não fiscal. E a
+       inversão de sinal vem pronta do núcleo (`excedente`), porque conta com
+       dinheiro não se faz aqui. */
+    nota.textContent = situacao.estourou
+      ? formatarDinheiro(situacao.excedente) + ' acima do limite'
+      : formatarDinheiro(situacao.usado) + ' de ' + formatarDinheiro(cartao.limite);
+
+    toque.append(trilho, nota);
+  }
+
+  const editar = document.createElement('button');
+  editar.type = 'button';
+  editar.className = 'cartao-editar';
+  editar.setAttribute('aria-label', 'Editar o cartão ' + cartao.nome);
+  editar.innerHTML =
+    '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 20h9"/><path d="M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4Z"/></svg>';
+  editar.addEventListener('click', () => abrirCartao(cartao.id));
+
+  item.append(toque, editar);
+  return item;
+}
+
+/* ---------- O cartão: criar e editar ---------- */
+
+/** @param {string|null} id */
+function abrirCartao(id) {
+  cartaoEmEdicao = id;
+  const cartao = cartaoPorId(estado, id);
+
+  $('titulo-do-cartao').textContent = cartao ? 'Editar cartão' : 'Novo cartão';
+  $campo('campo-nome-do-cartao').value = cartao ? cartao.nome : '';
+  $campo('campo-limite-do-cartao').value = cartao && cartao.limite ? valorParaCampo(cartao.limite) : '';
+  $campo('campo-vencimento').value = String(cartao ? cartao.vencimento : 10);
+  $('cartao-arquivar').hidden = !cartao;
+  $('erro-do-cartao').hidden = true;
+
+  $dialogo('dialogo-cartao').showModal();
+}
+
+function salvarCartao() {
+  const nome = $campo('campo-nome-do-cartao').value.trim();
+  if (!nome) return erroDoCartao('Dê um nome ao cartão.');
+
+  const limiteDigitado = $campo('campo-limite-do-cartao').value.trim();
+  const limite = limiteDigitado ? analisarValor(limiteDigitado) : 0;
+  if (limite === null) return erroDoCartao('Não entendi o limite.');
+
+  const vencimento = limitarDia($campo('campo-vencimento').value);
+  const anterior = instantaneo();
+
+  estado = cartaoEmEdicao
+    ? alterarCartao(estado, cartaoEmEdicao, { nome, limite, vencimento })
+    : criarCartao(estado, novoId(), nome, limite, vencimento);
+
+  const criando = !cartaoEmEdicao;
+  $dialogo('dialogo-cartao').close();
+  salvar();
+  avisar(criando ? 'Cartão adicionado.' : 'Cartão salvo.', () => restaurar(anterior));
+}
+
+/** @param {string} texto */
+function erroDoCartao(texto) {
+  const erro = $('erro-do-cartao');
+  erro.textContent = texto;
+  erro.hidden = false;
+}
+
+function arquivarCartaoAberto() {
+  if (!cartaoEmEdicao) return;
+  const anterior = instantaneo();
+  const nome = cartaoPorId(estado, cartaoEmEdicao)?.nome ?? 'Cartão';
+
+  estado = arquivarCartao(estado, cartaoEmEdicao);
+  $dialogo('dialogo-cartao').close();
+  salvar();
+  /* "Arquivado", e não "excluído": a palavra tem que corresponder ao que
+     aconteceu. As compras e as faturas pagas continuam lá, e dizer "excluído"
+     faria a pessoa achar que perdeu o histórico. */
+  avisar(nome + ' foi arquivado.', () => restaurar(anterior));
+}
+
+/* ---------- A fatura ---------- */
+
+/** @param {string} cartaoId */
+function abrirFatura(cartaoId) {
+  faturaEmEdicao = cartaoId;
+  desenharFatura();
+  $dialogo('dialogo-fatura').showModal();
+}
+
+function desenharFatura() {
+  if (!faturaEmEdicao) return;
+  const fatura = faturaDoMes(estado, faturaEmEdicao, mesVisivel);
+  if (!fatura) return;
+
+  $('titulo-da-fatura').textContent = fatura.descricao;
+
+  const paga = estaRealizado(estado.realizados, fatura.id, mesVisivel);
+  $('fatura-situacao').textContent =
+    'Vence dia ' + String(fatura.dia).padStart(2, '0') + ' de ' + rotuloDoMes(mesVisivel) +
+    (paga ? ' — já paga.' : '.');
+
+  const compras = comprasDaFatura(estado, faturaEmEdicao, mesVisivel);
+  const lista = $('lista-de-compras');
+  lista.textContent = '';
+  for (const compra of compras) {
+    const item = document.createElement('li');
+    const descricao = document.createElement('span');
+    descricao.textContent = compra.descricao;
+    const valor = document.createElement('span');
+    valor.className = 'tabular';
+    valor.textContent = formatarDinheiro(compra.valor);
+    item.append(descricao, valor);
+    lista.appendChild(item);
+  }
+  lista.hidden = compras.length === 0;
+
+  $campo('campo-fatura').value = fatura.informado === null ? '' : valorParaCampo(fatura.informado);
+  $('fatura-remover').hidden = fatura.informado === null;
+
+  /* A frase que explica a precedência só aparece quando os dois números
+     existem E discordam. Quando batem, dizer "o informado vence" seria ruído
+     sobre uma diferença de zero. */
+  const explicacao = $('fatura-explicacao');
+  const discordam = fatura.informado !== null && fatura.informado !== fatura.soma;
+  explicacao.hidden = !discordam && compras.length === 0;
+  explicacao.textContent = discordam
+    ? 'Você anotou ' + formatarDinheiro(fatura.soma) + ' em compras. Vale o valor que você informou.'
+    : compras.length
+      ? 'Sem um valor informado, vale a soma das compras: ' + formatarDinheiro(fatura.soma) + '.'
+      : '';
+}
+
+function salvarValorDaFatura() {
+  if (!faturaEmEdicao) return;
+
+  const digitado = $campo('campo-fatura').value.trim();
+  const valor = digitado ? analisarValor(digitado) : 0;
+  if (valor === null) return;
+
+  const anterior = instantaneo();
+  estado = {
+    ...estado,
+    faturas: definirValorDaFatura(estado.faturas, faturaEmEdicao, mesVisivel, valor),
+  };
+
+  /* Fecha o <dialog> ANTES de avisar: um <dialog> modal aberto vai para a top
+     layer e torna inerte todo o resto, inclusive o aviso — o Desfazer ficava
+     atrás do véu, visível e sem clique. Mesma armadilha do B5. */
+  $dialogo('dialogo-fatura').close();
+  salvar();
+  avisar(valor > 0 ? 'Fatura salva.' : 'Voltou a valer a soma das compras.', () => restaurar(anterior));
+}
+
 /* ---------- Relatório: para onde o dinheiro foi ---------- */
 
 /* A tela é alcançada pela aba do Relatório na navegação de baixo — ver
@@ -1541,6 +1877,38 @@ $('botao-definir-limite').addEventListener('click', abrirEscolhaParaLimite);
 $('limite-cancelar').addEventListener('click', () => {
   $dialogo('dialogo-limite').close();
 });
+
+/* ---------- Cartões: eventos ---------- */
+
+$('botao-novo-cartao').addEventListener('click', () => abrirCartao(null));
+
+$('formulario-cartao').addEventListener('submit', (evento) => {
+  evento.preventDefault();
+  salvarCartao();
+});
+
+$('cartao-arquivar').addEventListener('click', arquivarCartaoAberto);
+
+$('cartao-cancelar').addEventListener('click', () => {
+  $dialogo('dialogo-cartao').close();
+});
+
+$('fatura-salvar').addEventListener('click', salvarValorDaFatura);
+
+$('fatura-remover').addEventListener('click', () => {
+  $campo('campo-fatura').value = '';
+  salvarValorDaFatura();
+});
+
+$('fatura-cancelar').addEventListener('click', () => {
+  $dialogo('dialogo-fatura').close();
+});
+
+/* A dica de "entra na fatura de X" acompanha as três coisas que mudam a
+   resposta: o cartão escolhido, a data da compra e virar fixa. */
+$selecao('campo-cartao').addEventListener('change', atualizarDicaDoCartao);
+$campo('campo-data').addEventListener('change', atualizarDicaDoCartao);
+$selecao('campo-repeticao').addEventListener('change', atualizarDicaDoCartao);
 
 /* ---------- Service worker ---------- */
 

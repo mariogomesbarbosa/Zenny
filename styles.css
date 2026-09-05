@@ -386,6 +386,11 @@ h1 { font-size: 1.75rem; line-height: 1.2; letter-spacing: -.02em; margin: 8px 0
   border-bottom: 1px solid var(--borda-fraca);
 }
 
+/* A fatura não tem botão de excluir, então não reserva a coluna dele. Sem
+   isto, "Fatura do Nubank" cortava em 360px por causa de 32px guardados para
+   um botão que aquela linha nunca desenha. */
+.lancamento.fatura { grid-template-columns: 28px 1fr; }
+
 .marcador-realizado {
   width: 28px; height: 28px;
   display: grid; place-items: center;
@@ -528,8 +533,14 @@ h1 { font-size: 1.75rem; line-height: 1.2; letter-spacing: -.02em; margin: 8px 0
 
 /* Nos Ajustes o botão flutuante some. Ele adiciona lançamento, e esta tela não
    é sobre lançamentos — pior, ele fica por cima do cartão de apagar tudo. No
-   Relatório é a mesma história: a tela é de leitura, não de registro. */
+   Relatório é a mesma história: a tela é de leitura, não de registro.
+
+   Nos Cartões o motivo é outro e mais forte: a tela TEM um botão de adicionar,
+   e ele adiciona outra coisa. Dois botões chamados "Adicionar" na mesma tela,
+   um criando lançamento e o outro criando cartão, é a ambiguidade que faz a
+   pessoa tocar no errado e desistir. */
 body[data-tela="ajustes"] .botao-flutuante,
+body[data-tela="cartoes"] .botao-flutuante,
 body[data-tela="relatorio"] .botao-flutuante { display: none; }
 
 .navegacao {
@@ -648,6 +659,11 @@ dialog::backdrop { background: var(--veu); }
 
 .dica { font-size: .78125rem; color: var(--tinta-suave); margin: -6px 0 14px; }
 .dica b { color: var(--tinta); font-weight: 600; }
+
+/* A margem negativa acima existe para a dica que vem DEPOIS de um campo, e
+   sobe para encostar nele. Dentro do próprio campo ela cai logo abaixo do
+   input — e o -6px a jogava por cima da borda, sobrepondo texto e caixa. */
+.campo > .dica { margin: 6px 0 0; }
 
 .marcador {
   display: flex;
@@ -780,6 +796,91 @@ dialog::backdrop { background: var(--veu); }
 .legenda-limite { grid-column: 1 / -1; margin: 2px 0 0; font-size: .75rem; color: var(--tinta-suave); }
 .legenda-limite.estourou,
 #limite-situacao.estourou { color: var(--coral); }
+
+/* ---------- Cartões de crédito (B6) ---------- */
+
+.lista-cartoes { list-style: none; margin: 0 0 16px; padding: 0; display: grid; gap: 10px; }
+
+/* Cada cartão é um bloco tocável inteiro, com um botão de editar por cima no
+   canto — a mesma divisão de papéis da linha de lançamento: o toque grande faz
+   a ação principal (abrir a fatura), e o pequeno faz a de manutenção. */
+.linha-cartao {
+  position: relative;
+  border: 1px solid var(--borda-fraca);
+  border-radius: 14px;
+  /* --superficie, e NÃO --sobre-cor: aquele é branco nos dois temas de
+     propósito (é o texto que fica em cima de verde e coral), e usá-lo aqui
+     deixava o bloco do cartão branco no tema escuro. */
+  background: var(--superficie);
+  box-shadow: var(--sombra-sutil);
+}
+
+.cartao-toque {
+  display: grid;
+  grid-template-columns: 1fr auto;
+  gap: 2px 12px;
+  width: 100%;
+  /* A direita abre espaço para o botão de editar, que flutua por cima. */
+  padding: 14px 48px 14px 16px;
+  border: 0;
+  border-radius: inherit;
+  background: none;
+  color: inherit;
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+  -webkit-tap-highlight-color: transparent;
+}
+
+.cartao-nome { font-weight: 600; letter-spacing: -.01em; }
+.cartao-valor { font-weight: 600; text-align: right; }
+.cartao-quando { grid-column: 1 / -1; font-size: .8rem; color: var(--tinta-suave); }
+.cartao-limite { grid-column: 1 / -1; margin-top: 2px; font-size: .75rem; color: var(--tinta-suave); }
+.cartao-toque .trilho { margin-top: 8px; }
+
+/* A fatura paga recua, como o lançamento realizado já faz: ela virou passado. */
+.linha-cartao.realizado .cartao-nome,
+.linha-cartao.realizado .cartao-valor { color: var(--tinta-suave); }
+
+.cartao-editar {
+  position: absolute;
+  top: 8px;
+  right: 8px;
+  display: grid;
+  place-items: center;
+  width: var(--alvo);
+  height: var(--alvo);
+  border: 0;
+  border-radius: 10px;
+  background: none;
+  color: var(--tinta-suave);
+  cursor: pointer;
+  -webkit-tap-highlight-color: transparent;
+}
+
+.cartao-editar svg { width: 17px; height: 17px; fill: none; stroke: currentColor; stroke-width: 1.8; stroke-linecap: round; stroke-linejoin: round; }
+
+/* As compras que compõem a fatura, dentro da folha. Rola quando são muitas, em
+   vez de empurrar o campo do valor e os botões para fora da tela — foi
+   exatamente assim que o "Salvar" do diálogo de limite se perdeu em 360px. */
+.compras-da-fatura {
+  list-style: none;
+  margin: 0 0 4px;
+  padding: 0;
+  max-height: 180px;
+  overflow-y: auto;
+}
+
+.compras-da-fatura li {
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 7px 0;
+  border-bottom: 1px solid var(--borda-fraca);
+  font-size: .9rem;
+}
+
+.compras-da-fatura li:last-child { border-bottom: 0; }
 
 /* ---------- Aviso temporário ---------- */
 
