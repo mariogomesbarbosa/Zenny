@@ -175,18 +175,23 @@
     </section>
   </section>
 
-  <section class="tela" id="tela-metas" aria-labelledby="titulo-metas" hidden>
-    <h1 id="titulo-metas">Metas</h1>
-    <p class="subtitulo">Guardar para alguma coisa é mais fácil que guardar por guardar.</p>
+  <section class="tela" id="tela-cartoes" aria-labelledby="titulo-cartoes" hidden>
+    <h1 id="titulo-cartoes">Cartões</h1>
+    <p class="subtitulo" id="cartoes-mes">—</p>
 
-    <div class="cartao vazio">
-      <h2>Sem metas ainda</h2>
+    <ul class="lista-cartoes" id="lista-cartoes"></ul>
+
+    <div class="cartao vazio" id="cartoes-vazio" hidden>
+      <h2>Nenhum cartão ainda</h2>
       <p>
-        Uma meta tem nome e prazo: "viagem em dezembro", "notebook novo". O Zenny
-        mostra o quanto falta e o quanto isso pesa por mês.
+        Cadastre um cartão e a fatura passa a aparecer no mês, no dia em que
+        vence. Você pode anotar cada compra ou só dizer quanto veio.
       </p>
-      <p class="nota">Chega mais para a frente no roteiro.</p>
     </div>
+
+    <button type="button" class="botao contorno" id="botao-novo-cartao">
+      Adicionar um cartão
+    </button>
   </section>
 
   <section class="tela" id="tela-ajustes" aria-labelledby="titulo-ajustes" hidden>
@@ -247,9 +252,9 @@
     <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 20V10M10 20V4M16 20v-7M22 20H2"/></svg>
     <span>Relatório</span>
   </a>
-  <a href="#/metas" data-tela="metas">
-    <svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="8"/><circle cx="12" cy="12" r="3"/></svg>
-    <span>Metas</span>
+  <a href="#/cartoes" data-tela="cartoes">
+    <svg viewBox="0 0 24 24" aria-hidden="true"><rect x="2" y="5" width="20" height="14" rx="2"/><path d="M2 10h20"/></svg>
+    <span>Cartões</span>
   </a>
   <a href="#/ajustes" data-tela="ajustes">
     <svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.6a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1Z"/></svg>
@@ -303,6 +308,17 @@
     <p class="dica" id="dica-da-repeticao" hidden>
       Aparece a partir de <b id="dica-mes"></b> em todos os meses seguintes.
     </p>
+
+    <!-- Só aparece em despesas, e só quando existe cartão cadastrado: um campo
+         cuja única opção é "nenhum" é ruído na primeira tela de quem nunca
+         cadastrou cartão. -->
+    <div class="campo" id="campo-do-cartao" hidden>
+      <label for="campo-cartao">Pago com</label>
+      <select id="campo-cartao">
+        <option value="">Dinheiro, débito ou Pix</option>
+      </select>
+      <p class="dica" id="dica-do-cartao" hidden></p>
+    </div>
 
     <label class="marcador">
       <input type="checkbox" id="campo-realizado">
@@ -387,6 +403,70 @@
     <div class="acoes">
       <button type="button" class="botao contorno" id="categoria-cancelar">Cancelar</button>
       <button type="button" class="botao" id="categoria-criar">Criar e usar</button>
+    </div>
+  </div>
+</dialog>
+
+<dialog id="dialogo-cartao" aria-labelledby="titulo-do-cartao">
+  <div class="pegador" aria-hidden="true"></div>
+  <form id="formulario-cartao" class="folha" novalidate>
+    <h2 id="titulo-do-cartao">Novo cartão</h2>
+
+    <div class="campo">
+      <label for="campo-nome-do-cartao">Nome</label>
+      <input type="text" id="campo-nome-do-cartao" autocomplete="off" enterkeyhint="next"
+             placeholder="Nubank, Inter, o do banco…">
+    </div>
+
+    <div class="dupla">
+      <div class="campo">
+        <label for="campo-limite-do-cartao">Limite (opcional)</label>
+        <input type="text" id="campo-limite-do-cartao" inputmode="decimal" enterkeyhint="next"
+               placeholder="0,00" class="tabular">
+      </div>
+      <div class="campo">
+        <label for="campo-vencimento">Vence dia</label>
+        <input type="number" id="campo-vencimento" inputmode="numeric" min="1" max="31" value="10">
+      </div>
+    </div>
+
+    <p class="dica">
+      A fatura vai aparecer como despesa no dia do vencimento. As compras de um
+      mês caem na fatura do mês seguinte, como no cartão de verdade.
+    </p>
+
+    <p class="erro" id="erro-do-cartao" role="alert" hidden></p>
+
+    <div class="pilha">
+      <button type="submit" class="botao">Salvar</button>
+      <button type="button" class="botao contorno" id="cartao-arquivar" hidden>Arquivar cartão</button>
+      <button type="button" class="botao apagado" id="cartao-cancelar">Cancelar</button>
+    </div>
+  </form>
+</dialog>
+
+<dialog id="dialogo-fatura" aria-labelledby="titulo-da-fatura">
+  <div class="pegador" aria-hidden="true"></div>
+  <div class="folha">
+    <h2 id="titulo-da-fatura">Fatura</h2>
+    <p class="dica" id="fatura-situacao"></p>
+
+    <ul class="compras-da-fatura" id="lista-de-compras"></ul>
+
+    <div class="campo">
+      <label for="campo-fatura">Quanto veio (opcional)</label>
+      <input type="text" id="campo-fatura" inputmode="decimal" enterkeyhint="done"
+             placeholder="0,00" class="tabular">
+      <!-- A frase que explica a precedência mora aqui, onde a dúvida nasce:
+           quem digita um total diferente da soma precisa saber, naquele
+           instante, qual dos dois o app vai usar. -->
+      <p class="dica" id="fatura-explicacao" hidden></p>
+    </div>
+
+    <div class="pilha">
+      <button type="button" class="botao" id="fatura-salvar">Salvar</button>
+      <button type="button" class="botao contorno" id="fatura-remover" hidden>Voltar para a soma</button>
+      <button type="button" class="botao apagado" id="fatura-cancelar">Fechar</button>
     </div>
   </div>
 </dialog>
