@@ -34,12 +34,13 @@ Ajustes, e as categorias com limites e a tela de Relatório.
 Mais o layout do desktop alinhado, verificação de tipos sem build, e três
 agentes especializados em `.claude/agents/` — ver [agentes.md](agentes.md).
 
-`npm run conferir` roda o conferidor de tipos e os **330 testes**.
+`npm run conferir` roda o conferidor de tipos e os **367 testes**.
 
 Em revisão: o **B6 — cartões de crédito**, com o plano e a implementação em
 [b6-cartoes-de-credito.md](b6-cartoes-de-credito.md). A aba Metas virou
-Cartões: a fatura passa a aparecer como despesa no dia do vencimento, e a
-compra de um mês cai na fatura do mês seguinte — como no cartão de verdade.
+Cartões: cada cartão tem fechamento e vencimento, a fatura aparece como despesa
+no dia em que vence, e as compras dela se editam e se apagam de dentro da
+própria fatura.
 
 Próximo no roteiro: **B7 — guardar para algo** (as metas), que trocou de lugar
 com os cartões e ainda não tem tela.
