@@ -95,6 +95,11 @@
         <div class="barra">
           <span class="barra-nome">Despesas</span>
           <span class="barra-valor tabular" id="valor-despesas">R$ 0,00</span>
+          <!-- Uma LINHA, e não um terceiro bloco (decisão 5 do B6): "Despesas"
+               continua significando tudo que sai da conta, e quem já usa o app
+               não precisa reaprender a palavra. Some quando não há fatura no
+               mês — linha zerada explicando o que não existe é ruído. -->
+          <span class="legenda-cartao" id="legenda-do-cartao" hidden></span>
           <div class="trilho">
             <div class="trecho cheio saida" id="barra-despesas-realizado"></div>
             <div class="trecho claro saida" id="barra-despesas-previsto"></div>
@@ -418,11 +423,16 @@
              placeholder="Nubank, Inter, o do banco…">
     </div>
 
+    <div class="campo">
+      <label for="campo-limite-do-cartao">Limite (opcional)</label>
+      <input type="text" id="campo-limite-do-cartao" inputmode="decimal" enterkeyhint="next"
+             placeholder="0,00" class="tabular">
+    </div>
+
     <div class="dupla">
       <div class="campo">
-        <label for="campo-limite-do-cartao">Limite (opcional)</label>
-        <input type="text" id="campo-limite-do-cartao" inputmode="decimal" enterkeyhint="next"
-               placeholder="0,00" class="tabular">
+        <label for="campo-fechamento">Fecha dia</label>
+        <input type="number" id="campo-fechamento" inputmode="numeric" min="1" max="31" value="30">
       </div>
       <div class="campo">
         <label for="campo-vencimento">Vence dia</label>
@@ -430,10 +440,9 @@
       </div>
     </div>
 
-    <p class="dica">
-      A fatura vai aparecer como despesa no dia do vencimento. As compras de um
-      mês caem na fatura do mês seguinte, como no cartão de verdade.
-    </p>
+    <!-- Os dois dias juntos, e a frase que explica o que eles fazem: é o par
+         que decide em que fatura cada compra cai, e ninguém sabe isso de cor. -->
+    <p class="dica" id="dica-do-ciclo"></p>
 
     <p class="erro" id="erro-do-cartao" role="alert" hidden></p>
 
@@ -452,6 +461,14 @@
     <p class="dica" id="fatura-situacao"></p>
 
     <ul class="compras-da-fatura" id="lista-de-compras"></ul>
+
+    <p class="nota" id="fatura-sem-compras" hidden>
+      Nenhuma compra anotada nesta fatura ainda.
+    </p>
+
+    <button type="button" class="botao contorno" id="fatura-adicionar">
+      Anotar uma compra
+    </button>
 
     <div class="campo">
       <label for="campo-fatura">Quanto veio (opcional)</label>
