@@ -52,7 +52,9 @@ import {
   faturaDoMes,
   faturasDoMes,
   comprasDaFatura,
+  faturaDaCompra,
   definirValorDaFatura,
+  dataPadraoDaFatura,
   idDaFatura,
   situacaoDoLimite,
 } from './nucleo.js';
@@ -281,6 +283,12 @@ function desenharCabecalho() {
 
 /** @param {Resumo} resumo */
 function desenharPainel(resumo) {
+  /* A soma vem pronta do núcleo (`emCartao`): a interface não faz conta com
+     dinheiro, nem para uma legenda. */
+  const legenda = $('legenda-do-cartao');
+  legenda.hidden = resumo.emCartao <= 0;
+  legenda.textContent = formatarDinheiro(resumo.emCartao) + ' são de fatura de cartão';
+
   const negativa = resumo.sobra < 0;
 
   $('rotulo-da-sobra').textContent = negativa
@@ -712,12 +720,21 @@ function atualizarDicaDoCartao() {
     return;
   }
 
-  const quando = $selecao('campo-repeticao').value === 'fixa'
-    ? mesVisivel
-    : mesDe($campo('campo-data').value || hojeISO());
+  const cartao = cartaoPorId(estado, escolhido);
+  if (!cartao) {
+    dica.hidden = true;
+    return;
+  }
+
+  /* A conta de "em que fatura cai" vem do núcleo (`faturaDaCompra`), que é a
+     única dona da regra. Repetir aqui a comparação com o fechamento seria uma
+     segunda dona, e as duas divergiriam no primeiro ajuste. */
+  const data = $selecao('campo-repeticao').value === 'fixa'
+    ? mesVisivel + '-' + String(limitarDia($campo('campo-dia').value)).padStart(2, '0')
+    : $campo('campo-data').value || hojeISO();
 
   dica.hidden = false;
-  dica.textContent = 'Entra na fatura de ' + rotuloDoMes(deslocarMes(quando, 1)) + '.';
+  dica.textContent = 'Entra na fatura de ' + rotuloDoMes(faturaDaCompra(cartao, data)) + '.';
 }
 
 /** @param {boolean} ehFixa */
@@ -936,9 +953,37 @@ function aplicarAlteracao(alteracao, modo) {
     ? estado.lancamentos.map((l) => (l.id === novo.id ? novo : l))
     : [...estado.lancamentos, novo];
 
-  // Se a data cai em outro mês, vai junto — senão o registro some na cara de
-  // quem acabou de criá-lo.
+  /* Se a data cai em outro mês, vai junto — senão o registro some na cara de
+     quem acabou de criá-lo.
+     
+     A COMPRA NO CARTÃO segue para o mês da FATURA, e não o da compra. Ela não
+     aparece na lista do mês em que foi feita — de propósito, porque não mexe na
+     conta ali — então pular para lá mostraria justamente o mês em que ela é
+     invisível. O mês da fatura é onde o dinheiro aparece, e é onde a pessoa
+     precisa cair para ver que o registro deu certo. */
+  /* DUAS perguntas diferentes, que antes dividiam a mesma variável:
+   *
+   *   `mesDoRegistro` — em que mês este registro é marcado como realizado. É
+   *   sempre o mês DELE: o Relatório lê `realizados` por esse mês, e uma compra
+   *   guardada sob o mês da fatura sumiria de "para onde foi" no mês em que
+   *   aconteceu, que é onde ela deve aparecer.
+   *
+   *   `mesParaOlhar` — para onde a tela navega. Para a compra no cartão é o mês
+   *   da FATURA: ela não aparece na lista do mês em que foi feita, de propósito,
+   *   porque não mexe na conta ali. Pular para lá mostraria justamente o mês em
+   *   que ela é invisível, e o registro pareceria não ter sido salvo.
+   *
+   * Para todo o resto as duas são a mesma coisa, que é por que a diferença
+   * passou despercebida até o cartão existir. */
   const mesDoRegistro = novo.fixo ? mesVisivel : mesDe(novo.data);
+
+  const cartaoDoRegistro = cartaoPorId(estado, novo.cartao);
+  const mesParaOlhar = cartaoDoRegistro
+    ? faturaDaCompra(
+        cartaoDoRegistro,
+        novo.fixo ? mesVisivel + '-' + String(novo.dia).padStart(2, '0') : novo.data
+      )
+    : mesDoRegistro;
 
   /** @type {Realizados} */
   const realizados = jaAconteceu
@@ -946,7 +991,7 @@ function aplicarAlteracao(alteracao, modo) {
     : limparRealizadosDe(estado.realizados, novo.id, mesDoRegistro);
 
   estado = { ...estado, lancamentos, realizados };
-  mesVisivel = mesDoRegistro;
+  mesVisivel = mesParaOlhar;
 
   editando = null;
   salvar();
@@ -1494,7 +1539,8 @@ function linhaDoCartao(cartao) {
   quando.className = 'cartao-quando';
   quando.textContent = paga
     ? 'fatura paga'
-    : 'vence todo dia ' + String(cartao.vencimento).padStart(2, '0');
+    : 'fecha dia ' + String(cartao.fechamento).padStart(2, '0') +
+      ' · vence dia ' + String(cartao.vencimento).padStart(2, '0');
 
   toque.append(nome, valor, quando);
 
@@ -1544,11 +1590,27 @@ function abrirCartao(id) {
   $('titulo-do-cartao').textContent = cartao ? 'Editar cartão' : 'Novo cartão';
   $campo('campo-nome-do-cartao').value = cartao ? cartao.nome : '';
   $campo('campo-limite-do-cartao').value = cartao && cartao.limite ? valorParaCampo(cartao.limite) : '';
+  $campo('campo-fechamento').value = String(cartao ? cartao.fechamento : 30);
   $campo('campo-vencimento').value = String(cartao ? cartao.vencimento : 10);
   $('cartao-arquivar').hidden = !cartao;
   $('erro-do-cartao').hidden = true;
+  atualizarDicaDoCiclo();
 
   $dialogo('dialogo-cartao').showModal();
+}
+
+/* Explica o par fechamento/vencimento com os números que a pessoa acabou de
+   digitar, em vez de uma frase genérica. Ninguém sabe de cor o que "fecha 30,
+   vence 10" faz com a compra de amanhã — e é exatamente essa a dúvida. */
+function atualizarDicaDoCiclo() {
+  const fechamento = limitarDia($campo('campo-fechamento').value);
+  const vencimento = limitarDia($campo('campo-vencimento').value);
+  const mesmoMes = fechamento < vencimento;
+
+  $('dica-do-ciclo').textContent =
+    `Compras até o dia ${fechamento} entram na fatura que vence no dia ` +
+    `${vencimento} ${mesmoMes ? 'do mesmo mês' : 'do mês seguinte'}. ` +
+    'Depois disso, já é a próxima fatura.';
 }
 
 function salvarCartao() {
@@ -1559,12 +1621,13 @@ function salvarCartao() {
   const limite = limiteDigitado ? analisarValor(limiteDigitado) : 0;
   if (limite === null) return erroDoCartao('Não entendi o limite.');
 
+  const fechamento = limitarDia($campo('campo-fechamento').value);
   const vencimento = limitarDia($campo('campo-vencimento').value);
   const anterior = instantaneo();
 
   estado = cartaoEmEdicao
-    ? alterarCartao(estado, cartaoEmEdicao, { nome, limite, vencimento })
-    : criarCartao(estado, novoId(), nome, limite, vencimento);
+    ? alterarCartao(estado, cartaoEmEdicao, { nome, limite, fechamento, vencimento })
+    : criarCartao(estado, novoId(), nome, limite, fechamento, vencimento);
 
   const criando = !cartaoEmEdicao;
   $dialogo('dialogo-cartao').close();
@@ -1617,17 +1680,10 @@ function desenharFatura() {
   const compras = comprasDaFatura(estado, faturaEmEdicao, mesVisivel);
   const lista = $('lista-de-compras');
   lista.textContent = '';
-  for (const compra of compras) {
-    const item = document.createElement('li');
-    const descricao = document.createElement('span');
-    descricao.textContent = compra.descricao;
-    const valor = document.createElement('span');
-    valor.className = 'tabular';
-    valor.textContent = formatarDinheiro(compra.valor);
-    item.append(descricao, valor);
-    lista.appendChild(item);
-  }
+  for (const compra of compras) lista.appendChild(linhaDaCompra(compra));
+
   lista.hidden = compras.length === 0;
+  $('fatura-sem-compras').hidden = compras.length > 0;
 
   $campo('campo-fatura').value = fatura.informado === null ? '' : valorParaCampo(fatura.informado);
   $('fatura-remover').hidden = fatura.informado === null;
@@ -1643,6 +1699,77 @@ function desenharFatura() {
     : compras.length
       ? 'Sem um valor informado, vale a soma das compras: ' + formatarDinheiro(fatura.soma) + '.'
       : '';
+}
+
+/* Uma compra dentro da fatura: toque edita, X apaga.
+ *
+ * ESTE É O DEFEITO QUE A SEGUNDA VERSÃO DO BLOCO CORRIGE. Na primeira, a compra
+ * saía da lista do mês (correto — não mexe na conta naquele mês) e aqui era só
+ * texto. Não havia como editar nem apagar uma compra em lugar nenhum do app: um
+ * valor digitado errado ficava errado para sempre, e cada tentativa de corrigir
+ * criava uma segunda compra, inflando a fatura.
+ *
+ * A compra é um lançamento comum, então reusa `abrirFormulario` e
+ * `pedirExclusao` — os mesmos gestos e as mesmas confirmações da lista do mês.
+ * O <dialog> da fatura fecha antes, senão o formulário abriria atrás dele: dois
+ * modais empilhados deixam o de baixo inerte. */
+/** @param {LancamentoDoMes} compra @returns {HTMLLIElement} */
+function linhaDaCompra(compra) {
+  const item = document.createElement('li');
+
+  const toque = document.createElement('button');
+  toque.type = 'button';
+  toque.className = 'compra-toque';
+  toque.setAttribute('aria-label', 'Editar ' + compra.descricao);
+  toque.addEventListener('click', () => {
+    $dialogo('dialogo-fatura').close();
+    abrirFormulario(compra);
+  });
+
+  const descricao = document.createElement('span');
+  descricao.textContent = compra.descricao;
+
+  const valor = document.createElement('span');
+  valor.className = 'tabular';
+  valor.textContent = formatarDinheiro(compra.valor);
+
+  toque.append(descricao, valor);
+
+  const excluir = document.createElement('button');
+  excluir.type = 'button';
+  excluir.className = 'compra-excluir';
+  excluir.setAttribute('aria-label', 'Excluir ' + compra.descricao);
+  excluir.innerHTML = '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6 6l12 12M18 6 6 18"/></svg>';
+  excluir.addEventListener('click', () => {
+    $dialogo('dialogo-fatura').close();
+    pedirExclusao(compra);
+  });
+
+  item.append(toque, excluir);
+  return item;
+}
+
+/* Anota uma compra a partir da fatura aberta (decisão 3): ela nasce NESTA
+   fatura, e não na de hoje. Quem abre a fatura de outubro e toca em adicionar
+   espera que a compra entre em outubro — o contrário, a compra saltando de
+   fatura no instante seguinte ao toque, é a confusão que a primeira versão
+   criava. A data vai preenchida e visível, e pode ser corrigida. */
+function anotarCompraNaFatura() {
+  if (!faturaEmEdicao) return;
+  const cartao = cartaoPorId(estado, faturaEmEdicao);
+  if (!cartao) return;
+
+  const data = dataPadraoDaFatura(cartao, mesVisivel, hojeISO());
+  $dialogo('dialogo-fatura').close();
+
+  abrirFormulario(null);
+  definirTipo('saida');
+  $selecao('campo-repeticao').value = 'avulsa';
+  definirRepeticao(false);
+  $campo('campo-data').value = data;
+  desenharEscolhaDeCartao();
+  $selecao('campo-cartao').value = cartao.id;
+  atualizarDicaDoCartao();
 }
 
 function salvarValorDaFatura() {
@@ -1893,6 +2020,8 @@ $('cartao-cancelar').addEventListener('click', () => {
   $dialogo('dialogo-cartao').close();
 });
 
+$('fatura-adicionar').addEventListener('click', anotarCompraNaFatura);
+
 $('fatura-salvar').addEventListener('click', salvarValorDaFatura);
 
 $('fatura-remover').addEventListener('click', () => {
@@ -1906,8 +2035,12 @@ $('fatura-cancelar').addEventListener('click', () => {
 
 /* A dica de "entra na fatura de X" acompanha as três coisas que mudam a
    resposta: o cartão escolhido, a data da compra e virar fixa. */
+$campo('campo-fechamento').addEventListener('input', atualizarDicaDoCiclo);
+$campo('campo-vencimento').addEventListener('input', atualizarDicaDoCiclo);
+
 $selecao('campo-cartao').addEventListener('change', atualizarDicaDoCartao);
 $campo('campo-data').addEventListener('change', atualizarDicaDoCartao);
+$campo('campo-dia').addEventListener('input', atualizarDicaDoCartao);
 $selecao('campo-repeticao').addEventListener('change', atualizarDicaDoCartao);
 
 /* ---------- Service worker ---------- */

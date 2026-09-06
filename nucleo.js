@@ -121,6 +121,7 @@
  * @property {string} id
  * @property {string} nome
  * @property {number} limite Centavos. Zero é "não informou" — não existe cartão de limite zero.
+ * @property {number} fechamento Dia do mês, 1–31. Depois dele a compra já é da fatura seguinte.
  * @property {number} vencimento Dia do mês, 1–31.
  * @property {boolean} arquivado
  */
@@ -202,11 +203,12 @@
  * @property {number} naContaAgora
  * @property {number} faltaEntrar
  * @property {number} faltaSair
+ * @property {number} emCartao Quanto do previsto das despesas é fatura de cartão.
  * @property {boolean} vazio
  */
 
 export const CHAVE = 'zenny:v1';
-export const VERSAO_DO_ESQUEMA = 5;
+export const VERSAO_DO_ESQUEMA = 6;
 
 /* ---------- Dinheiro ---------- */
 
@@ -886,10 +888,21 @@ export function normalizarEstado(bruto) {
     // Id repetido sombrearia o cartão certo em cartaoPorId.
     if (!id || !nome || cartoes.some((c) => c.id === id)) continue;
 
+    /* MIGRAÇÃO DA v5: lá o cartão não tinha fechamento, e a regra era "compra
+       do mês M cai na fatura M+1". O padrão 31 reproduz essa regra EXATAMENTE
+       — toda compra do mês fecha no próprio mês, e `fechamento >= vencimento`
+       joga o vencimento para o seguinte. Nenhuma compra troca de fatura na
+       travessia, que é a única coisa que a migração precisa garantir.
+
+       O gatilho é a ausência do campo, e não `bruto.versao < 6`: `versao` é
+       dado de fora como qualquer outro, e um cartão gravado por uma versão que
+       não conhecia fechamento merece o mesmo tratamento. É a mesma escolha que
+       a categoria já faz logo acima. */
     cartoes.push({
       id,
       nome,
       limite: normalizarLimiteDoCartao(cru.limite),
+      fechamento: cru.fechamento === undefined ? 31 : limitarDia(cru.fechamento),
       vencimento: limitarDia(cru.vencimento),
       arquivado: Boolean(cru.arquivado),
     });
@@ -1052,23 +1065,70 @@ export function normalizarEstado(bruto) {
 
 const LIMITE_DO_NOME_DO_CARTAO = 24;
 
-/* Onde a compra de um mês cai.
+/* EM QUE FATURA UMA COMPRA CAI. A regra central do bloco, e a única dona dela.
  *
- * Uma compra do dia 20 de setembro NÃO pode entrar numa fatura que venceu dia
- * 10 de setembro — essa fatura já foi. Na vida real ela cai na fatura que fecha
- * no fim de setembro e vence em outubro. Daí a regra: mês M → fatura M+1.
+ * Duas perguntas, nesta ordem:
  *
- * É uma aproximação, e o certo depende da data de FECHAMENTO, que o bloco não
- * pede (seria um terceiro campo na criação, contra o princípio dos dois
- * campos). Para a esmagadora maioria dos cartões e das compras, M+1 acerta.
- * A regra mora aqui, sozinha, para que trocá-la por fechamento seja mexer num
- * lugar só. */
+ * 1. Em que mês a compra FECHA? No próprio, se ela veio até o dia do
+ *    fechamento; no seguinte, se veio depois.
+ * 2. Em que mês essa fatura VENCE? No mesmo mês do fechamento quando o cartão
+ *    fecha antes de vencer (fecha 3, vence 10); no seguinte quando fecha depois
+ *    ou no mesmo dia (fecha 30, vence 10).
+ *
+ * Os dois formatos reais saem daí sem caso especial:
+ *
+ *   fecha 30, vence 10 | 15/09 -> fecha 30/09 -> vence 10/10
+ *   fecha 30, vence 10 | 01/10 -> fecha 30/10 -> vence 10/11
+ *   fecha  3, vence 10 | 02/09 -> fecha 03/09 -> vence 10/09
+ *   fecha  3, vence 10 | 05/09 -> fecha 03/10 -> vence 10/10
+ *
+ * A primeira versão do bloco não tinha fechamento e aproximava isto por "mês M
+ * cai na fatura M+1". A aproximação servia enquanto a fatura era só um número;
+ * parou de servir quando a pessoa passou a lançar compras DENTRO de uma fatura,
+ * porque "esta fatura" não tinha definição exata. Ver docs/b6-cartoes-de-credito.md.
+ *
+ * Devolve o MÊS DO VENCIMENTO, que é como toda fatura é identificada no app. */
 /**
+ * @param {Cartao} cartao
  * @param {Data} data
  * @returns {Mes}
  */
-export function mesDaFatura(data) {
-  return deslocarMes(mesDe(data), 1);
+export function faturaDaCompra(cartao, data) {
+  const mes = mesDe(data);
+
+  // Fechamento dia 31 num mês de 30 vira dia 30, como o vencimento já faz.
+  const fecha = Math.min(cartao.fechamento, diasNoMes(mes));
+  const mesDoFechamento = diaDe(data) <= fecha ? mes : deslocarMes(mes, 1);
+
+  return cartao.fechamento < cartao.vencimento
+    ? mesDoFechamento
+    : deslocarMes(mesDoFechamento, 1);
+}
+
+/* Que data uma compra criada DE DENTRO de uma fatura recebe.
+ *
+ * Hoje, quando hoje cai naquela fatura — o caso comum, e o mais honesto. Senão,
+ * o dia do fechamento daquele ciclo, que é a última data que ainda entra nela.
+ *
+ * O ponto é a decisão 3: quem abre a fatura de outubro e toca em adicionar
+ * espera que a compra entre em outubro. A data vai preenchida e VISÍVEL no
+ * formulário, então nada disso é escondido — é só um padrão melhor que "hoje"
+ * para quem está olhando outro mês. */
+/**
+ * @param {Cartao} cartao
+ * @param {Mes} mes O mês de vencimento da fatura aberta.
+ * @param {Data} hoje
+ * @returns {Data}
+ */
+export function dataPadraoDaFatura(cartao, mes, hoje) {
+  if (faturaDaCompra(cartao, hoje) === mes) return hoje;
+
+  /* O ciclo desta fatura fecha no mês anterior ao vencimento, ou no próprio,
+     conforme a mesma regra de faturaDaCompra — invertida. */
+  const mesDoFechamento = cartao.fechamento < cartao.vencimento ? mes : deslocarMes(mes, -1);
+  const dia = Math.min(cartao.fechamento, diasNoMes(mesDoFechamento));
+
+  return mesDoFechamento + '-' + String(dia).padStart(2, '0');
 }
 
 /**
@@ -1120,10 +1180,11 @@ export function cartoesAtivos(estado) {
  * @param {string} id
  * @param {string} nome
  * @param {unknown} limite Centavos.
+ * @param {unknown} fechamento Dia do mês.
  * @param {unknown} vencimento Dia do mês.
  * @returns {Estado}
  */
-export function criarCartao(estado, id, nome, limite, vencimento) {
+export function criarCartao(estado, id, nome, limite, fechamento, vencimento) {
   const limpo = normalizarNomeDoCartao(nome);
   if (!id || !limpo || estado.cartoes.some((c) => c.id === id)) return estado;
 
@@ -1135,6 +1196,7 @@ export function criarCartao(estado, id, nome, limite, vencimento) {
         id,
         nome: limpo,
         limite: normalizarLimiteDoCartao(limite),
+        fechamento: limitarDia(fechamento),
         vencimento: limitarDia(vencimento),
         arquivado: false,
       },
@@ -1147,7 +1209,7 @@ export function criarCartao(estado, id, nome, limite, vencimento) {
  * o nome sem ter que reenviar limite e vencimento.
  * @param {Estado} estado
  * @param {string} id
- * @param {{ nome?: string, limite?: unknown, vencimento?: unknown }} campos
+ * @param {{ nome?: string, limite?: unknown, fechamento?: unknown, vencimento?: unknown }} campos
  * @returns {Estado}
  */
 export function alterarCartao(estado, id, campos) {
@@ -1160,6 +1222,8 @@ export function alterarCartao(estado, id, campos) {
     ...cartao,
     nome: nome || cartao.nome,
     limite: campos.limite === undefined ? cartao.limite : normalizarLimiteDoCartao(campos.limite),
+    fechamento:
+      campos.fechamento === undefined ? cartao.fechamento : limitarDia(campos.fechamento),
     vencimento:
       campos.vencimento === undefined ? cartao.vencimento : limitarDia(campos.vencimento),
   };
@@ -1185,17 +1249,51 @@ export function arquivarCartao(estado, id) {
   };
 }
 
+/* As compras que caem na fatura que vence em `mes`.
+ *
+ * Deixou de ser "as do mês anterior" quando o fechamento entrou: um ciclo
+ * atravessa DOIS meses do calendário (fecha 30/09 e recebe compras desde
+ * 01/10... não — desde 01/09; mas com fecha 3, o ciclo que vence em 10/10 vai
+ * de 04/09 a 03/10). Então varremos a janela de meses que pode conter o ciclo
+ * e deixamos `faturaDaCompra` decidir, que continua sendo a única dona da regra
+ * — repetir a conta aqui seria a segunda dona, e as duas divergiriam.
+ *
+ * A janela é de três meses porque o ciclo mais deslocado possível (fecha 31,
+ * vence 1) ainda cabe em dois meses de calendário, e um de folga custa nada. */
 /**
- * As compras que caem na fatura que vence em `mes` — ou seja, as do mês anterior.
  * @param {Estado} estado
  * @param {string} cartaoId
- * @param {Mes} mes
+ * @param {Mes} mes O mês de vencimento da fatura.
  * @returns {LancamentoDoMes[]}
  */
 export function comprasDaFatura(estado, cartaoId, mes) {
-  return lancamentosDoMes(estado.lancamentos, deslocarMes(mes, -1)).filter(
-    (l) => l.tipo === 'saida' && l.cartao === cartaoId
-  );
+  const cartao = cartaoPorId(estado, cartaoId);
+  if (!cartao) return [];
+
+  /** @type {LancamentoDoMes[]} */
+  const compras = [];
+
+  for (const passo of [-2, -1, 0]) {
+    for (const l of lancamentosDoMes(estado.lancamentos, deslocarMes(mes, passo))) {
+      if (l.tipo !== 'saida' || l.cartao !== cartaoId) continue;
+      if (faturaDaCompra(cartao, dataDaOcorrencia(l, deslocarMes(mes, passo))) === mes) {
+        compras.push(l);
+      }
+    }
+  }
+
+  return compras;
+}
+
+/* A data de uma ocorrência: o avulso já tem a sua, e o fixo tem um dia que
+   precisa virar data dentro do mês em que aparece. */
+/**
+ * @param {LancamentoDoMes} l
+ * @param {Mes} mes
+ * @returns {Data}
+ */
+function dataDaOcorrencia(l, mes) {
+  return l.fixo ? mes + '-' + String(l.dia).padStart(2, '0') : l.data;
 }
 
 /* Zero, vazio ou lixo REMOVE o valor informado, em vez de gravar R$ 0,00.
@@ -1458,11 +1556,17 @@ export function resumoDoMes(lancamentos, realizados, mes, faturas) {
   const entradas = { previsto: 0, realizado: 0, quantidade: 0 };
   const despesas = { previsto: 0, realizado: 0, quantidade: 0 };
 
+  /* Quanto do previsto das despesas é fatura de cartão (decisão 5).
+     A soma sai daqui, e não da tela, porque é conta com dinheiro — e sai deste
+     mesmo laço para não haver duas passadas que possam discordar. */
+  let emCartao = 0;
+
   for (const l of doMes) {
     const lado = l.tipo === 'entrada' ? entradas : despesas;
     lado.previsto += l.valor;
     lado.quantidade += 1;
     if (estaRealizado(realizados, l.id, mes)) lado.realizado += l.valor;
+    if (l.ehFatura) emCartao += l.valor;
   }
 
   return {
@@ -1472,6 +1576,7 @@ export function resumoDoMes(lancamentos, realizados, mes, faturas) {
     naContaAgora: entradas.realizado - despesas.realizado,
     faltaEntrar: entradas.previsto - entradas.realizado,
     faltaSair: despesas.previsto - despesas.realizado,
+    emCartao,
     vazio: doMes.length === 0,
   };
 }

@@ -40,7 +40,8 @@ import {
   categoriaPorId,
   idDeCategoriaPeloNome,
   criarCategoria,
-  mesDaFatura,
+  faturaDaCompra,
+  dataPadraoDaFatura,
   idDaFatura,
   chaveDeFatura,
   cartaoPorId,
@@ -77,6 +78,7 @@ process.env.TZ = 'America/Sao_Paulo';
  * @typedef {import('../nucleo.js').Lancamento} Lancamento
  * @typedef {import('../nucleo.js').LancamentoDoMes} LancamentoDoMes
  * @typedef {import('../nucleo.js').Fixo} Fixo
+ * @typedef {import('../nucleo.js').Cartao} Cartao
  * @typedef {import('../nucleo.js').Avulso} Avulso
  * @typedef {import('../nucleo.js').Estado} Estado
  * @typedef {import('../nucleo.js').Realizados} Realizados
@@ -299,7 +301,7 @@ conferir(
 /* ---------- estado ---------- */
 
 const VAZIO = {
-  versao: 5,
+  versao: 6,
   lancamentos: [],
   realizados: {},
   categorias: [],
@@ -337,7 +339,7 @@ conferir(
     lancamentos: [{ id: 'a', tipo: 'entrada', descricao: 'Salário', valor: 350000, data: '2026-09-05' }],
   }),
   {
-    versao: 5,
+    versao: 6,
     lancamentos: [
       {
         id: 'a', tipo: 'entrada', descricao: 'Salário', categoria: 'salario',
@@ -934,7 +936,7 @@ const REALIZADOS_V3 = { 'v1|2026-09': true, 'v3|2026-09': true };
 
 const MIGRADO = normalizarEstado({ versao: 3, lancamentos: LANCAMENTOS_V3, realizados: REALIZADOS_V3 });
 
-conferir('a travessia da v3 sobe a versão', MIGRADO.versao, 5);
+conferir('a travessia da v3 sobe a versão', MIGRADO.versao, 6);
 conferir('e não perde nenhum registro', MIGRADO.lancamentos.map((l) => l.id), ['v1', 'v2', 'v3', 'v4']);
 conferir('e mantém as marcações de realizado', MIGRADO.realizados, REALIZADOS_V3);
 conferir('e nasce sem categoria do usuário e sem limite', [MIGRADO.categorias, MIGRADO.limites], [[], {}]);
@@ -1101,7 +1103,7 @@ const AGORA = new Date('2026-09-03T21:30:00-03:00');
   const estado = estadoVazio();
   const pacote = montarBackup(estado, AGORA);
   conferir('o envelope se identifica', pacote.app, 'zenny');
-  conferir('o envelope carrega a versao do esquema', pacote.versao, 5);
+  conferir('o envelope carrega a versao do esquema', pacote.versao, 6);
   conferir('o envelope carrega o estado', pacote.estado, estado);
   conferir('exportadoEm e ISO', pacote.exportadoEm, AGORA.toISOString());
 }
@@ -1185,7 +1187,7 @@ conferir(
 
 /** @type {Estado} */
 const ESTADO_CHEIO = {
-  versao: 5,
+  versao: 6,
   lancamentos: [AVULSO, FIXO_ABERTO],
   realizados: { 'a1|2026-10': true },
   categorias: [],
@@ -1321,19 +1323,77 @@ conferir('sem limite nao ha excedente', situacaoDoLimite(45000, 0).excedente, 0)
 
 /* ---------- cartoes de credito (B6) ---------- */
 
-/* A regra que decide TUDO neste bloco: compra do mes M cai na fatura M+1.
-   Se ela mudar, muda o mes em que o dinheiro sai da conta. */
-conferir('a compra de setembro cai na fatura de outubro', mesDaFatura('2026-09-20'), '2026-10');
-conferir('a virada do ano tambem anda', mesDaFatura('2026-12-31'), '2027-01');
-conferir('o dia 1 do mes ja e do mes seguinte', mesDaFatura('2026-09-01'), '2026-10');
+/* A REGRA CENTRAL: em que fatura uma compra cai. Os dois formatos reais de
+   cartao, sem caso especial. Se ela mudar, muda o mes em que o dinheiro sai. */
+{
+  /** @type {Cartao} */
+  const fecha30 = { id: 'c', nome: 'X', limite: 0, fechamento: 30, vencimento: 10, arquivado: false };
+  conferir('fecha 30 vence 10: compra do meio do mes vence no mes seguinte',
+    faturaDaCompra(fecha30, '2026-09-15'), '2026-10');
+  conferir('e a compra no proprio dia do fechamento ainda entra',
+    faturaDaCompra(fecha30, '2026-09-30'), '2026-10');
+  conferir('a do dia 1 do mes seguinte ja e do ciclo seguinte',
+    faturaDaCompra(fecha30, '2026-10-01'), '2026-11');
+
+  /** @type {Cartao} */
+  const fecha3 = { id: 'c', nome: 'X', limite: 0, fechamento: 3, vencimento: 10, arquivado: false };
+  conferir('fecha 3 vence 10: compra antes do fechamento vence no MESMO mes',
+    faturaDaCompra(fecha3, '2026-09-02'), '2026-09');
+  conferir('e depois do fechamento vai para o mes seguinte',
+    faturaDaCompra(fecha3, '2026-09-05'), '2026-10');
+  conferir('no dia exato do fechamento ainda e do ciclo que fecha',
+    faturaDaCompra(fecha3, '2026-09-03'), '2026-09');
+
+  /* Fechamento igual ao vencimento: fecha e vence dia 10. O ciclo que fecha em
+     10/09 vence em 10/10 — nao no mesmo dia em que fechou. */
+  /** @type {Cartao} */
+  const igual = { id: 'c', nome: 'X', limite: 0, fechamento: 10, vencimento: 10, arquivado: false };
+  conferir('fecha e vence no mesmo dia: o ciclo vence no mes seguinte',
+    faturaDaCompra(igual, '2026-09-05'), '2026-10');
+
+  /* Fechamento 31 num mes de 30 vira 30, como o vencimento ja fazia. */
+  /** @type {Cartao} */
+  const dia31 = { id: 'c', nome: 'X', limite: 0, fechamento: 31, vencimento: 10, arquivado: false };
+  conferir('fechamento 31 em abril (30 dias) aceita a compra do dia 30',
+    faturaDaCompra(dia31, '2026-04-30'), '2026-05');
+  conferir('fevereiro tambem', faturaDaCompra(dia31, '2027-02-28'), '2027-03');
+
+  /* A virada do ano nao pode escorregar. */
+  conferir('dezembro vira janeiro', faturaDaCompra(fecha30, '2026-12-20'), '2027-01');
+}
+
+/* A data que uma compra criada DE DENTRO da fatura recebe (decisao 3). */
+{
+  /** @type {Cartao} */
+  const fecha30 = { id: 'c', nome: 'X', limite: 0, fechamento: 30, vencimento: 10, arquivado: false };
+  conferir('hoje, quando hoje cai na fatura aberta',
+    dataPadraoDaFatura(fecha30, '2026-10', '2026-09-15'), '2026-09-15');
+  conferir('senao, o dia do fechamento daquele ciclo',
+    dataPadraoDaFatura(fecha30, '2026-12', '2026-09-15'), '2026-11-30');
+  /* E a data escolhida tem que cair mesmo na fatura que se abriu — senao a
+     decisao 3 seria uma promessa quebrada. */
+  conferir('e a data escolhida cai de fato naquela fatura',
+    faturaDaCompra(fecha30, dataPadraoDaFatura(fecha30, '2026-12', '2026-09-15')), '2026-12');
+
+  /** @type {Cartao} */
+  const fecha3 = { id: 'c', nome: 'X', limite: 0, fechamento: 3, vencimento: 10, arquivado: false };
+  conferir('o mesmo vale para quem fecha antes de vencer',
+    faturaDaCompra(fecha3, dataPadraoDaFatura(fecha3, '2027-01', '2026-09-15')), '2027-01');
+
+  /* Fechamento 31 num mes de 30 dias nao pode gerar uma data que nao existe. */
+  /** @type {Cartao} */
+  const dia31 = { id: 'c', nome: 'X', limite: 0, fechamento: 31, vencimento: 10, arquivado: false };
+  conferir('fechamento 31 nao inventa 31 de novembro',
+    dataPadraoDaFatura(dia31, '2026-12', '2026-01-01'), '2026-11-30');
+}
 
 conferir('o id da fatura e estavel e derivado do cartao', idDaFatura('c1'), 'fatura:c1');
 conferir('a chave junta cartao e mes', chaveDeFatura('c1', '2026-10'), 'c1|2026-10');
 
-/* Um estado com um cartao e tres saidas: duas no cartao, uma no debito. */
+/* Um estado com um cartao (fecha 30, vence 10) e quatro saidas. */
 const COM_CARTAO = normalizarEstado({
-  versao: 5,
-  cartoes: [{ id: 'c1', nome: 'Nubank', limite: 300000, vencimento: 10, arquivado: false }],
+  versao: 6,
+  cartoes: [{ id: 'c1', nome: 'Nubank', limite: 300000, fechamento: 30, vencimento: 10, arquivado: false }],
   lancamentos: [
     { id: 's1', tipo: 'saida', descricao: 'Mercado', categoria: 'mercado', cartao: 'c1',
       valor: 20000, data: '2026-09-12' },
@@ -1351,20 +1411,64 @@ conferir('cartaoPorId acha', cartaoPorId(COM_CARTAO, 'c1')?.nome, 'Nubank');
 conferir('cartaoPorId com id que nao existe devolve null', cartaoPorId(COM_CARTAO, 'zzz'), null);
 conferir('cartaoPorId com null devolve null', cartaoPorId(COM_CARTAO, null), null);
 
-conferir(
-  'as compras de setembro caem na fatura de outubro',
-  comprasDaFatura(COM_CARTAO, 'c1', '2026-10').map((l) => l.id),
-  ['s1', 's2']
-);
+conferir('as compras de setembro caem na fatura de outubro',
+  comprasDaFatura(COM_CARTAO, 'c1', '2026-10').map((l) => l.id), ['s1', 's2']);
 conferir('a fatura de setembro nao tem as compras de setembro',
   comprasDaFatura(COM_CARTAO, 'c1', '2026-09').length, 0);
 conferir('a saida no debito nao entra na fatura',
   comprasDaFatura(COM_CARTAO, 'c1', '2026-10').some((l) => l.id === 's3'), false);
+conferir('compras de cartao que nao existe devolve vazio',
+  comprasDaFatura(COM_CARTAO, 'zzz', '2026-10'), []);
+
+/* O CICLO ATRAVESSA DOIS MESES DO CALENDARIO. Este e o caso que a primeira
+   versao nao sabia representar: com fecha 3 / vence 10, a fatura de outubro vai
+   de 04/09 a 03/10 — duas compras, uma de cada mes do calendario. */
+{
+  const atravessa = normalizarEstado({
+    versao: 6,
+    cartoes: [{ id: 'c1', nome: 'X', limite: 0, fechamento: 3, vencimento: 10 }],
+    lancamentos: [
+      { id: 'a', tipo: 'saida', descricao: 'Antes', cartao: 'c1', valor: 1000, data: '2026-09-02' },
+      { id: 'b', tipo: 'saida', descricao: 'Depois', cartao: 'c1', valor: 2000, data: '2026-09-20' },
+      { id: 'c', tipo: 'saida', descricao: 'Outubro', cartao: 'c1', valor: 3000, data: '2026-10-01' },
+      { id: 'd', tipo: 'saida', descricao: 'Tarde', cartao: 'c1', valor: 4000, data: '2026-10-10' },
+    ],
+  });
+  conferir('a fatura de setembro pega so o que fechou em 03/09',
+    comprasDaFatura(atravessa, 'c1', '2026-09').map((l) => l.id), ['a']);
+  conferir('a de outubro pega os dois meses do calendario',
+    comprasDaFatura(atravessa, 'c1', '2026-10').map((l) => l.id), ['b', 'c']);
+  conferir('e soma os dois', faturaDoMes(atravessa, 'c1', '2026-10')?.valor, 5000);
+  conferir('a compra tardia de outubro ja e de novembro',
+    comprasDaFatura(atravessa, 'c1', '2026-11').map((l) => l.id), ['d']);
+
+  /* NENHUM CENTAVO PERDIDO NEM DUPLICADO entre os ciclos. */
+  const total = ['2026-09', '2026-10', '2026-11', '2026-12'].reduce(
+    (soma, mes) => soma + (faturaDoMes(atravessa, 'c1', mes)?.soma ?? 0), 0);
+  conferir('cada compra aparece em exatamente um ciclo', total, 1000 + 2000 + 3000 + 4000);
+}
+
+/* Um fixo pago no cartao tambem entra no ciclo certo. */
+{
+  const comFixo = normalizarEstado({
+    versao: 6,
+    cartoes: [{ id: 'c1', nome: 'X', limite: 0, fechamento: 3, vencimento: 10 }],
+    lancamentos: [
+      { id: 'f', tipo: 'saida', descricao: 'Streaming', cartao: 'c1', fixo: true, dia: 20,
+        valor: 2990, inicio: '2026-09', fim: null, pulados: [] },
+    ],
+  });
+  conferir('o fixo no cartao de dia 20 cai na fatura de outubro',
+    comprasDaFatura(comFixo, 'c1', '2026-10').map((l) => l.id), ['f']);
+  conferir('e nao na de setembro', comprasDaFatura(comFixo, 'c1', '2026-09').length, 0);
+  conferir('e se repete no ciclo seguinte',
+    comprasDaFatura(comFixo, 'c1', '2026-11').map((l) => l.id), ['f']);
+}
 
 /* A SOMA. Este e o teste que impede erro de centavo na fatura. */
 {
   const fatura = faturaDoMes(COM_CARTAO, 'c1', '2026-10');
-  conferir('a fatura soma as compras do mes anterior', fatura?.valor, 25000);
+  conferir('a fatura soma as compras do ciclo', fatura?.valor, 25000);
   conferir('e diz de quantas compras ela veio', fatura?.quantidade, 2);
   conferir('sem valor informado, informado e null', fatura?.informado, null);
   conferir('a fatura cai no dia do vencimento', fatura?.dia, 10);
@@ -1378,10 +1482,10 @@ conferir('fatura de cartao que nao existe e null', faturaDoMes(COM_CARTAO, 'zzz'
 /* O vencimento dia 31 num mes de 30 dias nao pode gerar dia 31. */
 {
   const dia31 = normalizarEstado({
-    versao: 5,
-    cartoes: [{ id: 'c1', nome: 'Cartao', limite: 0, vencimento: 31 }],
+    versao: 6,
+    cartoes: [{ id: 'c1', nome: 'Cartao', limite: 0, fechamento: 15, vencimento: 31 }],
     lancamentos: [
-      { id: 's1', tipo: 'saida', descricao: 'Compra', cartao: 'c1', valor: 1000, data: '2026-03-05' },
+      { id: 's1', tipo: 'saida', descricao: 'Compra', cartao: 'c1', valor: 1000, data: '2026-04-05' },
     ],
   });
   conferir('vencimento 31 vira 30 em abril', faturaDoMes(dia31, 'c1', '2026-04')?.dia, 30);
@@ -1441,13 +1545,32 @@ conferir('mas ela continua sendo um lancamento de setembro',
   const setembro = resumoDoMes(COM_CARTAO.lancamentos, {}, '2026-09', faturasDoMes(COM_CARTAO, '2026-09'));
   conferir('setembro so conta o aluguel como despesa', setembro.despesas.previsto, 180000);
   conferir('e a sobra de setembro ignora as compras no cartao', setembro.sobra, 120000);
+  conferir('sem fatura no mes, emCartao e zero', setembro.emCartao, 0);
 
   const outubro = resumoDoMes(COM_CARTAO.lancamentos, {}, '2026-10', faturasDoMes(COM_CARTAO, '2026-10'));
   conferir('outubro conta a fatura como despesa', outubro.despesas.previsto, 25000);
   conferir('e conta a fatura como UM registro', outubro.despesas.quantidade, 1);
+  conferir('e emCartao diz quanto disso e cartao', outubro.emCartao, 25000);
 }
 
-/* NENHUM CENTAVO CONTADO DUAS VEZES: o total do ano fecha com a soma bruta. */
+/* emCartao e uma FATIA das despesas, nunca uma parcela a mais: com aluguel e
+   fatura no mesmo mes, ele conta so a fatura. */
+{
+  const misto = normalizarEstado({
+    versao: 6,
+    cartoes: [{ id: 'c1', nome: 'X', limite: 0, fechamento: 30, vencimento: 10 }],
+    lancamentos: [
+      { id: 'a', tipo: 'saida', descricao: 'Aluguel', cartao: null, valor: 180000, data: '2026-10-05' },
+      { id: 'b', tipo: 'saida', descricao: 'Mercado', cartao: 'c1', valor: 20000, data: '2026-09-12' },
+    ],
+  });
+  const out = resumoDoMes(misto.lancamentos, {}, '2026-10', faturasDoMes(misto, '2026-10'));
+  conferir('despesas somam aluguel mais fatura', out.despesas.previsto, 200000);
+  conferir('e emCartao e so a fatura', out.emCartao, 20000);
+  conferir('emCartao nunca passa das despesas', out.emCartao <= out.despesas.previsto, true);
+}
+
+/* NENHUM CENTAVO CONTADO DUAS VEZES no total do periodo. */
 {
   const meses = ['2026-09', '2026-10', '2026-11'];
   const total = meses.reduce(
@@ -1472,37 +1595,86 @@ conferir('a lista de outubro traz a fatura junto',
 conferir('a de setembro traz o que mexe na conta, em ordem de dia',
   itensDoMes(COM_CARTAO, '2026-09').map((i) => i.dia), [5, 10]);
 
+/* ---------- editar e apagar a compra no cartao ---------- */
+
+/* O DEFEITO QUE A SEGUNDA VERSAO DO BLOCO CORRIGE: na primeira, a compra no
+   cartao saia da lista do mes e a folha da fatura so a escrevia como texto —
+   nao havia como editar nem apagar em lugar nenhum. Ela e um lancamento comum,
+   e as operacoes de lancamento tem que funcionar nela. */
+{
+  const semCompra = {
+    ...COM_CARTAO,
+    lancamentos: excluirLancamento(COM_CARTAO.lancamentos, 's1'),
+  };
+  conferir('apagar a compra tira ela do estado',
+    semCompra.lancamentos.some((l) => l.id === 's1'), false);
+  conferir('e a fatura encolhe pelo valor exato',
+    faturaDoMes(semCompra, 'c1', '2026-10')?.valor, 5000);
+
+  /* Trocar a data de uma compra a move de ciclo, e as duas faturas mudam
+     juntas — nenhum centavo fica no limbo. */
+  const movida = {
+    ...COM_CARTAO,
+    lancamentos: COM_CARTAO.lancamentos.map((l) =>
+      l.id === 's1' && !l.fixo ? { ...l, data: '2026-10-05' } : l),
+  };
+  conferir('mudar a data move a compra de ciclo',
+    faturaDoMes(movida, 'c1', '2026-10')?.valor, 5000);
+  conferir('e o valor reaparece no ciclo novo',
+    faturaDoMes(movida, 'c1', '2026-11')?.valor, 20000);
+
+  /* Tirar o cartao devolve a compra para o mes em que foi feita. */
+  const semCartao = {
+    ...COM_CARTAO,
+    lancamentos: COM_CARTAO.lancamentos.map((l) => (l.id === 's1' ? { ...l, cartao: null } : l)),
+  };
+  conferir('tirar o cartao devolve a compra para as despesas do mes dela',
+    resumoDoMes(semCartao.lancamentos, {}, '2026-09', faturasDoMes(semCartao, '2026-09')).despesas.previsto,
+    200000);
+  conferir('e a fatura encolhe', faturaDoMes(semCartao, 'c1', '2026-10')?.valor, 5000);
+}
+
 /* ---------- criar, alterar, arquivar ---------- */
 
 {
-  const criado = criarCartao(estadoVazio(), 'c9', '  nubank  ', 500000, 15);
+  const criado = criarCartao(estadoVazio(), 'c9', '  nubank  ', 500000, 25, 15);
   conferir('criar limpa o nome', criado.cartoes[0].nome, 'nubank');
-  conferir('e guarda limite e vencimento', [criado.cartoes[0].limite, criado.cartoes[0].vencimento],
-    [500000, 15]);
+  conferir('e guarda limite, fechamento e vencimento',
+    [criado.cartoes[0].limite, criado.cartoes[0].fechamento, criado.cartoes[0].vencimento],
+    [500000, 25, 15]);
   conferir('nasce nao arquivado', criado.cartoes[0].arquivado, false);
 
-  conferir('nome vazio nao cria', criarCartao(estadoVazio(), 'c9', '   ', 0, 5).cartoes.length, 0);
-  conferir('sem id nao cria', criarCartao(estadoVazio(), '', 'Nubank', 0, 5).cartoes.length, 0);
+  conferir('nome vazio nao cria', criarCartao(estadoVazio(), 'c9', '   ', 0, 25, 5).cartoes.length, 0);
+  conferir('sem id nao cria', criarCartao(estadoVazio(), '', 'Nubank', 0, 25, 5).cartoes.length, 0);
   conferir('id repetido nao cria um segundo',
-    criarCartao(criado, 'c9', 'Outro', 0, 5).cartoes.length, 1);
+    criarCartao(criado, 'c9', 'Outro', 0, 25, 5).cartoes.length, 1);
 
   /* Dois cartoes com o MESMO nome sao dois cartoes — ao contrario das
      categorias, que se fundem pelo nome. O fisico e o virtual existem. */
   conferir('dois cartoes podem ter o mesmo nome',
-    criarCartao(criado, 'c10', 'nubank', 0, 20).cartoes.length, 2);
+    criarCartao(criado, 'c10', 'nubank', 0, 25, 20).cartoes.length, 2);
 
-  conferir('vencimento fora da faixa e limitado', criarCartao(estadoVazio(), 'c1', 'X', 0, 99).cartoes[0].vencimento, 31);
-  conferir('vencimento zero vira dia 1', criarCartao(estadoVazio(), 'c1', 'X', 0, 0).cartoes[0].vencimento, 1);
-  conferir('limite negativo vira zero', criarCartao(estadoVazio(), 'c1', 'X', -5, 5).cartoes[0].limite, 0);
-  conferir('limite quebrado e truncado', criarCartao(estadoVazio(), 'c1', 'X', 1000.9, 5).cartoes[0].limite, 1000);
+  conferir('vencimento fora da faixa e limitado',
+    criarCartao(estadoVazio(), 'c1', 'X', 0, 25, 99).cartoes[0].vencimento, 31);
+  conferir('fechamento fora da faixa tambem',
+    criarCartao(estadoVazio(), 'c1', 'X', 0, 99, 10).cartoes[0].fechamento, 31);
+  conferir('vencimento zero vira dia 1',
+    criarCartao(estadoVazio(), 'c1', 'X', 0, 25, 0).cartoes[0].vencimento, 1);
+  conferir('limite negativo vira zero',
+    criarCartao(estadoVazio(), 'c1', 'X', -5, 25, 5).cartoes[0].limite, 0);
+  conferir('limite quebrado e truncado',
+    criarCartao(estadoVazio(), 'c1', 'X', 1000.9, 25, 5).cartoes[0].limite, 1000);
 }
 
 {
-  const um = criarCartao(estadoVazio(), 'c1', 'Nubank', 300000, 10);
+  const um = criarCartao(estadoVazio(), 'c1', 'Nubank', 300000, 30, 10);
   conferir('alterar so o nome preserva o resto',
-    alterarCartao(um, 'c1', { nome: 'Nu' }).cartoes[0], { id: 'c1', nome: 'Nu', limite: 300000, vencimento: 10, arquivado: false });
+    alterarCartao(um, 'c1', { nome: 'Nu' }).cartoes[0],
+    { id: 'c1', nome: 'Nu', limite: 300000, fechamento: 30, vencimento: 10, arquivado: false });
   conferir('alterar so o limite preserva o resto',
     alterarCartao(um, 'c1', { limite: 400000 }).cartoes[0].vencimento, 10);
+  conferir('alterar so o fechamento preserva o vencimento',
+    alterarCartao(um, 'c1', { fechamento: 5 }).cartoes[0].vencimento, 10);
   conferir('nome em branco nao apaga o nome', alterarCartao(um, 'c1', { nome: '  ' }).cartoes[0].nome, 'Nubank');
   conferir('alterar cartao que nao existe nao muda nada', alterarCartao(um, 'zzz', { nome: 'X' }), um);
 
@@ -1512,7 +1684,7 @@ conferir('a de setembro traz o que mexe na conta, em ordem de dia',
   conferir('e cartaoPorId ainda o acha, para o historico ler', cartaoPorId(arquivado, 'c1')?.nome, 'Nubank');
 }
 
-/* ---------- migracao e faxina da v4 para a v5 ---------- */
+/* ---------- migracao e faxina ---------- */
 
 conferir('estado da v4 ganha cartoes e faturas vazios',
   [normalizarEstado({ versao: 4, lancamentos: [] }).cartoes,
@@ -1523,11 +1695,29 @@ conferir('lancamento sem cartao vira cartao null',
     { id: 'a', tipo: 'saida', descricao: 'Mercado', categoria: 'mercado', valor: 100, data: '2026-09-01' },
   ] }).lancamentos[0].cartao, null);
 
+/* A MIGRACAO DA v5: o cartao de la nao tinha fechamento, e a regra era "mes M
+   cai na fatura M+1". O padrao 31 reproduz essa regra EXATAMENTE, e nenhuma
+   compra troca de fatura na travessia. */
+{
+  const daV5 = normalizarEstado({
+    versao: 5,
+    cartoes: [{ id: 'c1', nome: 'Antigo', limite: 0, vencimento: 10 }],
+    lancamentos: [
+      { id: 'a', tipo: 'saida', descricao: 'Comeco', cartao: 'c1', valor: 1000, data: '2026-09-01' },
+      { id: 'b', tipo: 'saida', descricao: 'Fim', cartao: 'c1', valor: 2000, data: '2026-09-30' },
+    ],
+  });
+  conferir('o cartao da v5 nasce com fechamento 31', daV5.cartoes[0].fechamento, 31);
+  conferir('e as duas compras de setembro seguem na fatura de outubro, como antes',
+    comprasDaFatura(daV5, 'c1', '2026-10').map((l) => l.id), ['a', 'b']);
+  conferir('nenhuma escorregou para novembro', comprasDaFatura(daV5, 'c1', '2026-11').length, 0);
+}
+
 /* Compra apontando para cartao que nao existe volta a ser despesa comum, em vez
    de sumir junto com o cartao. */
 {
   const orfa = normalizarEstado({
-    versao: 5,
+    versao: 6,
     cartoes: [],
     lancamentos: [
       { id: 'a', tipo: 'saida', descricao: 'Mercado', cartao: 'apagado', valor: 20000, data: '2026-09-12' },
@@ -1539,24 +1729,24 @@ conferir('lancamento sem cartao vira cartao null',
 }
 
 conferir('valor de fatura de cartao apagado sai',
-  normalizarEstado({ versao: 5, lancamentos: [], cartoes: [], faturas: { 'apagado|2026-10': 5000 } }).faturas, {});
+  normalizarEstado({ versao: 6, lancamentos: [], cartoes: [], faturas: { 'apagado|2026-10': 5000 } }).faturas, {});
 
 conferir('cartao com id repetido nao entra duas vezes',
-  normalizarEstado({ versao: 5, lancamentos: [], cartoes: [
-    { id: 'c1', nome: 'Nubank', limite: 0, vencimento: 10 },
-    { id: 'c1', nome: 'Outro', limite: 0, vencimento: 20 },
+  normalizarEstado({ versao: 6, lancamentos: [], cartoes: [
+    { id: 'c1', nome: 'Nubank', limite: 0, fechamento: 30, vencimento: 10 },
+    { id: 'c1', nome: 'Outro', limite: 0, fechamento: 30, vencimento: 20 },
   ] }).cartoes.length, 1);
 
 conferir('cartao sem nome nao entra',
-  normalizarEstado({ versao: 5, lancamentos: [], cartoes: [{ id: 'c1', nome: '  ', limite: 0, vencimento: 10 }] }).cartoes.length, 0);
+  normalizarEstado({ versao: 6, lancamentos: [], cartoes: [{ id: 'c1', nome: '  ', limite: 0, fechamento: 30, vencimento: 10 }] }).cartoes.length, 0);
 
 /* A ARMADILHA: a fatura paga usa um id sintetico que NUNCA esta em lancamentos.
    Sem o tratamento, a marcacao seria descartada na leitura e o app abriria
    dizendo que a fatura nao foi paga — depois de a pessoa ter dito que foi. */
 {
   const lido = normalizarEstado({
-    versao: 5,
-    cartoes: [{ id: 'c1', nome: 'Nubank', limite: 0, vencimento: 10 }],
+    versao: 6,
+    cartoes: [{ id: 'c1', nome: 'Nubank', limite: 0, fechamento: 30, vencimento: 10 }],
     lancamentos: [{ id: 'a', tipo: 'saida', descricao: 'Mercado', valor: 100, data: '2026-09-01' }],
     realizados: { 'fatura:c1|2026-10': true, 'a|2026-09': true },
   });
@@ -1565,13 +1755,14 @@ conferir('cartao sem nome nao entra',
   conferir('e o lancamento marcado tambem', estaRealizado(lido.realizados, 'a', '2026-09'), true);
 
   const semCartao = normalizarEstado({
-    versao: 5,
+    versao: 6,
     cartoes: [],
     lancamentos: [],
     realizados: { 'fatura:c1|2026-10': true },
   });
   conferir('mas a fatura de cartao que nao existe mais e descartada', semCartao.realizados, {});
 }
+
 
 /* ---------- resultado ---------- */
 

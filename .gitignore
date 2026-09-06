@@ -2,6 +2,11 @@
 # servido sao os .js que estao no repositorio. Ver docs/tipos-sem-build.md.
 node_modules/
 
+# Saida do tools/gerar-artefato.mjs: um HTML unico com CSS e JS embutidos, para
+# publicar como artefato de teste. E derivado dos tres arquivos do app, entao
+# versiona-lo criaria uma segunda copia que envelhece — o gerador basta.
+zenny.html
+
 # Local settings & OS files
 .DS_Store
 Thumbs.db

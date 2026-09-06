@@ -303,6 +303,11 @@ h1 { font-size: 1.75rem; line-height: 1.2; letter-spacing: -.02em; margin: 8px 0
 .barra-nome { font-size: .875rem; color: var(--tinta-suave); }
 .barra-valor { font-size: .9375rem; font-weight: 600; }
 
+/* A fatia das despesas que é fatura de cartão. Ocupa a grade inteira, entre o
+   valor e o trilho, e usa o tom fraco: é um detalhe do número acima, não um
+   segundo número competindo com ele. */
+.legenda-cartao { grid-column: 1 / -1; font-size: .75rem; color: var(--tinta-suave); }
+
 /* Os dois trechos vivem lado a lado dentro do trilho: o cheio é o que já
    aconteceu, o claro é o que ainda falta. Somados dão o previsto do lado. */
 .trilho {
@@ -871,16 +876,50 @@ dialog::backdrop { background: var(--veu); }
   overflow-y: auto;
 }
 
+/* Cada compra é tocável para editar, com um X para apagar — as mesmas ações da
+   lista do mês, no lugar onde a compra mora. Na primeira versão do bloco isto
+   era texto morto, e a compra ficava sem como ser corrigida. */
 .compras-da-fatura li {
-  display: flex;
-  justify-content: space-between;
-  gap: 12px;
-  padding: 7px 0;
+  display: grid;
+  grid-template-columns: 1fr 32px;
+  align-items: center;
   border-bottom: 1px solid var(--borda-fraca);
-  font-size: .9rem;
 }
 
 .compras-da-fatura li:last-child { border-bottom: 0; }
+
+.compra-toque {
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+  width: 100%;
+  min-height: var(--alvo);
+  padding: 7px 0;
+  border: 0;
+  background: none;
+  color: inherit;
+  font: inherit;
+  font-size: .9rem;
+  text-align: left;
+  cursor: pointer;
+  -webkit-tap-highlight-color: transparent;
+}
+
+.compra-excluir {
+  display: grid;
+  place-items: center;
+  width: 32px;
+  height: var(--alvo);
+  border: 0;
+  background: none;
+  color: var(--tinta-fraca);
+  cursor: pointer;
+  -webkit-tap-highlight-color: transparent;
+}
+
+.compra-excluir svg { width: 15px; height: 15px; }
+
+#fatura-adicionar { margin-bottom: 14px; }
 
 /* ---------- Aviso temporário ---------- */
 
