@@ -203,6 +203,17 @@
     <h1 id="titulo-ajustes">Ajustes</h1>
     <p class="subtitulo">Tudo o que você anota fica neste aparelho, e em mais nenhum lugar.</p>
 
+    <!-- Nasce escondido: quem revela e o app.js, e so quando o navegador avisa
+         que da para instalar. Ver docs/instalar-no-desktop.md. -->
+    <section class="cartao ajuste" id="ajuste-instalar" aria-labelledby="titulo-do-instalar" hidden>
+      <h2 id="titulo-do-instalar">Instalar o Zenny</h2>
+      <p class="nota">
+        Fica com ícone próprio e abre direto, sem a barra do navegador. Continua
+        sendo o mesmo app, com os mesmos dados deste aparelho.
+      </p>
+      <button type="button" class="botao" id="botao-instalar">Instalar o Zenny</button>
+    </section>
+
     <section class="cartao ajuste" aria-labelledby="titulo-da-copia">
       <h2 id="titulo-da-copia">Uma cópia dos seus dados</h2>
       <p class="nota" id="estado-do-backup">—</p>
