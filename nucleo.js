@@ -1837,10 +1837,12 @@ export function nomeDoArquivo(agora) {
  * com o próprio início nas duas pontas. */
 /**
  * @param {Partial<Estado> | null | undefined} estado
- * @returns {{ total: number, fixos: number, avulsos: number, primeiroMes: Mes|null, ultimoMes: Mes|null }}
+ * @returns {{ total: number, fixos: number, avulsos: number, cartoes: number,
+ *   primeiroMes: Mes|null, ultimoMes: Mes|null }}
  */
 export function resumirEstado(estado) {
   const lancamentos = (estado && estado.lancamentos) || [];
+  const cartoes = (estado && estado.cartoes) || [];
 
   let primeiroMes = null;
   let ultimoMes = null;
@@ -1859,6 +1861,9 @@ export function resumirEstado(estado) {
     total: lancamentos.length,
     fixos,
     avulsos: lancamentos.length - fixos,
+    /* Cartao arquivado conta: ele volta no lugar do que esta no aparelho como
+       qualquer outro, e some da frase seria omitir parte da troca. */
+    cartoes: cartoes.length,
     primeiroMes,
     ultimoMes,
   };

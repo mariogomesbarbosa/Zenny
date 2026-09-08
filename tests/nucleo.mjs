@@ -82,6 +82,7 @@ process.env.TZ = 'America/Sao_Paulo';
  * @typedef {import('../nucleo.js').Avulso} Avulso
  * @typedef {import('../nucleo.js').Estado} Estado
  * @typedef {import('../nucleo.js').Realizados} Realizados
+ * @typedef {import('../nucleo.js').CategoriaDoUsuario} CategoriaDoUsuario
  */
 
 let passaram = 0;
@@ -1160,10 +1161,44 @@ const FIXO_ENCERRADO = {
   valores: [{ desde: '2026-11', valor: 25000 }],
 };
 
+/** @type {Cartao} */
+const CARTAO = {
+  id: 'c1',
+  nome: 'Nubank',
+  limite: 500000,
+  fechamento: 20,
+  vencimento: 28,
+  arquivado: false,
+};
+
+/** @type {CategoriaDoUsuario} */
+const CATEGORIA_PROPRIA = {
+  id: 'ifood-do-mes',
+  nome: 'Delivery do mes',
+  tipo: 'saida',
+  oculta: false,
+};
+
+/* Uma compra no cartao, com categoria criada pelo usuario: os dois vinculos que
+   o normalizarEstado zera quando o alvo nao existe. E o que faz esta fixtura
+   provar a ida e a volta em vez de so ocupar o campo. */
+/** @type {Avulso} */
+const COMPRA_NO_CARTAO = {
+  id: 'a2',
+  tipo: 'saida',
+  descricao: 'Tenis',
+  categoria: 'ifood-do-mes',
+  cartao: 'c1',
+  fixo: false,
+  valor: 45000,
+  data: '2026-10-05',
+};
+
 conferir('resumo de estado vazio', resumirEstado(estadoVazio()), {
   total: 0,
   fixos: 0,
   avulsos: 0,
+  cartoes: 0,
   primeiroMes: null,
   ultimoMes: null,
 });
@@ -1171,7 +1206,7 @@ conferir('resumo de estado vazio', resumirEstado(estadoVazio()), {
 conferir(
   'resumo conta fixos e avulsos, e acha as pontas',
   resumirEstado({ lancamentos: [AVULSO, FIXO_ABERTO, FIXO_ENCERRADO], realizados: {} }),
-  { total: 3, fixos: 2, avulsos: 1, primeiroMes: '2026-09', ultimoMes: '2027-03' }
+  { total: 3, fixos: 2, avulsos: 1, cartoes: 0, primeiroMes: '2026-09', ultimoMes: '2027-03' }
 );
 
 /* Um fixo sem fim e aberto. Afirmar um ultimo mes que nao existe seria inventar
@@ -1180,20 +1215,39 @@ conferir(
 conferir(
   'fixo aberto nao estica o intervalo para o infinito',
   resumirEstado({ lancamentos: [FIXO_ABERTO], realizados: {} }),
-  { total: 1, fixos: 1, avulsos: 0, primeiroMes: '2026-09', ultimoMes: '2026-09' }
+  { total: 1, fixos: 1, avulsos: 0, cartoes: 0, primeiroMes: '2026-09', ultimoMes: '2026-09' }
+);
+
+/* A frase da confirmacao diz quantos cartoes saem do aparelho, e cartao
+   arquivado sai junto com os outros — some da contagem seria omitir parte da
+   troca que a pessoa esta autorizando. */
+conferir(
+  'resumo conta os cartoes, inclusive o arquivado',
+  resumirEstado({
+    lancamentos: [],
+    realizados: {},
+    cartoes: [CARTAO, { ...CARTAO, id: 'c2', arquivado: true }],
+  }),
+  { total: 0, fixos: 0, avulsos: 0, cartoes: 2, primeiroMes: null, ultimoMes: null }
 );
 
 /* ---------- lerBackup ---------- */
 
+/* Cheia de DADO, e nao so de campos.
+ *
+ * A versao anterior desta fixtura tinha as sete chaves e quatro delas vazias —
+ * categorias, limites, cartoes e faturas —, que sao justamente as quatro que o
+ * restaurar deixava para tras. Um teste que compara vazio com vazio passa em
+ * cima de qualquer defeito. Ver docs/backup-completo.md. */
 /** @type {Estado} */
 const ESTADO_CHEIO = {
   versao: 6,
-  lancamentos: [AVULSO, FIXO_ABERTO],
-  realizados: { 'a1|2026-10': true },
-  categorias: [],
-  limites: {},
-  cartoes: [],
-  faturas: {},
+  lancamentos: [AVULSO, FIXO_ABERTO, COMPRA_NO_CARTAO],
+  realizados: { 'a1|2026-10': true, 'fatura:c1|2026-10': true },
+  categorias: [CATEGORIA_PROPRIA],
+  limites: { 'ifood-do-mes': 30000 },
+  cartoes: [CARTAO],
+  faturas: { 'c1|2026-10': 45000 },
 };
 
 {
@@ -1202,6 +1256,28 @@ const ESTADO_CHEIO = {
   conferir('le o envelope', lido.ok, true);
   conferir('a ida e a volta preservam os lancamentos', lido.estado.lancamentos, ESTADO_CHEIO.lancamentos);
   conferir('a ida e a volta preservam os realizados', lido.estado.realizados, ESTADO_CHEIO.realizados);
+  conferir('a ida e a volta preservam as categorias proprias', lido.estado.categorias, ESTADO_CHEIO.categorias);
+  conferir('a ida e a volta preservam os limites', lido.estado.limites, ESTADO_CHEIO.limites);
+  conferir('a ida e a volta preservam os cartoes', lido.estado.cartoes, ESTADO_CHEIO.cartoes);
+  conferir('a ida e a volta preservam os valores de fatura informados', lido.estado.faturas, ESTADO_CHEIO.faturas);
+  conferir('a ida e a volta preservam a fatura marcada como paga', lido.estado.realizados['fatura:c1|2026-10'], true);
+
+  /* Os dois vinculos que o defeito destruia com um recarregamento de atraso: a
+     compra apontando para um cartao que nao veio, e o lancamento apontando para
+     uma categoria que nao veio, os dois virando null na leitura seguinte. */
+  const compra = lido.estado.lancamentos.find((l) => l.id === 'a2');
+  conferir('a compra volta ligada ao cartao', compra && compra.cartao, 'c1');
+  conferir(
+    'a compra volta com a categoria criada pelo usuario',
+    compra && compra.categoria,
+    'ifood-do-mes'
+  );
+
+  /* O estado INTEIRO, campo por campo. As assercoes de cima dizem qual campo
+     quebrou; esta pega o campo que ainda nao existe — um oitavo campo no Estado
+     que a ida e a volta esquecesse falharia aqui, e so aqui. */
+  conferir('a ida e a volta preservam o estado inteiro', lido.estado, ESTADO_CHEIO);
+
   conferir('nada foi descartado', lido.descartados, 0);
   conferir('devolve quando o arquivo foi feito', lido.exportadoEm, AGORA.toISOString());
 }
@@ -1211,7 +1287,7 @@ const ESTADO_CHEIO = {
 {
   const lido = lerOk(JSON.stringify(ESTADO_CHEIO));
   conferir('aceita o estado cru, sem envelope', lido.ok, true);
-  conferir('estado cru traz os lancamentos', lido.estado.lancamentos.length, 2);
+  conferir('estado cru traz os lancamentos', lido.estado.lancamentos.length, 3);
 }
 
 conferir('recusa texto que nao e JSON', erroDe('isto nao e json'), 'nao-e-json');
