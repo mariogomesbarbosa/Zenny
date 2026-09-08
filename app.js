@@ -1159,6 +1159,28 @@ const ERROS_DO_ARQUIVO = {
   'nao-e-zenny': 'Esse arquivo não parece ser uma cópia do Zenny.',
 };
 
+/* O que sai do aparelho, com a concordância certa: "O lançamento", "Os 3
+   lançamentos e o cartão", "Os 2 cartões". Desde o B6 são duas contagens, e
+   escrever as combinações à mão daria uma frase errada em alguma delas. */
+/**
+ * @param {number} lancamentos
+ * @param {number} cartoes
+ * @returns {string}
+ */
+function oQueSaiDoAparelho(lancamentos, cartoes) {
+  const partes = [];
+  if (lancamentos === 1) partes.push('o lançamento');
+  else if (lancamentos > 1) partes.push(`os ${lancamentos} lançamentos`);
+  if (cartoes === 1) partes.push('o cartão');
+  else if (cartoes > 1) partes.push(`os ${cartoes} cartões`);
+
+  const plural = lancamentos + cartoes > 1;
+  const frase = `${partes.join(' e ')} que ${plural ? 'estão' : 'está'} neste aparelho ${
+    plural ? 'saem' : 'sai'
+  } no lugar.`;
+  return frase.charAt(0).toUpperCase() + frase.slice(1);
+}
+
 /* Descreve o arquivo para a pessoa reconhecê-lo ANTES de trocar o que está no
    aparelho por ele. É metade do que torna "substituir tudo" aceitável — a outra
    metade é o desfazer. */
@@ -1167,12 +1189,17 @@ const ERROS_DO_ARQUIVO = {
  * @returns {string}
  */
 function explicarRestauracao(lido) {
-  const { total, primeiroMes, ultimoMes } = lido.resumo;
+  const { total, cartoes, primeiroMes, ultimoMes } = lido.resumo;
 
   const partes = [];
 
-  if (total === 0) {
-    partes.push('Esta cópia está vazia: não tem nenhum lançamento.');
+  /* "Vazia" só vale quando não tem nada mesmo: uma cópia com cartão e sem
+     lançamento não está vazia, e dizer que está faria a pessoa desistir de
+     restaurar justamente o que ela quer de volta. */
+  if (total === 0 && cartoes === 0) {
+    partes.push('Esta cópia está vazia: não tem nada dentro.');
+  } else if (total === 0) {
+    partes.push('Esta cópia não tem nenhum lançamento.');
   } else {
     const quantos = total === 1 ? '1 lançamento' : `${total} lançamentos`;
     /* Havendo lançamento, há mês: resumirEstado só devolve as pontas nulas para
@@ -1184,13 +1211,20 @@ function explicarRestauracao(lido) {
     partes.push(`A cópia tem ${quantos}${periodo}.`);
   }
 
+  /* Frase própria, e não emendada na de cima: "12 lançamentos e 2 cartões de
+     setembro" leria como se os cartões fossem de setembro. O intervalo de
+     meses é dos lançamentos. */
+  if (cartoes > 0) {
+    partes.push(cartoes === 1 ? 'Vem 1 cartão junto.' : `Vêm ${cartoes} cartões junto.`);
+  }
+
+  /* O outro lado da troca. É metade do que torna "substituir tudo" aceitável,
+     e desde o B6 o "tudo" inclui os cartões — quem tem dois no desktop e
+     restaura uma cópia do celular precisa saber que os dois saem. */
   const aqui = estado.lancamentos.length;
-  if (aqui > 0) {
-    partes.push(
-      aqui === 1
-        ? 'O lançamento que está neste aparelho sai no lugar.'
-        : `Os ${aqui} lançamentos que estão neste aparelho saem no lugar.`
-    );
+  const cartoesAqui = estado.cartoes.length;
+  if (aqui > 0 || cartoesAqui > 0) {
+    partes.push(oQueSaiDoAparelho(aqui, cartoesAqui));
   }
 
   if (lido.descartados > 0) {
@@ -1244,7 +1278,18 @@ $('restaurar-confirmar').addEventListener('click', () => {
 
   const anterior = instantaneo();
   const mesAnterior = mesVisivel;
-  estado = { ...estado, lancamentos: lido.estado.lancamentos, realizados: lido.estado.realizados };
+  /* O estado INTEIRO, e não uma lista de campos.
+
+     A lista existia e estava completa quando foi escrita no B4, com um Estado
+     de dois campos de dado. O B5 acrescentou categorias e limites, o B6
+     acrescentou cartões e faturas, e ninguém voltou aqui — não havia por que:
+     o outro lado, o montarBackup, manda `estado` e cresceu de graça. Só esta
+     ponta tinha campos escritos à mão esperando ser esquecidos.
+
+     Assim campo novo no Estado entra na cópia sem ninguém precisar lembrar
+     desta linha. O `lido.estado` já vem normalizado pelo lerBackup, então não
+     há dado torto entrando por esta porta. Ver docs/backup-completo.md. */
+  estado = lido.estado;
 
   /* Leva para um mês onde haja o que ver.
    *
