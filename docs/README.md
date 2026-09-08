@@ -21,6 +21,7 @@ histórico se perde.
 | [b4-backup.md](b4-backup.md) | O plano do backup: as 10 decisões, o formato do arquivo, e por que este bloco absorveu o antigo B5 |
 | [b5-categorias-e-limites.md](b5-categorias-e-limites.md) | Categorias sugeridas pela descrição e limites que avisam sem repreender: as 9 decisões, e a resolução da mescla que este bloco cumpre |
 | [instalar-no-desktop.md](instalar-no-desktop.md) | Por que o app instalava no celular e nao no desktop: os dois PWA da mesma origem declaravam o mesmo `id`, e o botao de instalar que o B0 deixou para depois |
+| [o-cartao-no-painel.md](o-cartao-no-painel.md) | A fatia de cartão no painel: por que ela é uma segunda barrinha e não um trecho roxo dentro do trilho de Despesas |
 | [backup-completo.md](backup-completo.md) | Por que a cópia voltava pela metade: o restaurar escolhia dois campos do arquivo e o `Estado` cresceu dois blocos sem ninguém voltar na linha |
 | [cache-e-deploy.md](cache-e-deploy.md) | Por que o código do app vem sempre da rede, e o defeito de versão misturada que isso evita |
 | [tipos-sem-build.md](tipos-sem-build.md) | Por que o Drive não exigia migrar para Vite, e como o projeto ganhou verificação de tipos sem build: as 7 decisões e os 3 achados do conferidor |
@@ -36,7 +37,7 @@ Ajustes, e as categorias com limites e a tela de Relatório.
 Mais o layout do desktop alinhado, verificação de tipos sem build, e três
 agentes especializados em `.claude/agents/` — ver [agentes.md](agentes.md).
 
-`npm run conferir` roda o conferidor de tipos e os **367 testes**.
+`npm run conferir` roda o conferidor de tipos e os **379 testes**.
 
 Em revisão: o **B6 — cartões de crédito**, com o plano e a implementação em
 [b6-cartoes-de-credito.md](b6-cartoes-de-credito.md). A aba Metas virou

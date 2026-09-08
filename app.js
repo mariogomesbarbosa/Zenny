@@ -286,8 +286,13 @@ function desenharPainel(resumo) {
   /* A soma vem pronta do núcleo (`emCartao`): a interface não faz conta com
      dinheiro, nem para uma legenda. */
   const legenda = $('legenda-do-cartao');
-  legenda.hidden = resumo.emCartao <= 0;
+  const temCartao = resumo.emCartao > 0;
+  legenda.hidden = !temCartao;
   legenda.textContent = formatarDinheiro(resumo.emCartao) + ' são de fatura de cartão';
+
+  /* Mês sem cartão não deixa espaço sobrando: a linha inteira sai, e não só a
+     barrinha dentro dela. */
+  $('trilho-da-fatura').hidden = !temCartao;
 
   const negativa = resumo.sobra < 0;
 
@@ -322,6 +327,7 @@ function desenharPainel(resumo) {
   $('barra-entradas-previsto').style.width = barras.entradas.previsto + '%';
   $('barra-despesas-realizado').style.width = barras.despesas.realizado + '%';
   $('barra-despesas-previsto').style.width = barras.despesas.previsto + '%';
+  $('barra-da-fatura').style.width = barras.cartao + '%';
 }
 
 /** @param {string} texto @returns {HTMLElement} */
