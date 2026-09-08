@@ -29,6 +29,11 @@
   --verde-fraco: #cfe4da;
   --coral: #c8553a;
   --coral-fraco: #f0d8d1;
+
+  /* A fatia de cartão, no painel. Contraste conferido com conta, e não a olho:
+     6,69:1 sobre a superfície do cartão, acima do 4,36:1 que o coral pratica.
+     A legenda tem .75rem, que é onde contraste apertado cobra primeiro. */
+  --roxo: #6d4aa0;
   --borda: #e4e0d8;
   --borda-fraca: #efece5;
   --sombra: 0 1px 2px rgba(20, 24, 28, .06), 0 8px 24px rgba(20, 24, 28, .06);
@@ -67,6 +72,7 @@
     --verde-fraco: #27473a;
     --coral: #e8845f;
     --coral-fraco: #4a2e25;
+    --roxo: #b39ddb;
     --borda: #2a3138;
     --borda-fraca: #232930;
     --sombra: none;
@@ -84,6 +90,7 @@
   --verde-fraco: #27473a;
   --coral: #e8845f;
   --coral-fraco: #4a2e25;
+  --roxo: #b39ddb;
   --borda: #2a3138;
   --borda-fraca: #232930;
   --sombra: none;
@@ -304,9 +311,30 @@ h1 { font-size: 1.75rem; line-height: 1.2; letter-spacing: -.02em; margin: 8px 0
 .barra-valor { font-size: .9375rem; font-weight: 600; }
 
 /* A fatia das despesas que é fatura de cartão. Ocupa a grade inteira, entre o
-   valor e o trilho, e usa o tom fraco: é um detalhe do número acima, não um
-   segundo número competindo com ele. */
-.legenda-cartao { grid-column: 1 / -1; font-size: .75rem; color: var(--tinta-suave); }
+   valor e o trilho.
+
+   Era tom fraco, para ser "um detalhe do número acima". Deixou de ser: agora
+   ela é a etiqueta da barrinha roxa logo abaixo do trilho, e precisa ser
+   reconhecível como o mesmo assunto. O ponto antes do texto é o que amarra os
+   dois — sem ele, cor sozinha carregaria a ligação, e cor sozinha não serve a
+   quem não distingue roxo de cinza. */
+.legenda-cartao {
+  grid-column: 1 / -1;
+  font-size: .75rem;
+  color: var(--roxo);
+  display: flex;
+  align-items: center;
+  gap: .375rem;
+}
+
+.legenda-cartao::before {
+  content: '';
+  width: .5rem;
+  height: .5rem;
+  border-radius: 50%;
+  background: var(--roxo);
+  flex: none;
+}
 
 /* Os dois trechos vivem lado a lado dentro do trilho: o cheio é o que já
    aconteceu, o claro é o que ainda falta. Somados dão o previsto do lado. */
@@ -320,6 +348,35 @@ h1 { font-size: 1.75rem; line-height: 1.2; letter-spacing: -.02em; margin: 8px 0
 }
 
 .trecho { height: 100%; width: 0; transition: width .25s ease; }
+
+/* A barrinha do cartão. SEM fundo, de propósito: um segundo trilho cinza de
+   ponta a ponta leria como uma terceira barra do painel, competindo com
+   Receitas e Despesas. Sem fundo, o que se vê é só o pedaço roxo, começando no
+   mesmo lugar que a barra de cima — e o que ele diz é "esta fatia daquela
+   barra é cartão".
+
+   Mais fina que o trilho porque é subordinada a ele. */
+.trilho-da-fatura {
+  grid-column: 1 / -1;
+  display: flex;
+  margin-top: 3px;
+}
+
+/* O modificador se chama `fatura`, e NÃO `cartao`, porque `.cartao` já é o
+   contêiner branco de todo bloco do app (lá em cima, na linha do `.cartao`).
+   Chamado de `cartao`, este trecho herdava os 18px de preenchimento e a borda
+   daquele contêiner e, com `box-sizing: border-box`, os 4px de altura viravam
+   38 — a barrinha saía como um bloco por cima da legenda. Colisão de nome de
+   classe não avisa; só aparece na tela.
+
+   A altura vai por extenso, e não com o `height: 100%` que `.trecho` dá aos
+   irmãos: aqui o trilho não tem altura própria, então a porcentagem não teria
+   contra o que resolver. */
+.trecho.fatura {
+  height: 4px;
+  background: var(--roxo);
+  border-radius: 2px;
+}
 .trecho.cheio.entrada { background: var(--verde); }
 .trecho.claro.entrada { background: var(--verde-fraco); }
 .trecho.cheio.saida { background: var(--coral); }

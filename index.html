@@ -104,6 +104,13 @@
             <div class="trecho cheio saida" id="barra-despesas-realizado"></div>
             <div class="trecho claro saida" id="barra-despesas-previsto"></div>
           </div>
+
+          <!-- A fatia de cartão, em linha própria. Ela não entra no trilho de
+               cima porque lá o roxo disputaria significado com o cheio e o
+               claro. Ver docs/o-cartao-no-painel.md. -->
+          <div class="trilho-da-fatura" id="trilho-da-fatura" hidden>
+            <div class="trecho fatura" id="barra-da-fatura"></div>
+          </div>
         </div>
 
         <p class="legenda">

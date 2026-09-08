@@ -1581,7 +1581,7 @@ export function resumoDoMes(lancamentos, realizados, mes, faturas) {
   };
 }
 
-/* Largura dos dois trechos de cada barra, em porcentagem.
+/* Largura dos trechos das barras do painel, em porcentagem.
  *
  * As duas barras dividem a mesma referência — o maior dos dois previstos — para
  * que "vai sair mais do que entra" seja visível de relance. Dentro de cada
@@ -1593,10 +1593,16 @@ export function resumoDoMes(lancamentos, realizados, mes, faturas) {
  * de tipos que apontou a diferença, a partir de um teste que já passava um
  * resumo parcial.
  *
+ * `emCartao` é obrigatório e não tem valor padrão, pela mesma razão que o
+ * `faturas` do resumoDoMes não tem: um padrão silencioso fabrica a chamada
+ * esquecida que devolve a barrinha faltando sem ninguém notar.
+ *
  * @param {{ entradas: { previsto: number, realizado: number },
- *           despesas: { previsto: number, realizado: number } }} resumo
+ *           despesas: { previsto: number, realizado: number },
+ *           emCartao: number }} resumo
  * @returns {{ entradas: { realizado: number, previsto: number },
- *             despesas: { realizado: number, previsto: number } }}
+ *             despesas: { realizado: number, previsto: number },
+ *             cartao: number }}
  */
 export function proporcoesDasBarras(resumo) {
   const referencia = Math.max(resumo.entradas.previsto, resumo.despesas.previsto);
@@ -1610,7 +1616,16 @@ export function proporcoesDasBarras(resumo) {
           previsto: (Math.max(lado.previsto - lado.realizado, 0) / referencia) * 100,
         };
 
-  return { entradas: fatiar(resumo.entradas), despesas: fatiar(resumo.despesas) };
+  return {
+    entradas: fatiar(resumo.entradas),
+    despesas: fatiar(resumo.despesas),
+    /* A barrinha do cartão fica DEBAIXO do trilho de Despesas, e por isso usa a
+       mesma referência que ele: barra embaixo de barra é comparada por quem
+       olha, quer a gente queira ou não. Medi-la contra o total de despesas
+       faria uma fatura de 4 mil encher a barrinha inteira e parecer maior que
+       a despesa de 11 mil logo acima. */
+    cartao: referencia === 0 ? 0 : (resumo.emCartao / referencia) * 100,
+  };
 }
 
 /* ---------- Para onde o dinheiro foi, e os limites ---------- */

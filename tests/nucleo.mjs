@@ -590,10 +590,12 @@ conferir(
   proporcoesDasBarras({
     entradas: { previsto: 1000, realizado: 250 },
     despesas: { previsto: 500, realizado: 500 },
+    emCartao: 0,
   }),
   {
     entradas: { realizado: 25, previsto: 75 },
     despesas: { realizado: 50, previsto: 0 },
+    cartao: 0,
   }
 );
 conferir(
@@ -601,17 +603,56 @@ conferir(
   proporcoesDasBarras({
     entradas: { previsto: 500, realizado: 0 },
     despesas: { previsto: 1000, realizado: 0 },
+    emCartao: 0,
   }),
   {
     entradas: { realizado: 0, previsto: 50 },
     despesas: { realizado: 0, previsto: 100 },
+    cartao: 0,
   }
 );
 conferir(
   'mês vazio não divide por zero',
-  proporcoesDasBarras({ entradas: { previsto: 0, realizado: 0 }, despesas: { previsto: 0, realizado: 0 } }),
-  { entradas: { realizado: 0, previsto: 0 }, despesas: { realizado: 0, previsto: 0 } }
+  proporcoesDasBarras({
+    entradas: { previsto: 0, realizado: 0 },
+    despesas: { previsto: 0, realizado: 0 },
+    emCartao: 0,
+  }),
+  { entradas: { realizado: 0, previsto: 0 }, despesas: { realizado: 0, previsto: 0 }, cartao: 0 }
 );
+
+/* A barrinha do cartao mede contra a MESMA referencia das barras de cima — o
+   maior dos dois previstos —, e nao contra o total de despesas. Aqui a receita
+   e a maior, entao a fatura de 400 vale 40% da largura, e nao os 80% que ela
+   representa das despesas. Se alguem trocar a referencia, este teste pega. */
+conferir(
+  'a barrinha do cartao usa a escala das barras, nao o total de despesas',
+  proporcoesDasBarras({
+    entradas: { previsto: 1000, realizado: 0 },
+    despesas: { previsto: 500, realizado: 0 },
+    emCartao: 400,
+  }).cartao,
+  40
+);
+
+/* Mes em que TODA a despesa e fatura: a barrinha acompanha a barra de cima,
+   ponta a ponta. E o caso que revela escala trocada mais rapido — se as duas
+   nao terminarem no mesmo lugar, esta errado. */
+conferir(
+  'fatura sozinha faz a barrinha acompanhar a barra inteira',
+  proporcoesDasBarras({
+    entradas: { previsto: 0, realizado: 0 },
+    despesas: { previsto: 800, realizado: 0 },
+    emCartao: 800,
+  }).cartao,
+  100
+);
+
+conferir('mes sem cartao nao desenha barrinha', proporcoesDasBarras({
+  entradas: { previsto: 1000, realizado: 0 },
+  despesas: { previsto: 600, realizado: 0 },
+  emCartao: 0,
+}).cartao, 0);
 
 /* ---------- as categorias de fábrica ---------- */
 
