@@ -2043,6 +2043,61 @@ $campo('campo-data').addEventListener('change', atualizarDicaDoCartao);
 $campo('campo-dia').addEventListener('input', atualizarDicaDoCartao);
 $selecao('campo-repeticao').addEventListener('change', atualizarDicaDoCartao);
 
+/* ---------- Instalar o app ---------- */
+
+/* O `beforeinstallprompt` nao esta no padrao, entao nao esta nos tipos do DOM.
+   O typedef descreve so o que o app usa dele. */
+/**
+ * @typedef {Event & {
+ *   prompt: () => Promise<void>,
+ *   userChoice: Promise<{ outcome: string }>,
+ * }} ConviteDeInstalacao
+ */
+
+/* O navegador so emite o convite quando o app cumpre os requisitos de PWA *e*
+   ainda nao esta instalado. Por isso nao ha checagem propria de "ja instalado"
+   aqui: a ausencia do evento ja e a resposta.
+
+   O botao nasce escondido no index.html e so aparece com o convite na mao. Um
+   "Instalar" que nao instala — porque o navegador nao instala, porque o app ja
+   esta instalado — e pior que nenhum: ensina que o app e quebrado. Ver
+   docs/instalar-no-desktop.md. */
+
+/** @type {ConviteDeInstalacao|null} */
+let conviteDeInstalacao = null;
+
+window.addEventListener('beforeinstallprompt', (evento) => {
+  /* Sem isto o Chrome do Android mostra a barrinha de instalacao dele por cima
+     do app. O convite passa a ser nosso, e aparece onde a pessoa foi procurar. */
+  evento.preventDefault();
+  conviteDeInstalacao = /** @type {ConviteDeInstalacao} */ (evento);
+  $('ajuste-instalar').hidden = false;
+});
+
+$('botao-instalar').addEventListener('click', () => {
+  const convite = conviteDeInstalacao;
+  if (!convite) return;
+
+  /* O convite serve uma vez so: chamar `prompt()` duas vezes no mesmo evento
+     falha. Entao o cartao sai do ar respondido o que for — instalou, ou
+     desistiu. Quem desistiu sem querer recarrega a pagina, e o navegador emite
+     o convite de novo. */
+  conviteDeInstalacao = null;
+  $('ajuste-instalar').hidden = true;
+
+  convite.prompt().catch(() => {
+    /* O navegador recusou o convite. O cartao ja saiu do ar, e recarregar a
+       pagina traz outro. */
+  });
+});
+
+/* Instalar pelo icone da barra de endereco, com a aba aberta, nao passa pelo
+   botao daqui — mas deixa o cartao obsoleto do mesmo jeito. */
+window.addEventListener('appinstalled', () => {
+  conviteDeInstalacao = null;
+  $('ajuste-instalar').hidden = true;
+});
+
 /* ---------- Service worker ---------- */
 
 /* Registra depois do load: em Android de entrada, disputar banda com o primeiro
