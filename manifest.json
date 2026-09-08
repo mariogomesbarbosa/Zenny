@@ -1,0 +1,35 @@
+{
+  "id": "/Zenny/",
+  "name": "Zenny — Controle Financeiro",
+  "short_name": "Zenny",
+  "description": "Controle de receitas, despesas e cartões mês a mês.",
+  "start_url": "/Zenny/",
+  "scope": "/Zenny/",
+  "display": "standalone",
+  "display_override": ["standalone", "minimal-ui"],
+  "orientation": "any",
+  "lang": "pt-BR",
+  "dir": "ltr",
+  "theme_color": "#0f1216",
+  "background_color": "#0f1216",
+  "icons": [
+    {
+      "src": "./icons/icon-192.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "any"
+    },
+    {
+      "src": "./icons/icon-512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any"
+    },
+    {
+      "src": "./icons/icon-maskable-512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "maskable"
+    }
+  ]
+}
