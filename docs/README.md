@@ -48,6 +48,11 @@ própria fatura.
 Próximo no roteiro: **B7 — guardar para algo** (as metas), que trocou de lugar
 com os cartões e ainda não tem tela.
 
+As melhorias identificadas usando o app, com status, estão em
+[melhorias.md](melhorias.md) — separadas das ressalvas de
+[pendencias.md](pendencias.md), que são o que cada bloco deixou de fora de
+propósito.
+
 Vale ler antes de seguir: a [pendência 3](pendencias.md) — o menu de
 compartilhar do Android, que é o que faz a cópia sair do celular, ainda não foi
 exercitado num aparelho real.
