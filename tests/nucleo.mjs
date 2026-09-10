@@ -43,14 +43,14 @@ import {
   faturaDaCompra,
   dataPadraoDaFatura,
   idDaFatura,
-  chaveDeFatura,
   cartaoPorId,
   cartoesAtivos,
   criarCartao,
   alterarCartao,
   arquivarCartao,
   comprasDaFatura,
-  definirValorDaFatura,
+  ajusteDeFatura,
+  DESCRICAO_DO_AJUSTE,
   faturaDoMes,
   faturasDoMes,
   ocultarCategoria,
@@ -302,13 +302,12 @@ conferir(
 /* ---------- estado ---------- */
 
 const VAZIO = {
-  versao: 6,
+  versao: 7,
   lancamentos: [],
   realizados: {},
   categorias: [],
   limites: {},
   cartoes: [],
-  faturas: {},
 };
 
 conferir('estado vazio', estadoVazio(), VAZIO);
@@ -340,7 +339,7 @@ conferir(
     lancamentos: [{ id: 'a', tipo: 'entrada', descricao: 'Salário', valor: 350000, data: '2026-09-05' }],
   }),
   {
-    versao: 6,
+    versao: 7,
     lancamentos: [
       {
         id: 'a', tipo: 'entrada', descricao: 'Salário', categoria: 'salario',
@@ -351,7 +350,6 @@ conferir(
     categorias: [],
     limites: {},
     cartoes: [],
-    faturas: {},
   }
 );
 
@@ -978,7 +976,7 @@ const REALIZADOS_V3 = { 'v1|2026-09': true, 'v3|2026-09': true };
 
 const MIGRADO = normalizarEstado({ versao: 3, lancamentos: LANCAMENTOS_V3, realizados: REALIZADOS_V3 });
 
-conferir('a travessia da v3 sobe a versão', MIGRADO.versao, 6);
+conferir('a travessia da v3 sobe a versão', MIGRADO.versao, 7);
 conferir('e não perde nenhum registro', MIGRADO.lancamentos.map((l) => l.id), ['v1', 'v2', 'v3', 'v4']);
 conferir('e mantém as marcações de realizado', MIGRADO.realizados, REALIZADOS_V3);
 conferir('e nasce sem categoria do usuário e sem limite', [MIGRADO.categorias, MIGRADO.limites], [[], {}]);
@@ -1145,7 +1143,7 @@ const AGORA = new Date('2026-09-03T21:30:00-03:00');
   const estado = estadoVazio();
   const pacote = montarBackup(estado, AGORA);
   conferir('o envelope se identifica', pacote.app, 'zenny');
-  conferir('o envelope carrega a versao do esquema', pacote.versao, 6);
+  conferir('o envelope carrega a versao do esquema', pacote.versao, 7);
   conferir('o envelope carrega o estado', pacote.estado, estado);
   conferir('exportadoEm e ISO', pacote.exportadoEm, AGORA.toISOString());
 }
@@ -1279,16 +1277,32 @@ conferir(
  * A versao anterior desta fixtura tinha as sete chaves e quatro delas vazias —
  * categorias, limites, cartoes e faturas —, que sao justamente as quatro que o
  * restaurar deixava para tras. Um teste que compara vazio com vazio passa em
- * cima de qualquer defeito. Ver docs/backup-completo.md. */
+ * cima de qualquer defeito. Ver docs/backup-completo.md.
+ *
+ * O mapa `faturas` saiu na v7: o total informado virou lancamento (ver
+ * docs/ajuste-de-fatura.md). O AJUSTE entrou na lista de lancamentos no lugar
+ * dele, e o teste ficou mais forte — antes provava que um mapa atravessava,
+ * agora prova que o mecanismo novo atravessa. */
+/** @type {Avulso} */
+const AJUSTE = {
+  id: 'aj1',
+  tipo: 'saida',
+  descricao: DESCRICAO_DO_AJUSTE,
+  categoria: null,
+  cartao: 'c1',
+  fixo: false,
+  valor: 355380,
+  data: '2026-09-25',
+};
+
 /** @type {Estado} */
 const ESTADO_CHEIO = {
-  versao: 6,
-  lancamentos: [AVULSO, FIXO_ABERTO, COMPRA_NO_CARTAO],
+  versao: 7,
+  lancamentos: [AVULSO, FIXO_ABERTO, COMPRA_NO_CARTAO, AJUSTE],
   realizados: { 'a1|2026-10': true, 'fatura:c1|2026-10': true },
   categorias: [CATEGORIA_PROPRIA],
   limites: { 'ifood-do-mes': 30000 },
   cartoes: [CARTAO],
-  faturas: { 'c1|2026-10': 45000 },
 };
 
 {
@@ -1300,7 +1314,12 @@ const ESTADO_CHEIO = {
   conferir('a ida e a volta preservam as categorias proprias', lido.estado.categorias, ESTADO_CHEIO.categorias);
   conferir('a ida e a volta preservam os limites', lido.estado.limites, ESTADO_CHEIO.limites);
   conferir('a ida e a volta preservam os cartoes', lido.estado.cartoes, ESTADO_CHEIO.cartoes);
-  conferir('a ida e a volta preservam os valores de fatura informados', lido.estado.faturas, ESTADO_CHEIO.faturas);
+  const ajusteQueVoltou = lido.estado.lancamentos.find(
+    (l) => l.descricao === DESCRICAO_DO_AJUSTE && !l.fixo
+  );
+  conferir('a ida e a volta preservam o ajuste de fatura',
+    ajusteQueVoltou && !ajusteQueVoltou.fixo ? ajusteQueVoltou.valor : null, 355380);
+  conferir('e o vinculo dele com o cartao', ajusteQueVoltou?.cartao, 'c1');
   conferir('a ida e a volta preservam a fatura marcada como paga', lido.estado.realizados['fatura:c1|2026-10'], true);
 
   /* Os dois vinculos que o defeito destruia com um recarregamento de atraso: a
@@ -1328,7 +1347,8 @@ const ESTADO_CHEIO = {
 {
   const lido = lerOk(JSON.stringify(ESTADO_CHEIO));
   conferir('aceita o estado cru, sem envelope', lido.ok, true);
-  conferir('estado cru traz os lancamentos', lido.estado.lancamentos.length, 3);
+  conferir('estado cru traz os lancamentos',
+    lido.estado.lancamentos.length, ESTADO_CHEIO.lancamentos.length);
 }
 
 conferir('recusa texto que nao e JSON', erroDe('isto nao e json'), 'nao-e-json');
@@ -1505,7 +1525,6 @@ conferir('sem limite nao ha excedente', situacaoDoLimite(45000, 0).excedente, 0)
 }
 
 conferir('o id da fatura e estavel e derivado do cartao', idDaFatura('c1'), 'fatura:c1');
-conferir('a chave junta cartao e mes', chaveDeFatura('c1', '2026-10'), 'c1|2026-10');
 
 /* Um estado com um cartao (fecha 30, vence 10) e quatro saidas. */
 const COM_CARTAO = normalizarEstado({
@@ -1561,7 +1580,7 @@ conferir('compras de cartao que nao existe devolve vazio',
 
   /* NENHUM CENTAVO PERDIDO NEM DUPLICADO entre os ciclos. */
   const total = ['2026-09', '2026-10', '2026-11', '2026-12'].reduce(
-    (soma, mes) => soma + (faturaDoMes(atravessa, 'c1', mes)?.soma ?? 0), 0);
+    (soma, mes) => soma + (faturaDoMes(atravessa, 'c1', mes)?.valor ?? 0), 0);
   conferir('cada compra aparece em exatamente um ciclo', total, 1000 + 2000 + 3000 + 4000);
 }
 
@@ -1587,7 +1606,6 @@ conferir('compras de cartao que nao existe devolve vazio',
   const fatura = faturaDoMes(COM_CARTAO, 'c1', '2026-10');
   conferir('a fatura soma as compras do ciclo', fatura?.valor, 25000);
   conferir('e diz de quantas compras ela veio', fatura?.quantidade, 2);
-  conferir('sem valor informado, informado e null', fatura?.informado, null);
   conferir('a fatura cai no dia do vencimento', fatura?.dia, 10);
   conferir('a fatura e sempre saida', fatura?.tipo, 'saida');
   conferir('a fatura nao tem categoria', fatura?.categoria, null);
@@ -1609,37 +1627,110 @@ conferir('fatura de cartao que nao existe e null', faturaDoMes(COM_CARTAO, 'zzz'
   conferir('e vira 28 em fevereiro de ano comum', faturaDoMes(dia31, 'c1', '2027-02')?.dia, 28);
 }
 
-/* O VALOR INFORMADO VENCE. E a decisao central do bloco. */
+/* ---------- o ajuste de fatura ---------- */
+
+/* O DEFEITO QUE ESTE BLOCO CORRIGE: antes, o valor informado SUBSTITUIA a soma.
+   Informar o total e depois anotar uma compra deixava a compra de fora, em
+   silencio. Agora o informado vira um lancamento, e tudo soma. */
+
+/* A CONTA CENTRAL: o ajuste vale a DIFERENCA, nao o valor digitado.
+   O total lido no banco ja inclui as compras anotadas — se o ajuste valesse o
+   digitado, elas contariam duas vezes. */
 {
-  const informado = { ...COM_CARTAO, faturas: definirValorDaFatura({}, 'c1', '2026-10', 84720) };
-  const fatura = faturaDoMes(informado, 'c1', '2026-10');
-  conferir('o valor informado vence sobre a soma', fatura?.valor, 84720);
-  conferir('mas a soma continua visivel, para a tela mostrar a diferenca', fatura?.soma, 25000);
-  conferir('e o informado se identifica', fatura?.informado, 84720);
+  // COM_CARTAO tem R$ 250,00 anotados na fatura de outubro (200 + 50).
+  const ajuste = ajusteDeFatura(COM_CARTAO, 'c1', '2026-10', 356252, 'aj', '2026-09-15');
+  if (!ajuste) throw new Error('um total diferente da soma tem que gerar ajuste');
+  conferir('o ajuste vale a diferenca, nao o digitado', ajuste.valor, 356252 - 25000);
+  conferir('e e uma saida quando falta dinheiro na fatura', ajuste.tipo, 'saida');
+  conferir('com a descricao que o identifica para gente', ajuste.descricao, DESCRICAO_DO_AJUSTE);
+  conferir('vinculado ao cartao', ajuste.cartao, 'c1');
+  conferir('sem categoria: o app nao sabe no que foi gasto', ajuste.categoria, null);
+  conferir('e avulso, nao fixo', ajuste.fixo, false);
+
+  /* A prova do pedido: com o ajuste na lista, a fatura bate o total informado. */
+  const comAjuste = { ...COM_CARTAO, lancamentos: [...COM_CARTAO.lancamentos, ajuste] };
+  conferir('a fatura passa a valer exatamente o total informado',
+    faturaDoMes(comAjuste, 'c1', '2026-10')?.valor, 356252);
+
+  /* E ENTAO A COMPRA NOVA SOMA POR CIMA — que e o bloco inteiro. */
+  const comCompraNova = {
+    ...comAjuste,
+    lancamentos: [...comAjuste.lancamentos,
+      /** @type {Avulso} */
+      ({ id: 'nova', tipo: 'saida', descricao: 'Padaria', categoria: null, cartao: 'c1',
+         fixo: false, valor: 5000, data: '2026-09-28' })],
+  };
+  conferir('a compra anotada DEPOIS do ajuste soma, em vez de ser ignorada',
+    faturaDoMes(comCompraNova, 'c1', '2026-10')?.valor, 356252 + 5000);
+
+  /* Informar um total NOVO mede a diferenca contra a soma inteira, ajuste
+     anterior incluido. Vale por construcao: nada marca o ajuste como ajuste. */
+  const segundo = ajusteDeFatura(comCompraNova, 'c1', '2026-10', 400000, 'aj2', '2026-09-15');
+  if (!segundo) throw new Error('o segundo total, diferente, tem que gerar ajuste');
+  conferir('o segundo ajuste mede contra a soma inteira', segundo.valor, 400000 - (356252 + 5000));
+  const comDois = { ...comCompraNova, lancamentos: [...comCompraNova.lancamentos, segundo] };
+  conferir('e a fatura bate o segundo total informado',
+    faturaDoMes(comDois, 'c1', '2026-10')?.valor, 400000);
+  conferir('com os dois ajustes na lista, na ordem',
+    comprasDaFatura(comDois, 'c1', '2026-10').filter((l) => l.descricao === DESCRICAO_DO_AJUSTE).length, 2);
 }
 
-/* Informado MENOR que a soma tambem vence: a pessoa pode ter pago parte antes,
-   ou anotado uma compra que nao entrou nesta fatura. Nao cabe ao app discordar. */
+/* O AJUSTE QUE SUBTRAI e uma ENTRADA no cartao, de valor POSITIVO.
+   Todo valor no app e positivo e o `tipo` da o sinal; um valor negativo
+   quebraria essa invariante em toda conta, nao so no cartao. */
 {
-  const menor = { ...COM_CARTAO, faturas: definirValorDaFatura({}, 'c1', '2026-10', 1000) };
-  conferir('informado menor que a soma tambem vence', faturaDoMes(menor, 'c1', '2026-10')?.valor, 1000);
+  const credito = ajusteDeFatura(COM_CARTAO, 'c1', '2026-10', 20000, 'aj', '2026-09-15');
+  if (!credito) throw new Error('um total menor que a soma tem que gerar credito');
+  conferir('total menor que a soma gera uma entrada', credito.tipo, 'entrada');
+  conferir('com valor positivo', credito.valor, 5000);
+  conferir('e o valor e a diferenca em modulo', credito.valor, Math.abs(20000 - 25000));
+
+  const comCredito = { ...COM_CARTAO, lancamentos: [...COM_CARTAO.lancamentos, credito] };
+  conferir('a fatura desce para o total informado',
+    faturaDoMes(comCredito, 'c1', '2026-10')?.valor, 20000);
+
+  /* O credito NAO vira receita do mes: lancamentosDaConta filtra por cartao. */
+  conferir('o credito do cartao nao entra nas receitas do mes',
+    resumoDoMes(comCredito.lancamentos, {}, '2026-09', faturasDoMes(comCredito, '2026-09')).entradas.previsto,
+    300000);
 }
 
-/* Zero ou lixo REMOVE o informado, em vez de gravar uma fatura de R$ 0,00. */
-conferir('zero remove o valor informado',
-  definirValorDaFatura({ 'c1|2026-10': 5000 }, 'c1', '2026-10', 0), {});
-conferir('negativo remove tambem',
-  definirValorDaFatura({ 'c1|2026-10': 5000 }, 'c1', '2026-10', -1), {});
-conferir('lixo remove tambem',
-  definirValorDaFatura({ 'c1|2026-10': 5000 }, 'c1', '2026-10', 'abc'), {});
-conferir('mes invalido nao grava nada', definirValorDaFatura({}, 'c1', 'ontem', 5000), {});
-conferir('o valor informado e truncado para centavo inteiro',
-  definirValorDaFatura({}, 'c1', '2026-10', 8472.9)['c1|2026-10'], 8472);
+/* Nada a ajustar devolve `null` — nao e erro, e a resposta certa. */
+conferir('informar o mesmo total nao gera ajuste',
+  ajusteDeFatura(COM_CARTAO, 'c1', '2026-10', 25000, 'aj', '2026-09-15'), null);
+conferir('cartao que nao existe nao gera ajuste',
+  ajusteDeFatura(COM_CARTAO, 'zzz', '2026-10', 5000, 'aj', '2026-09-15'), null);
+conferir('sem id nao gera ajuste',
+  ajusteDeFatura(COM_CARTAO, 'c1', '2026-10', 5000, '', '2026-09-15'), null);
+conferir('mes invalido nao gera ajuste',
+  ajusteDeFatura(COM_CARTAO, 'c1', 'ontem', 5000, 'aj', '2026-09-15'), null);
+conferir('total ilegivel nao gera ajuste',
+  ajusteDeFatura(COM_CARTAO, 'c1', '2026-10', 'abc', 'aj', '2026-09-15'), null);
 
-/* Depois de remover o informado, a fatura volta a valer a soma — e nao zero. */
+/* Total negativo e lido como zero: a fatura nao vem devendo menos que nada. */
 {
-  const removido = { ...COM_CARTAO, faturas: definirValorDaFatura({ 'c1|2026-10': 84720 }, 'c1', '2026-10', 0) };
-  conferir('removido o informado, a soma volta a valer', faturaDoMes(removido, 'c1', '2026-10')?.valor, 25000);
+  const zerado = ajusteDeFatura(COM_CARTAO, 'c1', '2026-10', -500, 'aj', '2026-09-15');
+  conferir('total negativo zera a fatura, em vez de virar do avesso', zerado?.valor, 25000);
+  conferir('e e um credito', zerado?.tipo, 'entrada');
+}
+
+/* O valor e truncado para centavo inteiro, como todo dinheiro no app. */
+conferir('o total informado e truncado',
+  ajusteDeFatura(COM_CARTAO, 'c1', '2026-10', 30000.9, 'aj', '2026-09-15')?.valor, 5000);
+
+/* A DATA cai dentro do ciclo — senao o ajuste iria para a fatura errada. */
+{
+  const cartao = cartaoPorId(COM_CARTAO, 'c1');
+  if (!cartao) throw new Error('a fixtura COM_CARTAO tem que ter o cartao c1');
+
+  const dentro = ajusteDeFatura(COM_CARTAO, 'c1', '2026-10', 356252, 'aj', '2026-09-15');
+  conferir('a data do ajuste cai no ciclo da fatura ajustada',
+    dentro && faturaDaCompra(cartao, dentro.data), '2026-10');
+
+  // Olhando de um mes que nao e o do ciclo, a data vai para o fechamento.
+  const deLonge = ajusteDeFatura(COM_CARTAO, 'c1', '2026-12', 10000, 'aj', '2026-09-15');
+  conferir('e tambem quando hoje esta longe do ciclo',
+    deLonge && faturaDaCompra(cartao, deLonge.data), '2026-12');
 }
 
 /* Fatura sem valor nenhum fica de fora da lista do mes: nao vira ruido. */
@@ -1803,9 +1894,10 @@ conferir('a de setembro traz o que mexe na conta, em ordem de dia',
 
 /* ---------- migracao e faxina ---------- */
 
-conferir('estado da v4 ganha cartoes e faturas vazios',
-  [normalizarEstado({ versao: 4, lancamentos: [] }).cartoes,
-   normalizarEstado({ versao: 4, lancamentos: [] }).faturas], [[], {}]);
+conferir('estado da v4 ganha a lista de cartoes vazia',
+  normalizarEstado({ versao: 4, lancamentos: [] }).cartoes, []);
+conferir('e nao carrega mais o mapa de faturas',
+  'faturas' in normalizarEstado({ versao: 4, lancamentos: [] }), false);
 
 conferir('lancamento sem cartao vira cartao null',
   normalizarEstado({ versao: 4, lancamentos: [
@@ -1845,8 +1937,8 @@ conferir('lancamento sem cartao vira cartao null',
     resumoDoMes(orfa.lancamentos, {}, '2026-09', []).despesas.previsto, 20000);
 }
 
-conferir('valor de fatura de cartao apagado sai',
-  normalizarEstado({ versao: 6, lancamentos: [], cartoes: [], faturas: { 'apagado|2026-10': 5000 } }).faturas, {});
+conferir('valor de fatura de cartao apagado nao vira ajuste orfao',
+  normalizarEstado({ versao: 6, lancamentos: [], cartoes: [], faturas: { 'apagado|2026-10': 5000 } }).lancamentos, []);
 
 conferir('cartao com id repetido nao entra duas vezes',
   normalizarEstado({ versao: 6, lancamentos: [], cartoes: [
@@ -1880,6 +1972,75 @@ conferir('cartao sem nome nao entra',
   conferir('mas a fatura de cartao que nao existe mais e descartada', semCartao.realizados, {});
 }
 
+
+/* ---------- a travessia da v6 para a v7 ---------- */
+
+/* A REGUA DA MIGRACAO, e a unica coisa que ela precisa garantir: O VALOR DE
+   TODA FATURA E O MESMO ANTES E DEPOIS. Quem informou R$ 3.562,52 continua
+   vendo R$ 3.562,52 — a diferenca e que agora da para ver de onde ele vem. */
+{
+  const V6 = {
+    versao: 6,
+    cartoes: [{ id: 'c1', nome: 'Nubank', limite: 0, fechamento: 30, vencimento: 10 }],
+    lancamentos: [
+      { id: 'u', tipo: 'saida', descricao: 'Uber trabalho', cartao: 'c1', valor: 872, data: '2026-09-12' },
+    ],
+    // O total informado na v6 SUBSTITUIA a soma: a fatura valia 356252.
+    faturas: { 'c1|2026-10': 356252 },
+  };
+
+  const migrado = normalizarEstado(V6);
+
+  conferir('a fatura vale o mesmo depois da travessia',
+    faturaDoMes(migrado, 'c1', '2026-10')?.valor, 356252);
+  conferir('o mapa de faturas nao existe mais', 'faturas' in migrado, false);
+
+  const ajustes = comprasDaFatura(migrado, 'c1', '2026-10')
+    .filter((l) => l.descricao === DESCRICAO_DO_AJUSTE);
+  conferir('nasceu um ajuste, e um so', ajustes.length, 1);
+  conferir('valendo a diferenca, e nao o total', ajustes[0].valor, 356252 - 872);
+  conferir('e a compra que ja existia segue na fatura',
+    comprasDaFatura(migrado, 'c1', '2026-10').some((l) => l.id === 'u'), true);
+
+  /* E O PEDIDO DO BLOCO, do outro lado da travessia: a compra nova soma. */
+  const comCompraNova = {
+    ...migrado,
+    lancamentos: [...migrado.lancamentos,
+      /** @type {Avulso} */
+      ({ id: 'n', tipo: 'saida', descricao: 'Padaria', categoria: null, cartao: 'c1',
+         fixo: false, valor: 5000, data: '2026-09-28' })],
+  };
+  conferir('depois de migrar, a compra nova soma no total',
+    faturaDoMes(comCompraNova, 'c1', '2026-10')?.valor, 356252 + 5000);
+
+  /* A migracao NAO pode depender do relogio: rodar duas vezes o mesmo dado tem
+     que dar o mesmo resultado, com o mesmo id. */
+  conferir('a travessia e deterministica',
+    normalizarEstado(V6).lancamentos, migrado.lancamentos);
+  conferir('e o id do ajuste e derivado, nao sorteado', ajustes[0].id, 'ajuste:c1:2026-10');
+}
+
+/* Informado IGUAL a soma nao gera ajuste: nao havia divergencia para registrar. */
+conferir('total informado igual a soma atravessa sem criar ajuste',
+  normalizarEstado({
+    versao: 6,
+    cartoes: [{ id: 'c1', nome: 'X', limite: 0, fechamento: 30, vencimento: 10 }],
+    lancamentos: [{ id: 'a', tipo: 'saida', descricao: 'Compra', cartao: 'c1', valor: 5000, data: '2026-09-12' }],
+    faturas: { 'c1|2026-10': 5000 },
+  }).lancamentos.length, 1);
+
+/* Informado MENOR que a soma vira credito na travessia. */
+{
+  const menor = normalizarEstado({
+    versao: 6,
+    cartoes: [{ id: 'c1', nome: 'X', limite: 0, fechamento: 30, vencimento: 10 }],
+    lancamentos: [{ id: 'a', tipo: 'saida', descricao: 'Compra', cartao: 'c1', valor: 5000, data: '2026-09-12' }],
+    faturas: { 'c1|2026-10': 3000 },
+  });
+  const ajuste = menor.lancamentos.find((l) => l.descricao === DESCRICAO_DO_AJUSTE);
+  conferir('informado menor gera credito na travessia', ajuste?.tipo, 'entrada');
+  conferir('e a fatura segue valendo o informado', faturaDoMes(menor, 'c1', '2026-10')?.valor, 3000);
+}
 
 /* ---------- resultado ---------- */
 
