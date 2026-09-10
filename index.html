@@ -206,6 +206,54 @@
     </button>
   </section>
 
+  <section class="tela" id="tela-cartao-detalhe" aria-labelledby="titulo-detalhe-cartao" hidden>
+    <div class="cabecalho-detalhe">
+      <button type="button" class="botao-voltar" id="cartao-detalhe-voltar" aria-label="Voltar para a lista de cartões">
+        <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M19 12H5M12 19l-7-7 7-7"/></svg>
+        <span>Voltar</span>
+      </button>
+    </div>
+
+    <h1 id="titulo-detalhe-cartao">Fatura do cartão</h1>
+    <p class="subtitulo" id="cartao-detalhe-situacao">—</p>
+
+    <div class="cartao painel-detalhe-cartao">
+      <div class="detalhe-resumo-valores">
+        <span class="rotulo">Total da fatura</span>
+        <strong class="valor tabular saida" id="cartao-detalhe-valor">R$ 0,00</strong>
+        <p class="detalhe" id="cartao-detalhe-ciclo">—</p>
+      </div>
+
+      <div class="trilho" id="cartao-detalhe-trilho" hidden>
+        <div class="trecho cheio saida" id="cartao-detalhe-barra"></div>
+      </div>
+      <span class="cartao-limite" id="cartao-detalhe-limite-texto" hidden></span>
+
+      <div class="acoes-detalhe-cartao">
+        <button type="button" class="botao" id="detalhe-anotar-compra">Anotar uma compra</button>
+        <button type="button" class="botao contorno" id="detalhe-marcar-paga">Marcar como paga</button>
+      </div>
+
+      <div class="campo campo-ajuste-fatura">
+        <label for="campo-fatura-detalhe">Total da fatura (opcional)</label>
+        <input type="text" id="campo-fatura-detalhe" inputmode="decimal" enterkeyhint="done"
+               placeholder="0,00" class="tabular">
+        <p class="dica" id="fatura-detalhe-explicacao" hidden></p>
+      </div>
+    </div>
+
+    <section class="grupo" aria-labelledby="titulo-compras-detalhe">
+      <div class="grupo-cabeca">
+        <h2 id="titulo-compras-detalhe">Lançamentos</h2>
+        <span class="grupo-total saida tabular" id="total-compras-detalhe">R$ 0,00</span>
+      </div>
+      <ul class="lancamentos" id="lista-compras-detalhe"></ul>
+      <p class="grupo-vazio" id="detalhe-sem-compras">
+        Nenhuma compra anotada nesta fatura ainda.
+      </p>
+    </section>
+  </section>
+
   <section class="tela" id="tela-ajustes" aria-labelledby="titulo-ajustes" hidden>
     <h1 id="titulo-ajustes">Ajustes</h1>
     <p class="subtitulo">Tudo o que você anota fica neste aparelho, e em mais nenhum lugar.</p>

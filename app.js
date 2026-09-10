@@ -98,7 +98,7 @@ import {
  * @typedef {{ lancamentos: Lancamento[], realizados: Realizados, categorias: CategoriaDoUsuario[], limites: Limites, cartoes: Cartao[] }} Instantaneo
  */
 
-const TELAS = ['inicio', 'cartoes', 'ajustes', 'relatorio'];
+const TELAS = ['inicio', 'cartoes', 'cartao-detalhe', 'ajustes', 'relatorio'];
 const TELA_PADRAO = 'inicio';
 const CHAVE_TEMA = 'zenny-tema';
 
@@ -272,6 +272,7 @@ function desenhar() {
   desenharAjustes();
   desenharRelatorio();
   desenharCartoes();
+  desenharDetalheCartao();
 }
 
 function desenharCabecalho() {
@@ -579,7 +580,8 @@ function mostrarTela(nome) {
   )) {
     // aria-current é removido, não definido como "false": leitores de tela
     // anunciam qualquer valor presente.
-    if (link.dataset.tela === nome) link.setAttribute('aria-current', 'page');
+    const ativa = nome === 'cartao-detalhe' ? 'cartoes' : nome;
+    if (link.dataset.tela === ativa) link.setAttribute('aria-current', 'page');
     else link.removeAttribute('aria-current');
   }
 
@@ -588,6 +590,8 @@ function mostrarTela(nome) {
   document.body.dataset.tela = nome;
 
   $('conteudo').scrollTop = 0;
+
+  if (nome === 'cartao-detalhe') desenharDetalheCartao();
 }
 
 window.addEventListener('hashchange', () => mostrarTela(telaDaUrl()));
@@ -848,7 +852,6 @@ for (const id of [
     }
     if (id === 'dialogo-limite') limiteEmEdicao = null;
     if (id === 'dialogo-cartao') cartaoEmEdicao = null;
-    if (id === 'dialogo-fatura') faturaEmEdicao = null;
   });
 }
 
@@ -1544,11 +1547,6 @@ $('categoria-cancelar').addEventListener('click', () => {
 /** @type {string|null} */
 let cartaoEmEdicao = null;
 
-/* De qual cartão é a fatura aberta. Guarda só o id, e não o objeto: o estado é
-   reconstruído a cada `salvar()`, e um objeto guardado aqui envelheceria. */
-/** @type {string|null} */
-let faturaEmEdicao = null;
-
 function desenharCartoes() {
   const cartoes = cartoesAtivos(estado);
 
@@ -1574,7 +1572,7 @@ function linhaDoCartao(cartao) {
   toque.type = 'button';
   toque.className = 'cartao-toque';
   toque.setAttribute('aria-label', 'Abrir a fatura do ' + cartao.nome);
-  toque.addEventListener('click', () => abrirFatura(cartao.id));
+  toque.addEventListener('click', () => abrirDetalheCartao(cartao.id));
 
   const nome = document.createElement('span');
   nome.className = 'cartao-nome';
@@ -1705,55 +1703,127 @@ function arquivarCartaoAberto() {
   avisar(nome + ' foi arquivado.', () => restaurar(anterior));
 }
 
-/* ---------- A fatura ---------- */
+/* ---------- A fatura e a tela de detalhamento em tela cheia ---------- */
+
+/** @type {string|null} */
+let cartaoDetalheId = null;
 
 /** @param {string} cartaoId */
-function abrirFatura(cartaoId) {
-  faturaEmEdicao = cartaoId;
-  desenharFatura();
-  $dialogo('dialogo-fatura').showModal();
+function abrirDetalheCartao(cartaoId) {
+  cartaoDetalheId = cartaoId;
+  desenharDetalheCartao();
+  mostrarTela('cartao-detalhe');
 }
 
-function desenharFatura() {
-  if (!faturaEmEdicao) return;
-  const fatura = faturaDoMes(estado, faturaEmEdicao, mesVisivel);
-  if (!fatura) return;
+function fecharDetalheCartao() {
+  cartaoDetalheId = null;
+  mostrarTela('cartoes');
+}
 
-  $('titulo-da-fatura').textContent = fatura.descricao;
+function desenharDetalheCartao() {
+  if (!cartaoDetalheId) return;
+  const cartao = cartaoPorId(estado, cartaoDetalheId);
+  if (!cartao) return;
 
-  const paga = estaRealizado(estado.realizados, fatura.id, mesVisivel);
-  $('fatura-situacao').textContent =
-    'Vence dia ' + String(fatura.dia).padStart(2, '0') + ' de ' + rotuloDoMes(mesVisivel) +
+  const fatura = faturaDoMes(estado, cartao.id, mesVisivel);
+  const paga = estaRealizado(estado.realizados, idDaFatura(cartao.id), mesVisivel);
+
+  $('titulo-detalhe-cartao').textContent = 'Fatura do ' + cartao.nome;
+
+  $('cartao-detalhe-situacao').textContent =
+    'Vence dia ' + String(cartao.vencimento).padStart(2, '0') + ' de ' + rotuloDoMes(mesVisivel) +
     (paga ? ' — já paga.' : '.');
 
-  const compras = comprasDaFatura(estado, faturaEmEdicao, mesVisivel);
-  const lista = $('lista-de-compras');
+  $('cartao-detalhe-valor').textContent = formatarDinheiro(fatura ? fatura.valor : 0);
+
+  $('cartao-detalhe-ciclo').textContent =
+    'fecha dia ' + String(cartao.fechamento).padStart(2, '0') +
+    ' · vence dia ' + String(cartao.vencimento).padStart(2, '0');
+
+  const trilho = $('cartao-detalhe-trilho');
+  const textoLimite = $('cartao-detalhe-limite-texto');
+
+  if (cartao.limite > 0 && fatura) {
+    const situacao = situacaoDoLimite(fatura.valor, cartao.limite);
+    trilho.hidden = false;
+    $('cartao-detalhe-barra').style.width = situacao.proporcao + '%';
+
+    textoLimite.hidden = false;
+    textoLimite.textContent = situacao.estourou
+      ? formatarDinheiro(situacao.excedente) + ' acima do limite'
+      : formatarDinheiro(situacao.usado) + ' de ' + formatarDinheiro(cartao.limite);
+  } else {
+    trilho.hidden = true;
+    textoLimite.hidden = true;
+  }
+
+  const botaoPaga = $('detalhe-marcar-paga');
+  botaoPaga.textContent = paga ? 'Desmarcar como paga' : 'Marcar como paga';
+
+  const compras = comprasDaFatura(estado, cartao.id, mesVisivel);
+  const lista = $('lista-compras-detalhe');
   lista.textContent = '';
-  for (const compra of compras) lista.appendChild(linhaDaCompra(compra));
 
+  let totalCompras = 0;
+  for (const compra of compras) {
+    totalCompras += compra.tipo === 'entrada' ? -compra.valor : compra.valor;
+    lista.appendChild(linhaDaCompraDetalhe(compra));
+  }
+
+  $('total-compras-detalhe').textContent = formatarDinheiro(totalCompras);
   lista.hidden = compras.length === 0;
-  $('fatura-sem-compras').hidden = compras.length > 0;
+  $('detalhe-sem-compras').hidden = compras.length > 0;
 
-  /* O campo vem PREENCHIDO com o total atual. A pergunta é "quanto veio", e a
-     resposta corrente é o total corrente: digitar outro número ajusta para ele,
-     digitar o mesmo não faz nada. Antes ele mostrava um valor informado guardado
-     à parte, que era justamente a segunda verdade que este bloco eliminou. */
-  $campo('campo-fatura').value = fatura.valor === 0 ? '' : valorParaCampo(fatura.valor);
-  previverOAjuste();
+  $campo('campo-fatura-detalhe').value = !fatura || fatura.valor === 0 ? '' : valorParaCampo(fatura.valor);
+  previverOAjusteDetalhe();
 }
 
-/* Mostra o que vai acontecer ANTES de acontecer.
- *
- * Sem esta linha, o ajuste apareceria na lista depois do toque — um número
- * surgindo do nada numa fatura, que é o tipo de surpresa que o conceito proíbe
- * num app de dinheiro. A conta de quanto será o ajuste vem do núcleo
- * (`ajusteDeFatura`), a mesma que vai gravar: prever com uma conta e gravar com
- * outra é a receita para as duas divergirem. */
-function previverOAjuste() {
-  const previa = $('fatura-explicacao');
-  if (!faturaEmEdicao) return;
+/** @param {LancamentoDoMes} compra @returns {HTMLLIElement} */
+function linhaDaCompraDetalhe(compra) {
+  const item = document.createElement('li');
+  item.className = 'lancamento';
 
-  const digitado = $campo('campo-fatura').value.trim();
+  const toque = document.createElement('button');
+  toque.type = 'button';
+  toque.className = 'lancamento-toque';
+  toque.setAttribute('aria-label', 'Editar ' + compra.descricao);
+  toque.addEventListener('click', () => abrirFormulario(compra));
+
+  const dia = document.createElement('span');
+  dia.className = 'lancamento-dia tabular';
+  dia.textContent = String(compra.dia).padStart(2, '0');
+
+  const descricao = document.createElement('span');
+  descricao.className = 'lancamento-descricao';
+  descricao.textContent = compra.descricao;
+
+  const credito = compra.tipo === 'entrada';
+  const valor = document.createElement('span');
+  valor.className = 'lancamento-valor tabular ' + (credito ? 'entrada' : 'saida');
+  valor.textContent = (credito ? '− ' : '') + formatarDinheiro(compra.valor);
+
+  toque.append(dia, descricao, valor);
+
+  const etiquetas = document.createElement('div');
+  etiquetas.className = 'lancamento-etiquetas';
+  etiquetas.appendChild(botaoDeCategoria(compra));
+
+  const excluir = document.createElement('button');
+  excluir.type = 'button';
+  excluir.className = 'lancamento-excluir';
+  excluir.setAttribute('aria-label', 'Excluir ' + compra.descricao);
+  excluir.innerHTML = '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6 6l12 12M18 6 6 18"/></svg>';
+  excluir.addEventListener('click', () => pedirExclusao(compra));
+
+  item.append(toque, excluir, etiquetas);
+  return item;
+}
+
+function previverOAjusteDetalhe() {
+  const previa = $('fatura-detalhe-explicacao');
+  if (!cartaoDetalheId) return;
+
+  const digitado = $campo('campo-fatura-detalhe').value.trim();
   const total = digitado ? analisarValor(digitado) : 0;
 
   if (total === null) {
@@ -1762,9 +1832,7 @@ function previverOAjuste() {
     return;
   }
 
-  /* O id é falso porque este ajuste não vai ser gravado — só medido. Passar um
-     id de verdade aqui gastaria um id a cada tecla digitada. */
-  const ajuste = ajusteDeFatura(estado, faturaEmEdicao, mesVisivel, total, 'previa', hojeISO());
+  const ajuste = ajusteDeFatura(estado, cartaoDetalheId, mesVisivel, total, 'previa', hojeISO());
 
   previa.hidden = false;
   previa.textContent = !ajuste
@@ -1774,73 +1842,12 @@ function previverOAjuste() {
       : 'Vai criar um crédito de ' + formatarDinheiro(ajuste.valor) + '.';
 }
 
-/* Uma compra dentro da fatura: toque edita, X apaga.
- *
- * ESTE É O DEFEITO QUE A SEGUNDA VERSÃO DO BLOCO CORRIGE. Na primeira, a compra
- * saía da lista do mês (correto — não mexe na conta naquele mês) e aqui era só
- * texto. Não havia como editar nem apagar uma compra em lugar nenhum do app: um
- * valor digitado errado ficava errado para sempre, e cada tentativa de corrigir
- * criava uma segunda compra, inflando a fatura.
- *
- * A compra é um lançamento comum, então reusa `abrirFormulario` e
- * `pedirExclusao` — os mesmos gestos e as mesmas confirmações da lista do mês.
- * O <dialog> da fatura fecha antes, senão o formulário abriria atrás dele: dois
- * modais empilhados deixam o de baixo inerte. */
-/** @param {LancamentoDoMes} compra @returns {HTMLLIElement} */
-function linhaDaCompra(compra) {
-  const item = document.createElement('li');
-
-  const toque = document.createElement('button');
-  toque.type = 'button';
-  toque.className = 'compra-toque';
-  toque.setAttribute('aria-label', 'Editar ' + compra.descricao);
-  toque.addEventListener('click', () => {
-    $dialogo('dialogo-fatura').close();
-    abrirFormulario(compra);
-  });
-
-  const descricao = document.createElement('span');
-  descricao.textContent = compra.descricao;
-
-  /* O crédito precisa PARECER um crédito. Ele é uma entrada no cartão — o
-     ajuste que subtrai — e sem o sinal e a cor ficaria idêntico a uma compra do
-     mesmo valor, somando na cabeça de quem lê o que na verdade desconta. O
-     app já usa verde para o que entra e coral para o que sai; aqui é a mesma
-     convenção, no mesmo lugar. */
-  const credito = compra.tipo === 'entrada';
-
-  const valor = document.createElement('span');
-  valor.className = 'tabular' + (credito ? ' entrada' : '');
-  valor.textContent = (credito ? '− ' : '') + formatarDinheiro(compra.valor);
-
-  toque.append(descricao, valor);
-
-  const excluir = document.createElement('button');
-  excluir.type = 'button';
-  excluir.className = 'compra-excluir';
-  excluir.setAttribute('aria-label', 'Excluir ' + compra.descricao);
-  excluir.innerHTML = '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6 6l12 12M18 6 6 18"/></svg>';
-  excluir.addEventListener('click', () => {
-    $dialogo('dialogo-fatura').close();
-    pedirExclusao(compra);
-  });
-
-  item.append(toque, excluir);
-  return item;
-}
-
-/* Anota uma compra a partir da fatura aberta (decisão 3): ela nasce NESTA
-   fatura, e não na de hoje. Quem abre a fatura de outubro e toca em adicionar
-   espera que a compra entre em outubro — o contrário, a compra saltando de
-   fatura no instante seguinte ao toque, é a confusão que a primeira versão
-   criava. A data vai preenchida e visível, e pode ser corrigida. */
-function anotarCompraNaFatura() {
-  if (!faturaEmEdicao) return;
-  const cartao = cartaoPorId(estado, faturaEmEdicao);
+function anotarCompraNaTelaDetalhe() {
+  if (!cartaoDetalheId) return;
+  const cartao = cartaoPorId(estado, cartaoDetalheId);
   if (!cartao) return;
 
   const data = dataPadraoDaFatura(cartao, mesVisivel, hojeISO());
-  $dialogo('dialogo-fatura').close();
 
   abrirFormulario(null);
   definirTipo('saida');
@@ -1848,23 +1855,28 @@ function anotarCompraNaFatura() {
   definirRepeticao(false);
   $campo('campo-data').value = data;
   desenharEscolhaDeCartao();
-  $selecao('campo-cartao').value = cartao.id;
+  $selecao('campo-cartao').value = cartaoDetalheId;
   atualizarDicaDoCartao();
 }
 
-function salvarValorDaFatura() {
-  if (!faturaEmEdicao) return;
+function alternarFaturaPagaDetalhe() {
+  if (!cartaoDetalheId) return;
+  const fatura = faturaDoMes(estado, cartaoDetalheId, mesVisivel);
+  if (!fatura) return;
+  alternarFeito(fatura);
+  desenharDetalheCartao();
+}
 
-  const digitado = $campo('campo-fatura').value.trim();
+function salvarValorDaFaturaDetalhe() {
+  if (!cartaoDetalheId) return;
+
+  const digitado = $campo('campo-fatura-detalhe').value.trim();
   const total = digitado ? analisarValor(digitado) : 0;
   if (total === null) return;
 
-  const ajuste = ajusteDeFatura(estado, faturaEmEdicao, mesVisivel, total, novoId(), hojeISO());
+  const ajuste = ajusteDeFatura(estado, cartaoDetalheId, mesVisivel, total, novoId(), hojeISO());
 
-  /* Nada a ajustar não é erro: é a resposta certa para "informei o mesmo valor
-     de novo". Fecha e diz, em vez de gravar um lançamento de R$ 0,00. */
   if (!ajuste) {
-    $dialogo('dialogo-fatura').close();
     avisar('A fatura já estava nesse total.');
     return;
   }
@@ -1872,10 +1884,6 @@ function salvarValorDaFatura() {
   const anterior = instantaneo();
   estado = { ...estado, lancamentos: [...estado.lancamentos, ajuste] };
 
-  /* Fecha o <dialog> ANTES de avisar: um <dialog> modal aberto vai para a top
-     layer e torna inerte todo o resto, inclusive o aviso — o Desfazer ficava
-     atrás do véu, visível e sem clique. Mesma armadilha do B5. */
-  $dialogo('dialogo-fatura').close();
   salvar();
   avisar(
     ajuste.tipo === 'saida'
@@ -1883,6 +1891,19 @@ function salvarValorDaFatura() {
       : 'Crédito de ' + formatarDinheiro(ajuste.valor) + ' anotado.',
     () => restaurar(anterior)
   );
+}
+
+/** @param {string} cartaoId */
+function abrirFatura(cartaoId) {
+  abrirDetalheCartao(cartaoId);
+}
+
+function anotarCompraNaFatura() {
+  anotarCompraNaTelaDetalhe();
+}
+
+function salvarValorDaFatura() {
+  salvarValorDaFaturaDetalhe();
 }
 
 /* ---------- Relatório: para onde o dinheiro foi ---------- */
@@ -2112,10 +2133,16 @@ $('cartao-cancelar').addEventListener('click', () => {
   $dialogo('dialogo-cartao').close();
 });
 
+$('cartao-detalhe-voltar').addEventListener('click', fecharDetalheCartao);
+$('detalhe-anotar-compra').addEventListener('click', anotarCompraNaTelaDetalhe);
+$('detalhe-marcar-paga').addEventListener('click', alternarFaturaPagaDetalhe);
+$campo('campo-fatura-detalhe').addEventListener('input', previverOAjusteDetalhe);
+$campo('campo-fatura-detalhe').addEventListener('change', salvarValorDaFaturaDetalhe);
+
 $('fatura-adicionar').addEventListener('click', anotarCompraNaFatura);
 
 $('fatura-salvar').addEventListener('click', salvarValorDaFatura);
-$campo('campo-fatura').addEventListener('input', previverOAjuste);
+$campo('campo-fatura').addEventListener('input', previverOAjusteDetalhe);
 
 $('fatura-cancelar').addEventListener('click', () => {
   $dialogo('dialogo-fatura').close();

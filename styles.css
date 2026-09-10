@@ -922,6 +922,68 @@ dialog::backdrop { background: var(--veu); }
 
 .cartao-editar svg { width: 17px; height: 17px; fill: none; stroke: currentColor; stroke-width: 1.8; stroke-linecap: round; stroke-linejoin: round; }
 
+/* ---------- Tela de detalhe do cartão ---------- */
+
+.cabecalho-detalhe { margin-bottom: 12px; }
+
+.botao-voltar {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 8px 14px 8px 10px;
+  border: 1px solid var(--borda-fraca);
+  border-radius: 20px;
+  background: var(--superficie);
+  color: var(--tinta-forte);
+  font: inherit;
+  font-size: .875rem;
+  font-weight: 500;
+  cursor: pointer;
+  box-shadow: var(--sombra-sutil);
+  -webkit-tap-highlight-color: transparent;
+}
+
+.botao-voltar svg {
+  width: 18px;
+  height: 18px;
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 2;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+
+.painel-detalhe-cartao {
+  margin-bottom: 24px;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.detalhe-resumo-valores {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.detalhe-resumo-valores .valor {
+  font-size: 1.75rem;
+  font-weight: 700;
+}
+
+.acoes-detalhe-cartao {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 8px;
+  margin-top: 4px;
+}
+
+.campo-ajuste-fatura {
+  margin-top: 4px;
+  padding-top: 12px;
+  border-top: 1px solid var(--borda-fraca);
+}
+
 /* As compras que compõem a fatura, dentro da folha. Rola quando são muitas, em
    vez de empurrar o campo do valor e os botões para fora da tela — foi
    exatamente assim que o "Salvar" do diálogo de limite se perdeu em 360px. */
