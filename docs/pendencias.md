@@ -26,6 +26,9 @@ seis meses depois.
 | 17 | **O `id` do Daysk continua `"./"`** | Mesmo defeito, outro repositório: o Daysk segue reivindicando `https://mariogomesbarbosa.github.io/` como identidade. Enquanto o Zenny tem `id` próprio a colisão não volta, mas o Daysk merece o mesmo conserto |
 | 14 | Cartão arquivado não tem como voltar | `arquivarCartao` esconde da lista e para de gerar fatura, mas não há tela para desarquivar. Mesma lacuna da pendência 9, e a mesma resposta: enquanto ninguém arquivar por engano, ela é barata |
 
+| 15 | O ajuste-crédito fica fora do Relatório | `gastosPorCategoria` conta só saídas, e o crédito é uma entrada no cartão. Ele não tem categoria para reduzir, e inventar uma seria pior que a omissão. Ver [ajuste-de-fatura.md](ajuste-de-fatura.md) |
+| 16 | `storage.js` existe e não está ligado ao `app.js` | Chegou pelo commit de upload, com o namespace por aplicativo que o `sw.js` já adotou. Enquanto ninguém o importa, ele é código morto servido ao navegador — decidir entre ligar ou remover é assunto de PR próprio |
+
 ## Resolvidas
 
 | Ressalva | Como se resolveu |
@@ -36,4 +39,5 @@ seis meses depois.
 | Repositório público sem licença | Licença MIT adicionada: qualquer um pode usar, modificar e distribuir, inclusive em produto fechado, desde que o aviso de copyright viaje junto |
 | A compra no cartão ficava inalcançável depois de criada | A segunda versão do B6 deu à compra as mesmas portas do lançamento comum: linha tocável dentro da fatura, com X para apagar, e um botão de anotar. A pendência nasceu e morreu no mesmo bloco, antes de chegar à `main` |
 | A fatura caía no mês seguinte por regra fixa, sem fechamento | A segunda versão do B6 trouxe a data de fechamento. A aproximação M+1 servia enquanto a fatura era um número; parou de servir quando a pessoa passou a lançar compras dentro dela |
+| O total informado da fatura ignorava as compras anotadas depois dele | O valor informado virou um lançamento "Ajuste de fatura", e a fatura voltou a ser sempre a soma dos seus lançamentos. Ver [ajuste-de-fatura.md](ajuste-de-fatura.md) |
 | Nenhum teste no repositório | O B1 trouxe `tests/nucleo.mjs`, com 55 casos sobre dinheiro e meses. A regra do `CLAUDE.md` — toda função que faz conta com dinheiro tem teste — passa a valer de fato |
