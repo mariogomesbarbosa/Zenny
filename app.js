@@ -53,7 +53,7 @@ import {
   faturasDoMes,
   comprasDaFatura,
   faturaDaCompra,
-  definirValorDaFatura,
+  ajusteDeFatura,
   dataPadraoDaFatura,
   idDaFatura,
   situacaoDoLimite,
@@ -77,7 +77,6 @@ import {
  * @typedef {import('./nucleo.js').GastoDeCategoria} GastoDeCategoria
  * @typedef {import('./nucleo.js').ItemDoMes} ItemDoMes
  * @typedef {import('./nucleo.js').Cartao} Cartao
- * @typedef {import('./nucleo.js').Faturas} Faturas
  * @typedef {import('./nucleo.js').Fatura} Fatura
  */
 
@@ -96,7 +95,7 @@ import {
 /**
  * O par que o desfazer guarda. Como nada é mutado no lugar, as referências
  * antigas seguem válidas.
- * @typedef {{ lancamentos: Lancamento[], realizados: Realizados, categorias: CategoriaDoUsuario[], limites: Limites, cartoes: Cartao[], faturas: Faturas }} Instantaneo
+ * @typedef {{ lancamentos: Lancamento[], realizados: Realizados, categorias: CategoriaDoUsuario[], limites: Limites, cartoes: Cartao[] }} Instantaneo
  */
 
 const TELAS = ['inicio', 'cartoes', 'ajustes', 'relatorio'];
@@ -247,7 +246,6 @@ function instantaneo() {
     categorias: estado.categorias,
     limites: estado.limites,
     cartoes: estado.cartoes,
-    faturas: estado.faturas,
   };
 }
 
@@ -1736,20 +1734,44 @@ function desenharFatura() {
   lista.hidden = compras.length === 0;
   $('fatura-sem-compras').hidden = compras.length > 0;
 
-  $campo('campo-fatura').value = fatura.informado === null ? '' : valorParaCampo(fatura.informado);
-  $('fatura-remover').hidden = fatura.informado === null;
+  /* O campo vem PREENCHIDO com o total atual. A pergunta é "quanto veio", e a
+     resposta corrente é o total corrente: digitar outro número ajusta para ele,
+     digitar o mesmo não faz nada. Antes ele mostrava um valor informado guardado
+     à parte, que era justamente a segunda verdade que este bloco eliminou. */
+  $campo('campo-fatura').value = fatura.valor === 0 ? '' : valorParaCampo(fatura.valor);
+  previverOAjuste();
+}
 
-  /* A frase que explica a precedência só aparece quando os dois números
-     existem E discordam. Quando batem, dizer "o informado vence" seria ruído
-     sobre uma diferença de zero. */
-  const explicacao = $('fatura-explicacao');
-  const discordam = fatura.informado !== null && fatura.informado !== fatura.soma;
-  explicacao.hidden = !discordam && compras.length === 0;
-  explicacao.textContent = discordam
-    ? 'Você anotou ' + formatarDinheiro(fatura.soma) + ' em compras. Vale o valor que você informou.'
-    : compras.length
-      ? 'Sem um valor informado, vale a soma das compras: ' + formatarDinheiro(fatura.soma) + '.'
-      : '';
+/* Mostra o que vai acontecer ANTES de acontecer.
+ *
+ * Sem esta linha, o ajuste apareceria na lista depois do toque — um número
+ * surgindo do nada numa fatura, que é o tipo de surpresa que o conceito proíbe
+ * num app de dinheiro. A conta de quanto será o ajuste vem do núcleo
+ * (`ajusteDeFatura`), a mesma que vai gravar: prever com uma conta e gravar com
+ * outra é a receita para as duas divergirem. */
+function previverOAjuste() {
+  const previa = $('fatura-explicacao');
+  if (!faturaEmEdicao) return;
+
+  const digitado = $campo('campo-fatura').value.trim();
+  const total = digitado ? analisarValor(digitado) : 0;
+
+  if (total === null) {
+    previa.hidden = false;
+    previa.textContent = 'Não entendi esse valor.';
+    return;
+  }
+
+  /* O id é falso porque este ajuste não vai ser gravado — só medido. Passar um
+     id de verdade aqui gastaria um id a cada tecla digitada. */
+  const ajuste = ajusteDeFatura(estado, faturaEmEdicao, mesVisivel, total, 'previa', hojeISO());
+
+  previa.hidden = false;
+  previa.textContent = !ajuste
+    ? 'É o total que a fatura já tem. Nada a ajustar.'
+    : ajuste.tipo === 'saida'
+      ? 'Vai criar um ajuste de ' + formatarDinheiro(ajuste.valor) + '.'
+      : 'Vai criar um crédito de ' + formatarDinheiro(ajuste.valor) + '.';
 }
 
 /* Uma compra dentro da fatura: toque edita, X apaga.
@@ -1780,9 +1802,16 @@ function linhaDaCompra(compra) {
   const descricao = document.createElement('span');
   descricao.textContent = compra.descricao;
 
+  /* O crédito precisa PARECER um crédito. Ele é uma entrada no cartão — o
+     ajuste que subtrai — e sem o sinal e a cor ficaria idêntico a uma compra do
+     mesmo valor, somando na cabeça de quem lê o que na verdade desconta. O
+     app já usa verde para o que entra e coral para o que sai; aqui é a mesma
+     convenção, no mesmo lugar. */
+  const credito = compra.tipo === 'entrada';
+
   const valor = document.createElement('span');
-  valor.className = 'tabular';
-  valor.textContent = formatarDinheiro(compra.valor);
+  valor.className = 'tabular' + (credito ? ' entrada' : '');
+  valor.textContent = (credito ? '− ' : '') + formatarDinheiro(compra.valor);
 
   toque.append(descricao, valor);
 
@@ -1827,21 +1856,33 @@ function salvarValorDaFatura() {
   if (!faturaEmEdicao) return;
 
   const digitado = $campo('campo-fatura').value.trim();
-  const valor = digitado ? analisarValor(digitado) : 0;
-  if (valor === null) return;
+  const total = digitado ? analisarValor(digitado) : 0;
+  if (total === null) return;
+
+  const ajuste = ajusteDeFatura(estado, faturaEmEdicao, mesVisivel, total, novoId(), hojeISO());
+
+  /* Nada a ajustar não é erro: é a resposta certa para "informei o mesmo valor
+     de novo". Fecha e diz, em vez de gravar um lançamento de R$ 0,00. */
+  if (!ajuste) {
+    $dialogo('dialogo-fatura').close();
+    avisar('A fatura já estava nesse total.');
+    return;
+  }
 
   const anterior = instantaneo();
-  estado = {
-    ...estado,
-    faturas: definirValorDaFatura(estado.faturas, faturaEmEdicao, mesVisivel, valor),
-  };
+  estado = { ...estado, lancamentos: [...estado.lancamentos, ajuste] };
 
   /* Fecha o <dialog> ANTES de avisar: um <dialog> modal aberto vai para a top
      layer e torna inerte todo o resto, inclusive o aviso — o Desfazer ficava
      atrás do véu, visível e sem clique. Mesma armadilha do B5. */
   $dialogo('dialogo-fatura').close();
   salvar();
-  avisar(valor > 0 ? 'Fatura salva.' : 'Voltou a valer a soma das compras.', () => restaurar(anterior));
+  avisar(
+    ajuste.tipo === 'saida'
+      ? 'Ajuste de ' + formatarDinheiro(ajuste.valor) + ' anotado.'
+      : 'Crédito de ' + formatarDinheiro(ajuste.valor) + ' anotado.',
+    () => restaurar(anterior)
+  );
 }
 
 /* ---------- Relatório: para onde o dinheiro foi ---------- */
@@ -2074,11 +2115,7 @@ $('cartao-cancelar').addEventListener('click', () => {
 $('fatura-adicionar').addEventListener('click', anotarCompraNaFatura);
 
 $('fatura-salvar').addEventListener('click', salvarValorDaFatura);
-
-$('fatura-remover').addEventListener('click', () => {
-  $campo('campo-fatura').value = '';
-  salvarValorDaFatura();
-});
+$campo('campo-fatura').addEventListener('input', previverOAjuste);
 
 $('fatura-cancelar').addEventListener('click', () => {
   $dialogo('dialogo-fatura').close();

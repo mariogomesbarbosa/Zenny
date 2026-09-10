@@ -37,7 +37,7 @@ Ajustes, e as categorias com limites e a tela de Relatório.
 Mais o layout do desktop alinhado, verificação de tipos sem build, e três
 agentes especializados em `.claude/agents/` — ver [agentes.md](agentes.md).
 
-`npm run conferir` roda o conferidor de tipos e os **379 testes**.
+`npm run conferir` roda o conferidor de tipos e os **406 testes**.
 
 Em revisão: o **B6 — cartões de crédito**, com o plano e a implementação em
 [b6-cartoes-de-credito.md](b6-cartoes-de-credito.md). A aba Metas virou

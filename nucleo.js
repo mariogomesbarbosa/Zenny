@@ -127,13 +127,6 @@
  */
 
 /**
- * Valor informado da fatura, em centavos, com chave "<cartaoId>|AAAA-MM".
- * A ausência da chave é a ausência de valor informado — que NÃO é o mesmo que
- * uma fatura de R$ 0,00.
- * @typedef {Record<string, number>} Faturas
- */
-
-/**
  * A fatura de um mês, sempre derivada — nunca gravada. Ver `faturaDoMes`.
  *
  * Ela tem de propósito os mesmos campos de um `LancamentoDoMes` (id, tipo,
@@ -145,13 +138,11 @@
  * @property {string} descricao
  * @property {null} categoria Cartão é forma de pagamento, não categoria.
  * @property {number} dia O vencimento, limitado aos dias que o mês tem.
- * @property {number} valor O que vale: o informado, ou a soma das compras.
+ * @property {number} valor A soma dos lançamentos do ciclo — saídas menos entradas.
  * @property {true} ehFatura
  * @property {string} cartaoId
  * @property {string} cartao Nome do cartão, para a tela não ter que procurar.
- * @property {number} soma Soma das compras anotadas nesta fatura.
- * @property {number|null} informado O total que a pessoa digitou, ou `null`.
- * @property {number} quantidade Quantas compras foram anotadas.
+ * @property {number} quantidade Quantos lançamentos ela soma.
  */
 
 /**
@@ -167,7 +158,6 @@
  * @property {CategoriaDoUsuario[]} categorias Só as criadas pelo usuário.
  * @property {Limites} limites
  * @property {Cartao[]} cartoes
- * @property {Faturas} faturas
  */
 
 /**
@@ -208,7 +198,7 @@
  */
 
 export const CHAVE = 'zenny:v1';
-export const VERSAO_DO_ESQUEMA = 6;
+export const VERSAO_DO_ESQUEMA = 7;
 
 /* ---------- Dinheiro ---------- */
 
@@ -384,7 +374,6 @@ export function estadoVazio() {
     categorias: [],
     limites: {},
     cartoes: [],
-    faturas: {},
   };
 }
 
@@ -1024,13 +1013,29 @@ export function normalizarEstado(bruto) {
     }
   }
 
-  /* Passa por definirValorDaFatura pelo mesmo motivo que os limites passam por
-     definirLimite: a regra "zero ou lixo não é valor informado" vale igual para
-     o que vem do arquivo e para o que a tela grava. */
-  /** @type {Faturas} */
-  let faturas = {};
+  /* MIGRAÇÃO DA v6: o mapa `faturas` guardava um total informado que SUBSTITUÍA
+     a soma das compras. Cada entrada dele vira um lançamento "Ajuste de fatura"
+     valendo a diferença — e a fatura volta a ser sempre a soma dos seus
+     lançamentos, uma fonte de verdade só.
+     
+     A régua da travessia, e o que os testes cobram: O VALOR DE TODA FATURA É O
+     MESMO ANTES E DEPOIS. Quem informou R$ 3.562,52 continua vendo R$ 3.562,52
+     — a diferença é que agora dá para ver de onde ele vem, e mexer nele.
+     
+     O `hoje` passado é o dia 1 do mês da fatura, e não a data real: uma
+     migração cujo resultado depende de quando ela roda é uma migração que não
+     se testa. `dataPadraoDaFatura` cai no dia do fechamento do ciclo, que é
+     onde o ajuste pertence.
+     
+     O id é derivado do cartão e do mês em vez de sorteado, para que uma segunda
+     leitura do mesmo dado não crie um segundo ajuste. */
   const crusFaturas = bruto.faturas;
   if (crusFaturas && typeof crusFaturas === 'object') {
+    /* O ajuste é medido contra os lançamentos que já atravessaram, então este
+       estado provisório precisa deles e dos cartões — nada mais. */
+    /** @type {Estado} */
+    const provisorio = { versao: VERSAO_DO_ESQUEMA, lancamentos, realizados, categorias, limites, cartoes };
+
     for (const chave of Object.keys(crusFaturas)) {
       const separador = chave.lastIndexOf('|');
       if (separador <= 0) continue;
@@ -1038,7 +1043,16 @@ export function normalizarEstado(bruto) {
       const mes = chave.slice(separador + 1);
       // Valor de fatura de cartão que não existe mais sai: não teria onde aparecer.
       if (!idsDeCartao.has(cartaoId) || !ehMes(mes)) continue;
-      faturas = definirValorDaFatura(faturas, cartaoId, mes, Number(crusFaturas[chave]));
+
+      const ajuste = ajusteDeFatura(
+        provisorio,
+        cartaoId,
+        mes,
+        Number(crusFaturas[chave]),
+        'ajuste:' + cartaoId + ':' + mes,
+        mes + '-01'
+      );
+      if (ajuste) lancamentos.push(ajuste);
     }
   }
 
@@ -1049,7 +1063,6 @@ export function normalizarEstado(bruto) {
     categorias,
     limites,
     cartoes,
-    faturas,
   };
 }
 
@@ -1137,15 +1150,6 @@ export function dataPadraoDaFatura(cartao, mes, hoje) {
  */
 export function idDaFatura(cartaoId) {
   return 'fatura:' + cartaoId;
-}
-
-/**
- * @param {string} cartaoId
- * @param {Mes} mes
- * @returns {string}
- */
-export function chaveDeFatura(cartaoId, mes) {
-  return cartaoId + '|' + mes;
 }
 
 /**
@@ -1275,7 +1279,11 @@ export function comprasDaFatura(estado, cartaoId, mes) {
 
   for (const passo of [-2, -1, 0]) {
     for (const l of lancamentosDoMes(estado.lancamentos, deslocarMes(mes, passo))) {
-      if (l.tipo !== 'saida' || l.cartao !== cartaoId) continue;
+      /* Entrada também entra, e é o ajuste que subtrai (ver
+         docs/ajuste-de-fatura.md). Todo valor no app é positivo, e o `tipo` é
+         que dá o sinal — um lançamento de valor negativo quebraria essa
+         invariante em toda conta do app, não só aqui. */
+      if (l.cartao !== cartaoId) continue;
       if (faturaDaCompra(cartao, dataDaOcorrencia(l, deslocarMes(mes, passo))) === mes) {
         compras.push(l);
       }
@@ -1296,29 +1304,66 @@ function dataDaOcorrencia(l, mes) {
   return l.fixo ? mes + '-' + String(l.dia).padStart(2, '0') : l.data;
 }
 
-/* Zero, vazio ou lixo REMOVE o valor informado, em vez de gravar R$ 0,00.
+export const DESCRICAO_DO_AJUSTE = 'Ajuste de fatura';
+
+/* O lançamento que faz a fatura fechar num total informado.
  *
- * Mesma regra do `definirLimite`, pelo mesmo motivo: ausência e zero são coisas
- * diferentes. Sem valor informado a fatura vale a soma das compras; com um zero
- * gravado ela valeria zero, e a soma das compras seria ignorada em silêncio. */
+ * ELE VALE A DIFERENÇA, e não o número digitado. O total que a pessoa lê no
+ * aplicativo do banco JÁ INCLUI as compras que ela por acaso tenha anotado — se
+ * o ajuste valesse o digitado, essas compras contariam duas vezes. Com a
+ * diferença, o total bate exatamente, e as compras seguintes somam por cima,
+ * que é o pedido inteiro deste bloco.
+ *
+ * Nada no dado marca este lançamento como ajuste, e isso é deliberado: nenhuma
+ * lógica precisa reconhecê-lo, e é por não haver marca que informar um total
+ * novo mede a diferença contra a soma INTEIRA — ajustes anteriores incluídos.
+ * A propriedade vale por construção, não por código que se lembre dela.
+ *
+ * Diferença negativa vira ENTRADA no cartão, de valor positivo: é o ajuste que
+ * subtrai (estorno, ou compra anotada que o banco ainda não cobrou). Ver a
+ * decisão em docs/ajuste-de-fatura.md.
+ *
+ * Devolve `null` quando não há o que ajustar: diferença zero, cartão que não
+ * existe, ou total ilegível. Quem chama trata `null` como "nada a fazer" — não
+ * é erro, é a resposta certa para "informei o mesmo valor de novo".
+ *
+ * O `id` e o `hoje` vêm de fora porque o núcleo é puro: sortear id e ler o
+ * relógio aqui tornaria a função impossível de testar duas vezes com o mesmo
+ * resultado. */
 /**
- * @param {Faturas} faturas
+ * @param {Estado} estado
  * @param {string} cartaoId
- * @param {Mes} mes
- * @param {unknown} valor Centavos.
- * @returns {Faturas}
+ * @param {Mes} mes O mês de vencimento da fatura.
+ * @param {unknown} total O total lido no banco, em centavos.
+ * @param {string} id
+ * @param {Data} hoje
+ * @returns {Avulso|null} Sempre avulso: um ajuste é de um ciclo só, nunca uma regra que se repete.
  */
-export function definirValorDaFatura(faturas, cartaoId, mes, valor) {
-  const copia = { ...faturas };
-  if (!cartaoId || !ehMes(mes)) return copia;
+export function ajusteDeFatura(estado, cartaoId, mes, total, id, hoje) {
+  const cartao = cartaoPorId(estado, cartaoId);
+  if (!cartao || !id || !ehMes(mes)) return null;
 
-  const chave = chaveDeFatura(cartaoId, mes);
-  const bruto = Number(valor);
+  const bruto = Math.trunc(Number(total));
+  if (!Number.isFinite(bruto)) return null;
 
-  if (Number.isFinite(bruto) && bruto >= 1) copia[chave] = Math.trunc(bruto);
-  else delete copia[chave];
+  const fatura = faturaDoMes(estado, cartaoId, mes);
+  if (!fatura) return null;
 
-  return copia;
+  // Total negativo digitado é lido como zero: a fatura não pode vir devendo
+  // menos que nada, e o crédito que sobra já é representado pela diferença.
+  const diferenca = Math.max(bruto, 0) - fatura.valor;
+  if (diferenca === 0) return null;
+
+  return {
+    id,
+    tipo: diferenca > 0 ? 'saida' : 'entrada',
+    descricao: DESCRICAO_DO_AJUSTE,
+    categoria: null,
+    cartao: cartaoId,
+    fixo: false,
+    valor: Math.abs(diferenca),
+    data: dataPadraoDaFatura(cartao, mes, hoje),
+  };
 }
 
 /* A fatura de um cartão num mês.
@@ -1343,12 +1388,13 @@ export function faturaDoMes(estado, cartaoId, mes) {
   if (!cartao) return null;
 
   const compras = comprasDaFatura(estado, cartaoId, mes);
-  const soma = compras.reduce((total, l) => total + l.valor, 0);
 
-  const chave = chaveDeFatura(cartaoId, mes);
-  const informado = Object.prototype.hasOwnProperty.call(estado.faturas, chave)
-    ? estado.faturas[chave]
-    : null;
+  /* Saídas menos entradas. A entrada num cartão é o ajuste que subtrai, e é
+     assim que ele desconta sem que nenhum valor no estado seja negativo. */
+  const valor = compras.reduce(
+    (total, l) => total + (l.tipo === 'entrada' ? -l.valor : l.valor),
+    0
+  );
 
   return {
     id: idDaFatura(cartaoId),
@@ -1356,12 +1402,10 @@ export function faturaDoMes(estado, cartaoId, mes) {
     descricao: 'Fatura do ' + cartao.nome,
     categoria: null,
     dia: Math.min(cartao.vencimento, diasNoMes(mes)),
-    valor: informado ?? soma,
+    valor,
     ehFatura: true,
     cartaoId,
     cartao: cartao.nome,
-    soma,
-    informado,
     quantidade: compras.length,
   };
 }
