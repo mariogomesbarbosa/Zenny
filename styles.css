@@ -978,10 +978,129 @@ dialog::backdrop { background: var(--veu); }
   margin-top: 4px;
 }
 
-.campo-ajuste-fatura {
-  margin-top: 4px;
-  padding-top: 12px;
-  border-top: 1px solid var(--borda-fraca);
+.detalhe-valor-linha {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.botao-lapis {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 28px;
+  height: 28px;
+  border: none;
+  border-radius: 50%;
+  background: transparent;
+  color: var(--texto-fraco);
+  cursor: pointer;
+  padding: 4px;
+  transition: background 0.15s, color 0.15s;
+  flex-shrink: 0;
+}
+
+.botao-lapis:hover,
+.botao-lapis:focus-visible {
+  background: var(--borda-fraca);
+  color: var(--texto);
+  outline: none;
+}
+
+.botao-lapis svg {
+  width: 14px;
+  height: 14px;
+  stroke: currentColor;
+  fill: none;
+  stroke-width: 2;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+
+/* Fundo escuro do drawer */
+.drawer-fundo {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.55);
+  z-index: 200;
+  animation: fadein-fundo 0.2s ease;
+}
+
+@keyframes fadein-fundo {
+  from { opacity: 0; }
+  to   { opacity: 1; }
+}
+
+/* Painel deslizante de baixo */
+.drawer {
+  position: fixed;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  z-index: 201;
+  background: var(--cartao);
+  border-radius: 16px 16px 0 0;
+  padding: 20px 20px calc(20px + env(safe-area-inset-bottom));
+  box-shadow: 0 -4px 24px rgba(0, 0, 0, 0.3);
+  animation: slidein-drawer 0.25s cubic-bezier(0.32, 0.72, 0, 1);
+}
+
+@keyframes slidein-drawer {
+  from { transform: translateY(100%); }
+  to   { transform: translateY(0); }
+}
+
+.drawer-cabeca {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 12px;
+}
+
+.drawer-titulo {
+  font-size: 1rem;
+  font-weight: 600;
+  margin: 0;
+}
+
+.drawer-fechar {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 32px;
+  height: 32px;
+  border: none;
+  border-radius: 50%;
+  background: var(--borda-fraca);
+  color: var(--texto-fraco);
+  cursor: pointer;
+  padding: 6px;
+  transition: background 0.15s;
+}
+
+.drawer-fechar:hover {
+  background: var(--borda);
+  color: var(--texto);
+}
+
+.drawer-fechar svg {
+  width: 16px;
+  height: 16px;
+  stroke: currentColor;
+  fill: none;
+  stroke-width: 2.5;
+  stroke-linecap: round;
+}
+
+.drawer-descricao {
+  font-size: 0.85rem;
+  color: var(--texto-fraco);
+  line-height: 1.5;
+  margin: 0 0 16px;
+  padding: 10px 12px;
+  background: var(--fundo);
+  border-radius: 8px;
+  border-left: 3px solid var(--destaque);
 }
 
 /* As compras que compõem a fatura, dentro da folha. Rola quando são muitas, em

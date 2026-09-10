@@ -1716,6 +1716,7 @@ function abrirDetalheCartao(cartaoId) {
 }
 
 function fecharDetalheCartao() {
+  fecharDrawerAjusteFatura();
   cartaoDetalheId = null;
   mostrarTela('cartoes');
 }
@@ -1842,6 +1843,27 @@ function previverOAjusteDetalhe() {
       : 'Vai criar um crédito de ' + formatarDinheiro(ajuste.valor) + '.';
 }
 
+function abrirDrawerAjusteFatura() {
+  if (!cartaoDetalheId) return;
+  const fatura = faturaDoMes(estado, cartaoDetalheId, mesVisivel);
+
+  // Pré-preenche com o valor atual da fatura
+  const campo = $campo('campo-fatura-detalhe');
+  campo.value = !fatura || fatura.valor === 0 ? '' : valorParaCampo(fatura.valor);
+
+  $('drawer-fundo-fatura').hidden = false;
+  $('drawer-ajuste-fatura').hidden = false;
+  previverOAjusteDetalhe();
+
+  // Foca o campo após a animação
+  setTimeout(() => campo.focus(), 50);
+}
+
+function fecharDrawerAjusteFatura() {
+  $('drawer-fundo-fatura').hidden = true;
+  $('drawer-ajuste-fatura').hidden = true;
+}
+
 function anotarCompraNaTelaDetalhe() {
   if (!cartaoDetalheId) return;
   const cartao = cartaoPorId(estado, cartaoDetalheId);
@@ -1878,6 +1900,7 @@ function salvarValorDaFaturaDetalhe() {
 
   if (!ajuste) {
     avisar('A fatura já estava nesse total.');
+    fecharDrawerAjusteFatura();
     return;
   }
 
@@ -1885,6 +1908,7 @@ function salvarValorDaFaturaDetalhe() {
   estado = { ...estado, lancamentos: [...estado.lancamentos, ajuste] };
 
   salvar();
+  fecharDrawerAjusteFatura();
   avisar(
     ajuste.tipo === 'saida'
       ? 'Ajuste de ' + formatarDinheiro(ajuste.valor) + ' anotado.'
@@ -2136,6 +2160,9 @@ $('cartao-cancelar').addEventListener('click', () => {
 $('cartao-detalhe-voltar').addEventListener('click', fecharDetalheCartao);
 $('detalhe-anotar-compra').addEventListener('click', anotarCompraNaTelaDetalhe);
 $('detalhe-marcar-paga').addEventListener('click', alternarFaturaPagaDetalhe);
+$('botao-ajustar-fatura').addEventListener('click', abrirDrawerAjusteFatura);
+$('drawer-ajuste-fechar').addEventListener('click', fecharDrawerAjusteFatura);
+$('drawer-fundo-fatura').addEventListener('click', fecharDrawerAjusteFatura);
 $campo('campo-fatura-detalhe').addEventListener('input', previverOAjusteDetalhe);
 $campo('campo-fatura-detalhe').addEventListener('change', salvarValorDaFaturaDetalhe);
 

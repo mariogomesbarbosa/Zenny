@@ -220,7 +220,12 @@
     <div class="cartao painel-detalhe-cartao">
       <div class="detalhe-resumo-valores">
         <span class="rotulo">Total da fatura</span>
-        <strong class="valor tabular saida" id="cartao-detalhe-valor">R$ 0,00</strong>
+        <div class="detalhe-valor-linha">
+          <strong class="valor tabular saida" id="cartao-detalhe-valor">R$ 0,00</strong>
+          <button type="button" class="botao-lapis" id="botao-ajustar-fatura" aria-label="Ajustar valor da fatura">
+            <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>
+          </button>
+        </div>
         <p class="detalhe" id="cartao-detalhe-ciclo">—</p>
       </div>
 
@@ -233,9 +238,24 @@
         <button type="button" class="botao" id="detalhe-anotar-compra">Anotar uma compra</button>
         <button type="button" class="botao contorno" id="detalhe-marcar-paga">Marcar como paga</button>
       </div>
+    </div>
 
-      <div class="campo campo-ajuste-fatura">
-        <label for="campo-fatura-detalhe">Total da fatura (opcional)</label>
+    <!-- Drawer de ajuste do valor da fatura -->
+    <div class="drawer-fundo" id="drawer-fundo-fatura" hidden aria-hidden="true"></div>
+    <div class="drawer" id="drawer-ajuste-fatura" role="dialog" aria-labelledby="drawer-ajuste-titulo" aria-modal="true" hidden>
+      <div class="drawer-cabeca">
+        <h2 class="drawer-titulo" id="drawer-ajuste-titulo">Ajustar valor da fatura</h2>
+        <button type="button" class="drawer-fechar" id="drawer-ajuste-fechar" aria-label="Fechar">
+          <svg viewBox="0 0 24 24" aria-hidden="true"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+        </button>
+      </div>
+      <p class="drawer-descricao">
+        Se o total exibido aqui for diferente do valor real da fatura (por exemplo,
+        por compras parceladas não anotadas), você pode informar o valor correto.
+        O Zenny vai criar um lançamento de ajuste automático para que o total bata.
+      </p>
+      <div class="campo">
+        <label for="campo-fatura-detalhe">Total da fatura</label>
         <input type="text" id="campo-fatura-detalhe" inputmode="decimal" enterkeyhint="done"
                placeholder="0,00" class="tabular">
         <p class="dica" id="fatura-detalhe-explicacao" hidden></p>
