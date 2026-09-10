@@ -1778,6 +1778,16 @@ conferir('mas ela continua sendo um lancamento de setembro',
   conferir('emCartao nunca passa das despesas', out.emCartao <= out.despesas.previsto, true);
 }
 
+/* Compras de cartão categorizadas entram no relatório (gastosPorCategoria) do mês da compra. */
+{
+  /** @type {Realizados} */
+  const realizados = { 's1|2026-09': true, 's2|2026-09': true };
+  const quebraSetembro = gastosPorCategoria(COM_CARTAO.lancamentos, realizados, '2026-09');
+  conferir('compras de cartao entram em gastosPorCategoria no mes da compra',
+    quebraSetembro.map((g) => [g.id, g.total]),
+    [['mercado', 20000], ['saude', 5000]]);
+}
+
 /* NENHUM CENTAVO CONTADO DUAS VEZES no total do periodo. */
 {
   const meses = ['2026-09', '2026-10', '2026-11'];
