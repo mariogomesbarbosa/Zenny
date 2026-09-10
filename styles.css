@@ -976,6 +976,12 @@ dialog::backdrop { background: var(--veu); }
 
 .compra-excluir svg { width: 15px; height: 15px; }
 
+/* O credito — o ajuste que subtrai — em verde, como todo dinheiro que entra no
+   app. A classe `.entrada` sozinha nao pinta nada: ela sempre depende do
+   contexto (.grupo-total.entrada, .lancamento-valor.entrada), e esta linha e o
+   contexto da compra dentro da fatura. */
+.compra-toque .tabular.entrada { color: var(--verde); }
+
 #fatura-adicionar { margin-bottom: 14px; }
 
 /* ---------- Aviso temporário ---------- */

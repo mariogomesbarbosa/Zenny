@@ -489,18 +489,23 @@
     </button>
 
     <div class="campo">
-      <label for="campo-fatura">Quanto veio (opcional)</label>
+      <!-- "Total da fatura", e não mais "Quanto veio (opcional)": o campo vem
+           preenchido com o total atual, então ele sempre tem valor — deixou de
+           ser opcional-ou-não. -->
+      <label for="campo-fatura">Total da fatura</label>
       <input type="text" id="campo-fatura" inputmode="decimal" enterkeyhint="done"
              placeholder="0,00" class="tabular">
-      <!-- A frase que explica a precedência mora aqui, onde a dúvida nasce:
-           quem digita um total diferente da soma precisa saber, naquele
-           instante, qual dos dois o app vai usar. -->
+      <!-- A prévia do ajuste mora aqui, onde a dúvida nasce: quem digita um
+           total diferente precisa saber, naquele instante, o que vai acontecer.
+           Sem ela o ajuste apareceria na lista depois do toque — um número
+           surgindo do nada numa fatura. -->
       <p class="dica" id="fatura-explicacao" hidden></p>
     </div>
 
+    <!-- "Voltar para a soma" saiu: não há mais um valor escondido para remover.
+         O ajuste é uma linha da lista, e se apaga como as outras. -->
     <div class="pilha">
       <button type="button" class="botao" id="fatura-salvar">Salvar</button>
-      <button type="button" class="botao contorno" id="fatura-remover" hidden>Voltar para a soma</button>
       <button type="button" class="botao apagado" id="fatura-cancelar">Fechar</button>
     </div>
   </div>
