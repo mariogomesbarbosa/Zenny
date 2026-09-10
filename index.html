@@ -240,27 +240,7 @@
       </div>
     </div>
 
-    <!-- Drawer de ajuste do valor da fatura -->
-    <div class="drawer-fundo" id="drawer-fundo-fatura" hidden aria-hidden="true"></div>
-    <div class="drawer" id="drawer-ajuste-fatura" role="dialog" aria-labelledby="drawer-ajuste-titulo" aria-modal="true" hidden>
-      <div class="drawer-cabeca">
-        <h2 class="drawer-titulo" id="drawer-ajuste-titulo">Ajustar valor da fatura</h2>
-        <button type="button" class="drawer-fechar" id="drawer-ajuste-fechar" aria-label="Fechar">
-          <svg viewBox="0 0 24 24" aria-hidden="true"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
-        </button>
-      </div>
-      <p class="drawer-descricao">
-        Se o total exibido aqui for diferente do valor real da fatura (por exemplo,
-        por compras parceladas não anotadas), você pode informar o valor correto.
-        O Zenny vai criar um lançamento de ajuste automático para que o total bata.
-      </p>
-      <div class="campo">
-        <label for="campo-fatura-detalhe">Total da fatura</label>
-        <input type="text" id="campo-fatura-detalhe" inputmode="decimal" enterkeyhint="done"
-               placeholder="0,00" class="tabular">
-        <p class="dica" id="fatura-detalhe-explicacao" hidden></p>
-      </div>
-    </div>
+
 
     <section class="grupo" aria-labelledby="titulo-compras-detalhe">
       <div class="grupo-cabeca">
@@ -603,6 +583,30 @@
       <button type="button" class="botao" id="limite-salvar">Salvar</button>
       <button type="button" class="botao contorno" id="limite-remover" hidden>Remover limite</button>
       <button type="button" class="botao apagado" id="limite-cancelar">Cancelar</button>
+    </div>
+  </div>
+</dialog>
+
+<dialog id="dialogo-ajuste-fatura" aria-labelledby="titulo-do-ajuste-fatura">
+  <div class="pegador" aria-hidden="true"></div>
+  <div class="folha">
+    <h2 id="titulo-do-ajuste-fatura">Ajustar valor da fatura</h2>
+    <p class="dica">
+      Se o total exibido aqui for diferente do valor real da fatura (por exemplo,
+      por compras parceladas não anotadas), você pode informar o valor correto.
+      O Zenny vai criar um lançamento de ajuste automático para que o total bata.
+    </p>
+
+    <div class="campo">
+      <label for="campo-fatura-detalhe">Total da fatura</label>
+      <input type="text" id="campo-fatura-detalhe" inputmode="decimal" enterkeyhint="done"
+             placeholder="0,00" class="tabular">
+      <p class="dica" id="fatura-detalhe-explicacao" hidden></p>
+    </div>
+
+    <div class="pilha">
+      <button type="button" class="botao" id="dialogo-ajuste-salvar">Salvar ajuste</button>
+      <button type="button" class="botao apagado" id="dialogo-ajuste-cancelar">Cancelar</button>
     </div>
   </div>
 </dialog>

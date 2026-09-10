@@ -1716,7 +1716,7 @@ function abrirDetalheCartao(cartaoId) {
 }
 
 function fecharDetalheCartao() {
-  fecharDrawerAjusteFatura();
+  fecharDialogoAjusteFatura();
   cartaoDetalheId = null;
   mostrarTela('cartoes');
 }
@@ -1782,41 +1782,70 @@ function desenharDetalheCartao() {
 /** @param {LancamentoDoMes} compra @returns {HTMLLIElement} */
 function linhaDaCompraDetalhe(compra) {
   const item = document.createElement('li');
-  item.className = 'lancamento';
+  item.className = 'lancamento-detalhe';
 
-  const toque = document.createElement('button');
-  toque.type = 'button';
-  toque.className = 'lancamento-toque';
-  toque.setAttribute('aria-label', 'Editar ' + compra.descricao);
-  toque.addEventListener('click', () => abrirFormulario(compra));
+  const esquerda = document.createElement('div');
+  esquerda.className = 'lancamento-detalhe-esquerda';
 
-  const dia = document.createElement('span');
-  dia.className = 'lancamento-dia tabular';
-  dia.textContent = String(compra.dia).padStart(2, '0');
+  const dataISO = !compra.fixo ? compra.data : (mesVisivel + '-' + String(compra.dia).padStart(2, '0'));
+  const partes = dataISO.split('-');
+  const dataTexto = partes.length === 3 ? `${partes[2]}/${partes[1]}/${partes[0]}` : String(compra.dia).padStart(2, '0');
 
-  const descricao = document.createElement('span');
-  descricao.className = 'lancamento-descricao';
-  descricao.textContent = compra.descricao;
+  const nome = document.createElement('span');
+  nome.className = 'lancamento-detalhe-nome';
+  nome.textContent = compra.descricao;
+
+  const meta = document.createElement('div');
+  meta.className = 'lancamento-detalhe-meta';
+
+  const data = document.createElement('span');
+  data.className = 'lancamento-detalhe-data tabular';
+  data.textContent = dataTexto;
+  meta.appendChild(data);
+
+  if (compra.categoria) {
+    const catObj = estado.categorias.find((c) => c.id === compra.categoria);
+    if (catObj) {
+      const catTag = document.createElement('span');
+      catTag.className = 'lancamento-detalhe-categoria';
+      catTag.textContent = catObj.nome;
+      meta.appendChild(catTag);
+    }
+  }
+
+  esquerda.append(nome, meta);
+
+  const direita = document.createElement('div');
+  direita.className = 'lancamento-detalhe-direita';
 
   const credito = compra.tipo === 'entrada';
   const valor = document.createElement('span');
-  valor.className = 'lancamento-valor tabular ' + (credito ? 'entrada' : 'saida');
-  valor.textContent = (credito ? '− ' : '') + formatarDinheiro(compra.valor);
+  valor.className = 'lancamento-detalhe-valor tabular ' + (credito ? 'entrada' : 'saida');
+  valor.textContent = (credito ? '+ ' : '− ') + formatarDinheiro(compra.valor);
 
-  toque.append(dia, descricao, valor);
+  const acoes = document.createElement('div');
+  acoes.className = 'lancamento-detalhe-acoes';
 
-  const etiquetas = document.createElement('div');
-  etiquetas.className = 'lancamento-etiquetas';
-  etiquetas.appendChild(botaoDeCategoria(compra));
+  const editar = document.createElement('button');
+  editar.type = 'button';
+  editar.className = 'lancamento-detalhe-btn editar';
+  editar.setAttribute('aria-label', 'Editar ' + compra.descricao);
+  editar.title = 'Editar lançamento';
+  editar.innerHTML = '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg><span>Editar</span>';
+  editar.addEventListener('click', () => abrirFormulario(compra));
 
   const excluir = document.createElement('button');
   excluir.type = 'button';
-  excluir.className = 'lancamento-excluir';
+  excluir.className = 'lancamento-detalhe-btn excluir';
   excluir.setAttribute('aria-label', 'Excluir ' + compra.descricao);
-  excluir.innerHTML = '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6 6l12 12M18 6 6 18"/></svg>';
+  excluir.title = 'Excluir lançamento';
+  excluir.innerHTML = '<svg viewBox="0 0 24 24" aria-hidden="true"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/><path d="M10 11v6M14 11v6"/><path d="M9 6V4h6v2"/></svg><span>Excluir</span>';
   excluir.addEventListener('click', () => pedirExclusao(compra));
 
-  item.append(toque, excluir, etiquetas);
+  acoes.append(editar, excluir);
+  direita.append(valor, acoes);
+
+  item.append(esquerda, direita);
   return item;
 }
 
@@ -1843,25 +1872,20 @@ function previverOAjusteDetalhe() {
       : 'Vai criar um crédito de ' + formatarDinheiro(ajuste.valor) + '.';
 }
 
-function abrirDrawerAjusteFatura() {
+function abrirDialogoAjusteFatura() {
   if (!cartaoDetalheId) return;
   const fatura = faturaDoMes(estado, cartaoDetalheId, mesVisivel);
 
-  // Pré-preenche com o valor atual da fatura
   const campo = $campo('campo-fatura-detalhe');
   campo.value = !fatura || fatura.valor === 0 ? '' : valorParaCampo(fatura.valor);
 
-  $('drawer-fundo-fatura').hidden = false;
-  $('drawer-ajuste-fatura').hidden = false;
   previverOAjusteDetalhe();
-
-  // Foca o campo após a animação
+  $dialogo('dialogo-ajuste-fatura').showModal();
   setTimeout(() => campo.focus(), 50);
 }
 
-function fecharDrawerAjusteFatura() {
-  $('drawer-fundo-fatura').hidden = true;
-  $('drawer-ajuste-fatura').hidden = true;
+function fecharDialogoAjusteFatura() {
+  $dialogo('dialogo-ajuste-fatura').close();
 }
 
 function anotarCompraNaTelaDetalhe() {
@@ -1900,7 +1924,7 @@ function salvarValorDaFaturaDetalhe() {
 
   if (!ajuste) {
     avisar('A fatura já estava nesse total.');
-    fecharDrawerAjusteFatura();
+    fecharDialogoAjusteFatura();
     return;
   }
 
@@ -1908,7 +1932,7 @@ function salvarValorDaFaturaDetalhe() {
   estado = { ...estado, lancamentos: [...estado.lancamentos, ajuste] };
 
   salvar();
-  fecharDrawerAjusteFatura();
+  fecharDialogoAjusteFatura();
   avisar(
     ajuste.tipo === 'saida'
       ? 'Ajuste de ' + formatarDinheiro(ajuste.valor) + ' anotado.'
@@ -2160,11 +2184,10 @@ $('cartao-cancelar').addEventListener('click', () => {
 $('cartao-detalhe-voltar').addEventListener('click', fecharDetalheCartao);
 $('detalhe-anotar-compra').addEventListener('click', anotarCompraNaTelaDetalhe);
 $('detalhe-marcar-paga').addEventListener('click', alternarFaturaPagaDetalhe);
-$('botao-ajustar-fatura').addEventListener('click', abrirDrawerAjusteFatura);
-$('drawer-ajuste-fechar').addEventListener('click', fecharDrawerAjusteFatura);
-$('drawer-fundo-fatura').addEventListener('click', fecharDrawerAjusteFatura);
+$('botao-ajustar-fatura').addEventListener('click', abrirDialogoAjusteFatura);
+$('dialogo-ajuste-salvar').addEventListener('click', salvarValorDaFaturaDetalhe);
+$('dialogo-ajuste-cancelar').addEventListener('click', fecharDialogoAjusteFatura);
 $campo('campo-fatura-detalhe').addEventListener('input', previverOAjusteDetalhe);
-$campo('campo-fatura-detalhe').addEventListener('change', salvarValorDaFaturaDetalhe);
 
 $('fatura-adicionar').addEventListener('click', anotarCompraNaFatura);
 

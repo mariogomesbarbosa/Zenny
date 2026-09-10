@@ -993,7 +993,7 @@ dialog::backdrop { background: var(--veu); }
   border: none;
   border-radius: 50%;
   background: transparent;
-  color: var(--texto-fraco);
+  color: var(--tinta-fraca);
   cursor: pointer;
   padding: 4px;
   transition: background 0.15s, color 0.15s;
@@ -1003,7 +1003,7 @@ dialog::backdrop { background: var(--veu); }
 .botao-lapis:hover,
 .botao-lapis:focus-visible {
   background: var(--borda-fraca);
-  color: var(--texto);
+  color: var(--tinta);
   outline: none;
 }
 
@@ -1017,90 +1017,129 @@ dialog::backdrop { background: var(--veu); }
   stroke-linejoin: round;
 }
 
-/* Fundo escuro do drawer */
-.drawer-fundo {
-  position: fixed;
-  inset: 0;
-  background: rgba(0, 0, 0, 0.55);
-  z-index: 200;
-  animation: fadein-fundo 0.2s ease;
-}
+/* ---------- Lançamentos na tela de detalhe do cartão ---------- */
 
-@keyframes fadein-fundo {
-  from { opacity: 0; }
-  to   { opacity: 1; }
-}
-
-/* Painel deslizante de baixo */
-.drawer {
-  position: fixed;
-  bottom: 0;
-  left: 0;
-  right: 0;
-  z-index: 201;
-  background: var(--cartao);
-  border-radius: 16px 16px 0 0;
-  padding: 20px 20px calc(20px + env(safe-area-inset-bottom));
-  box-shadow: 0 -4px 24px rgba(0, 0, 0, 0.3);
-  animation: slidein-drawer 0.25s cubic-bezier(0.32, 0.72, 0, 1);
-}
-
-@keyframes slidein-drawer {
-  from { transform: translateY(100%); }
-  to   { transform: translateY(0); }
-}
-
-.drawer-cabeca {
+.lancamento-detalhe {
+  list-style: none;
   display: flex;
   align-items: center;
   justify-content: space-between;
-  margin-bottom: 12px;
+  gap: 12px;
+  padding: 12px 14px;
+  margin-bottom: 10px;
+  background: var(--superficie);
+  border: 1px solid var(--borda);
+  border-radius: 12px;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05);
 }
 
-.drawer-titulo {
-  font-size: 1rem;
+.lancamento-detalhe:last-child {
+  margin-bottom: 0;
+}
+
+.lancamento-detalhe-esquerda {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  min-width: 0;
+  flex: 1;
+}
+
+.lancamento-detalhe-nome {
+  font-size: .9375rem;
   font-weight: 600;
-  margin: 0;
+  color: var(--tinta);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
-.drawer-fechar {
+.lancamento-detalhe-meta {
   display: flex;
   align-items: center;
-  justify-content: center;
-  width: 32px;
-  height: 32px;
-  border: none;
-  border-radius: 50%;
-  background: var(--borda-fraca);
-  color: var(--texto-fraco);
+  gap: 8px;
+}
+
+.lancamento-detalhe-data {
+  font-size: .78125rem;
+  color: var(--tinta-fraca);
+  white-space: nowrap;
+}
+
+.lancamento-detalhe-categoria {
+  font-size: .75rem;
+  color: var(--tinta-suave);
+  background: var(--areia);
+  padding: 2px 8px;
+  border-radius: 6px;
+  white-space: nowrap;
+}
+
+.lancamento-detalhe-direita {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 6px;
+  flex-shrink: 0;
+}
+
+.lancamento-detalhe-valor {
+  font-weight: 700;
+  font-size: .9375rem;
+  white-space: nowrap;
+}
+
+.lancamento-detalhe-valor.entrada { color: var(--verde); }
+.lancamento-detalhe-valor.saida   { color: var(--coral); }
+
+.lancamento-detalhe-acoes {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.lancamento-detalhe-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 4px 10px;
+  border-radius: 6px;
+  border: 1px solid var(--borda);
+  background: var(--areia);
+  font: inherit;
+  font-size: .75rem;
+  font-weight: 500;
+  color: var(--tinta-suave);
   cursor: pointer;
-  padding: 6px;
-  transition: background 0.15s;
+  -webkit-tap-highlight-color: transparent;
+  transition: background .15s, color .15s, border-color .15s;
 }
 
-.drawer-fechar:hover {
-  background: var(--borda);
-  color: var(--texto);
-}
-
-.drawer-fechar svg {
-  width: 16px;
-  height: 16px;
+.lancamento-detalhe-btn svg {
+  width: 14px;
+  height: 14px;
   stroke: currentColor;
   fill: none;
-  stroke-width: 2.5;
+  stroke-width: 2;
   stroke-linecap: round;
+  stroke-linejoin: round;
+  flex-shrink: 0;
 }
 
-.drawer-descricao {
-  font-size: 0.85rem;
-  color: var(--texto-fraco);
-  line-height: 1.5;
-  margin: 0 0 16px;
-  padding: 10px 12px;
-  background: var(--fundo);
-  border-radius: 8px;
-  border-left: 3px solid var(--destaque);
+.lancamento-detalhe-btn.editar:hover {
+  background: var(--verde-fraco);
+  border-color: var(--verde);
+  color: var(--verde);
+}
+
+.lancamento-detalhe-btn.excluir {
+  color: var(--tinta-suave);
+}
+
+.lancamento-detalhe-btn.excluir:hover {
+  background: var(--coral-fraco);
+  border-color: var(--coral);
+  color: var(--coral);
 }
 
 /* As compras que compõem a fatura, dentro da folha. Rola quando são muitas, em
