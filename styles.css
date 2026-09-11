@@ -568,11 +568,16 @@ h1 { font-size: 1.75rem; line-height: 1.2; letter-spacing: -.02em; margin: 8px 0
 
 /* ---------- Botão flutuante ---------- */
 
+/* O botão flutuante só existe no Início. Nas outras telas ele não é sobre o que
+   a tela faz (Ajustes e Relatório) ou compete com o botão próprio de adicionar
+   (Cartões e Fatura).
+   Declarar onde ele APARECE, em vez de listar onde ele some, evita que qualquer
+   tela nova no futuro nasça com o botão flutuante vazando por esquecimento. */
 .botao-flutuante {
   position: fixed;
   right: var(--respiro);
   bottom: calc(76px + env(safe-area-inset-bottom));
-  display: flex;
+  display: none;
   align-items: center;
   gap: 8px;
   height: 54px;
@@ -588,22 +593,14 @@ h1 { font-size: 1.75rem; line-height: 1.2; letter-spacing: -.02em; margin: 8px 0
   -webkit-tap-highlight-color: transparent;
 }
 
+body[data-tela="inicio"] .botao-flutuante {
+  display: flex;
+}
+
 .botao-flutuante svg { width: 18px; height: 18px; stroke-width: 2.4; }
 .botao-flutuante:active { transform: translateY(1px); }
 
 /* ---------- Navegação ---------- */
-
-/* Nos Ajustes o botão flutuante some. Ele adiciona lançamento, e esta tela não
-   é sobre lançamentos — pior, ele fica por cima do cartão de apagar tudo. No
-   Relatório é a mesma história: a tela é de leitura, não de registro.
-
-   Nos Cartões o motivo é outro e mais forte: a tela TEM um botão de adicionar,
-   e ele adiciona outra coisa. Dois botões chamados "Adicionar" na mesma tela,
-   um criando lançamento e o outro criando cartão, é a ambiguidade que faz a
-   pessoa tocar no errado e desistir. */
-body[data-tela="ajustes"] .botao-flutuante,
-body[data-tela="cartoes"] .botao-flutuante,
-body[data-tela="relatorio"] .botao-flutuante { display: none; }
 
 .navegacao {
   flex: none;

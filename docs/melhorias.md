@@ -26,7 +26,7 @@ histórico que evita refazer a mesma discussão.
 
 ## 1. O Relatório só mostra o que já foi pago
 
-**Status:** 🟡 Em andamento — `feat/relatorio-gastos-planejados`
+**Status:** 🟢 Feita — [PR #27](https://github.com/mariogomesbarbosa/Zenny/pull/27)
 **Onde:** `nucleo.js`, `gastosPorCategoria`
 **Pedido:** a tela de Relatório deve detalhar os gastos por categoria
 **inclusive os planejados**, não só os já realizados.
@@ -57,7 +57,7 @@ vai. Reusaria a linguagem visual que a pessoa já aprendeu.
 
 ## 2. O botão flutuante "Adicionar" aparece na tela de detalhe da fatura
 
-**Status:** 🔴 Aberta
+**Status:** 🟡 Em andamento — `fix/botao-flutuante-apenas-no-inicio`
 **Onde:** `styles.css`, a regra que esconde o botão flutuante
 **Pedido:** ele não deve existir nessa tela, que já tem seu próprio botão de
 anotar lançamento no cartão.
@@ -188,6 +188,7 @@ Qual das duas é decisão a tomar na implementação.
 
 ## Feitas
 
+- **1. O Relatório só mostra o que já foi pago** — [PR #27](https://github.com/mariogomesbarbosa/Zenny/pull/27)
 - **4. Os campos de valor precisam de máscara** — [PR #26](https://github.com/mariogomesbarbosa/Zenny/pull/26)
 - **5. O limite de 1 a 31 nos dias não é respeitado** — [PR #26](https://github.com/mariogomesbarbosa/Zenny/pull/26)
 
