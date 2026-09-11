@@ -26,7 +26,7 @@ histórico que evita refazer a mesma discussão.
 
 ## 1. O Relatório só mostra o que já foi pago
 
-**Status:** 🔴 Aberta
+**Status:** 🟡 Em andamento — `feat/relatorio-gastos-planejados`
 **Onde:** `nucleo.js`, `gastosPorCategoria`
 **Pedido:** a tela de Relatório deve detalhar os gastos por categoria
 **inclusive os planejados**, não só os já realizados.
@@ -113,7 +113,7 @@ app. Vale plano próprio em `docs/`, como manda o `CLAUDE.md`.
 
 ## 4. Os campos de valor precisam de máscara
 
-**Status:** 🟡 Em andamento — `feat/mascara-de-valor-e-validacao-de-dia`
+**Status:** 🟢 Feita — [PR #26](https://github.com/mariogomesbarbosa/Zenny/pull/26)
 **Onde:** `app.js` (os cinco campos de dinheiro), `index.html`
 **Pedido:** máscara nos campos de valor, para não ser preciso digitar a
 vírgula — como na maioria dos aplicativos de banco.
@@ -150,7 +150,7 @@ Três coisas que a implementação não pode esquecer:
 
 ## 5. O limite de 1 a 31 nos dias não é respeitado
 
-**Status:** 🟡 Em andamento — `feat/mascara-de-valor-e-validacao-de-dia`
+**Status:** 🟢 Feita — [PR #26](https://github.com/mariogomesbarbosa/Zenny/pull/26)
 **Onde:** `index.html` (os três campos de dia), `nucleo.js` (`limitarDia`)
 **Pedido:** o campo de dia de fechamento e de vencimento deve ser numérico,
 com limite de 1 a 31.
@@ -188,5 +188,7 @@ Qual das duas é decisão a tomar na implementação.
 
 ## Feitas
 
-Nada aqui ainda. As melhorias que já entraram antes desta lista existir estão
-na seção "Resolvidas" de [pendencias.md](pendencias.md).
+- **4. Os campos de valor precisam de máscara** — [PR #26](https://github.com/mariogomesbarbosa/Zenny/pull/26)
+- **5. O limite de 1 a 31 nos dias não é respeitado** — [PR #26](https://github.com/mariogomesbarbosa/Zenny/pull/26)
+
+As melhorias que entraram antes desta lista existir estão na seção "Resolvidas" de [pendencias.md](pendencias.md).
