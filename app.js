@@ -668,6 +668,11 @@ function telaDaUrl() {
 
 /** @param {string} nome */
 function mostrarTela(nome) {
+  if (nome === 'cartao-detalhe' && !cartaoDetalheId) {
+    location.hash = '#/cartoes';
+    mostrarTela('cartoes');
+    return;
+  }
   for (const tela of TELAS) $('tela-' + tela).hidden = tela !== nome;
 
   for (const link of /** @type {NodeListOf<HTMLAnchorElement>} */ (
@@ -1912,17 +1917,9 @@ function momentoDoLancamento(l) {
 }
 
 function desenharDetalheCartao() {
-  if (!cartaoDetalheId) {
-    location.hash = '#/cartoes';
-    mostrarTela('cartoes');
-    return;
-  }
+  if (!cartaoDetalheId) return;
   const cartao = cartaoPorId(estado, cartaoDetalheId);
-  if (!cartao) {
-    location.hash = '#/cartoes';
-    mostrarTela('cartoes');
-    return;
-  }
+  if (!cartao) return;
 
   const fatura = faturaDoMes(estado, cartao.id, mesVisivel);
   const paga = estaRealizado(estado.realizados, idDaFatura(cartao.id), mesVisivel);
