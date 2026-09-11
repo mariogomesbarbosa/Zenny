@@ -85,7 +85,7 @@ a decidir na implementação.
 
 ## 3. Os cards de lançamento da home ficaram atrás do redesenho do cartão
 
-**Status:** 🟡 Em andamento — branch `feat/redesenho-cards-home`
+**Status:** 🟡 Em andamento — [PR #31](https://github.com/mariogomesbarbosa/Zenny/pull/31)
 **Onde:** `app.js` (`linhaDoLancamento` e `linhaDaCompraDetalhe`), `styles.css`
 **Pedido:** melhorar o card de lançamento da home, aplicando o novo layout unificado
 com o do cartão de crédito (com marcador de realizado e exibição do dia).
