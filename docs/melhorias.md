@@ -57,7 +57,7 @@ vai. Reusaria a linguagem visual que a pessoa já aprendeu.
 
 ## 2. O botão flutuante "Adicionar" aparece na tela de detalhe da fatura
 
-**Status:** 🟡 Em andamento — `fix/botao-flutuante-apenas-no-inicio`
+**Status:** 🟢 Feita — [PR #28](https://github.com/mariogomesbarbosa/Zenny/pull/28)
 **Onde:** `styles.css`, a regra que esconde o botão flutuante
 **Pedido:** ele não deve existir nessa tela, que já tem seu próprio botão de
 anotar lançamento no cartão.
@@ -184,11 +184,22 @@ vindo do arquivo de backup, e essa defesa tem que continuar calada. O
 conserto é na tela: impedir a digitação fora da faixa, ou dizer que corrigiu.
 Qual das duas é decisão a tomar na implementação.
 
+## 6. Card de compras do cartão e confirmação para ações destrutivas
+
+**Status:** 🟡 Em andamento — `feat/ajustes-card-compras-cartao`
+**Onde:** `app.js`, `styles.css`, `index.html`, `nucleo.js`
+**Pedido:**
+- Remover botões inline de editar e excluir dos cards de compras na fatura do cartão, abrindo o drawer de edição ao tocar no card.
+- No lugar dos botões, exibir a tag de categoria (ou o botão `+ categoria` quando não houver categoria atribuída).
+- Exibir a hora de lançamento junto à data e ordenar a lista de compras em ordem decrescente (mais recente no topo).
+- Adicionar confirmação modal para ações destrutivas (exclusão de lançamentos avulsos e compras, arquivamento de cartão e remoção de limites).
+
 ---
 
 ## Feitas
 
 - **1. O Relatório só mostra o que já foi pago** — [PR #27](https://github.com/mariogomesbarbosa/Zenny/pull/27)
+- **2. O botão flutuante "Adicionar" aparece na tela de detalhe da fatura** — [PR #28](https://github.com/mariogomesbarbosa/Zenny/pull/28)
 - **4. Os campos de valor precisam de máscara** — [PR #26](https://github.com/mariogomesbarbosa/Zenny/pull/26)
 - **5. O limite de 1 a 31 nos dias não é respeitado** — [PR #26](https://github.com/mariogomesbarbosa/Zenny/pull/26)
 
