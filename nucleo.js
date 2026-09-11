@@ -276,6 +276,30 @@ export function valorParaCampo(centavos) {
   return String(Math.floor(n / 100)) + ',' + String(n % 100).padStart(2, '0');
 }
 
+/**
+ * Aplica máscara de moeda preenchendo da direita para a esquerda.
+ * Ex: "1" -> "0,01", "12" -> "0,12", "1234" -> "12,34", "123456" -> "1.234,56".
+ * Se não houver dígitos significativos, retorna string vazia.
+ *
+ * @param {unknown} texto
+ * @returns {string}
+ */
+export function aplicarMascaraValor(texto) {
+  const digitos = String(texto ?? '')
+    .replace(/\D/g, '')
+    .replace(/^0+/, '')
+    .slice(0, 11);
+
+  if (!digitos) return '';
+
+  const comZeros = digitos.padStart(3, '0');
+  const inteira = comZeros.slice(0, -2);
+  const decimal = comZeros.slice(-2);
+
+  const inteiraFormatada = inteira.replace(/\B(?=(\d{3})+(?!\d))/g, '.');
+  return `${inteiraFormatada},${decimal}`;
+}
+
 /* ---------- Meses ---------- */
 
 const NOMES_DOS_MESES = [

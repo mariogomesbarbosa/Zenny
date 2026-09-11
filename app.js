@@ -14,6 +14,7 @@ import {
   analisarValor,
   formatarDinheiro,
   valorParaCampo,
+  aplicarMascaraValor,
   valorVigenteEm,
   definirValorDesde,
   definirValorSempre,
@@ -172,6 +173,55 @@ const armazenamento = {
     }
   },
 };
+
+/* ---------- Máscara de valor e validação de dia ----------
+ *
+ * Todos os campos de dinheiro do app compartilham a mesma máscara de
+ * "direita para a esquerda": cada dígito empurra os anteriores, e a vírgula
+ * fica fixa duas casas antes do fim. A função pura mora no núcleo; esta
+ * conecta ao DOM.
+ *
+ * Os campos de dia usam clamp direto no 'input', e não deixam o 'limitarDia'
+ * do núcleo corrigir em silêncio na hora de salvar — que é o defeito descrito
+ * na melhoria 5 do docs/melhorias.md. */
+
+/**
+ * Registra a máscara de moeda num campo de texto.
+ * Ao receber `input`, formata o valor da direita para a esquerda.
+ * O campo continua compatível com `analisarValor` na leitura.
+ *
+ * @param {HTMLInputElement} campo
+ */
+function registrarMascaraDeValor(campo) {
+  campo.addEventListener('input', () => {
+    campo.value = aplicarMascaraValor(campo.value);
+  });
+}
+
+/**
+ * Registra a validação de intervalo 1–31 num campo de dia.
+ * - No `input`: remove não-dígitos, limita a 2 caracteres e faz clamp se
+ *   o valor digitado já for maior que 31.
+ * - No `blur`: se o campo estiver vazio ou for 0, corrige para 1.
+ *
+ * @param {HTMLInputElement} campo
+ */
+function registrarValidacaoDeDia(campo) {
+  campo.addEventListener('input', () => {
+    const limpo = campo.value.replace(/\D/g, '').slice(0, 2);
+    const n = Number(limpo);
+    if (n > 31) {
+      campo.value = '31';
+    } else {
+      campo.value = limpo;
+    }
+  });
+
+  campo.addEventListener('blur', () => {
+    const n = Number(campo.value);
+    if (!campo.value || n < 1) campo.value = '1';
+  });
+}
 
 /* ---------- Estado ---------- */
 
@@ -2198,6 +2248,14 @@ $('fatura-cancelar').addEventListener('click', () => {
   $dialogo('dialogo-fatura').close();
 });
 
+/* ---------- Validação de dia 1–31 (melhoria 5) ----------
+ *
+ * Registrado antes dos listeners de dica, para que quando atualizarDicaDoCiclo
+ * e atualizarDicaDoCartao lerem o campo ele já tenha o valor clampeado. */
+registrarValidacaoDeDia($campo('campo-dia'));
+registrarValidacaoDeDia($campo('campo-fechamento'));
+registrarValidacaoDeDia($campo('campo-vencimento'));
+
 /* A dica de "entra na fatura de X" acompanha as três coisas que mudam a
    resposta: o cartão escolhido, a data da compra e virar fixa. */
 $campo('campo-fechamento').addEventListener('input', atualizarDicaDoCiclo);
@@ -2207,6 +2265,16 @@ $selecao('campo-cartao').addEventListener('change', atualizarDicaDoCartao);
 $campo('campo-data').addEventListener('change', atualizarDicaDoCartao);
 $campo('campo-dia').addEventListener('input', atualizarDicaDoCartao);
 $selecao('campo-repeticao').addEventListener('change', atualizarDicaDoCartao);
+
+/* ---------- Máscara de valor (melhoria 4) ----------
+ *
+ * Os 5 campos de dinheiro do app. A ordem aqui é apenas conveniência de leitura;
+ * o que importa é que nenhum fique de fora. */
+registrarMascaraDeValor($campo('campo-valor'));
+registrarMascaraDeValor($campo('campo-limite-do-cartao'));
+registrarMascaraDeValor($campo('campo-fatura'));
+registrarMascaraDeValor($campo('campo-limite'));
+registrarMascaraDeValor($campo('campo-fatura-detalhe'));
 
 /* ---------- Instalar o app ---------- */
 
