@@ -689,7 +689,27 @@ function mostrarTela(nome) {
   if (nome === 'cartao-detalhe') desenharDetalheCartao();
 }
 
-window.addEventListener('hashchange', () => mostrarTela(telaDaUrl()));
+window.addEventListener('hashchange', () => {
+  const tela = telaDaUrl();
+  if (tela !== 'cartao-detalhe' && cartaoDetalheId) {
+    fecharDialogoAjusteFatura();
+    cartaoDetalheId = null;
+  }
+  mostrarTela(tela);
+});
+
+for (const link of /** @type {NodeListOf<HTMLAnchorElement>} */ (
+  document.querySelectorAll('.navegacao a, .marca')
+)) {
+  link.addEventListener('click', () => {
+    const tela = link.dataset.tela || 'inicio';
+    if (document.body.dataset.tela === 'cartao-detalhe') {
+      fecharDialogoAjusteFatura();
+      cartaoDetalheId = null;
+    }
+    mostrarTela(tela);
+  });
+}
 
 /* ---------- Mês ---------- */
 
@@ -1671,7 +1691,7 @@ function linhaDoCartao(cartao) {
   toque.type = 'button';
   toque.className = 'cartao-toque';
   toque.setAttribute('aria-label', 'Abrir a fatura do ' + cartao.nome);
-  toque.addEventListener('click', () => abrirDetalheCartao(cartao.id));
+  toque.addEventListener('click', () => abrirDetalheCartao(cartao.id, 'cartoes'));
 
   const nome = document.createElement('span');
   nome.className = 'cartao-nome';
@@ -1816,17 +1836,28 @@ function arquivarCartaoAberto() {
 /** @type {string|null} */
 let cartaoDetalheId = null;
 
-/** @param {string} cartaoId */
-function abrirDetalheCartao(cartaoId) {
+/** @type {string} */
+let origemDetalheCartao = 'cartoes';
+
+/**
+ * @param {string} cartaoId
+ * @param {string} [origem]
+ */
+function abrirDetalheCartao(cartaoId, origem) {
+  origemDetalheCartao = origem || (document.body.dataset.tela === 'inicio' ? 'inicio' : 'cartoes');
   cartaoDetalheId = cartaoId;
+  location.hash = '#/cartao-detalhe';
   desenharDetalheCartao();
   mostrarTela('cartao-detalhe');
 }
 
 function fecharDetalheCartao() {
   fecharDialogoAjusteFatura();
+  const destino = origemDetalheCartao || 'cartoes';
+  origemDetalheCartao = 'cartoes';
   cartaoDetalheId = null;
-  mostrarTela('cartoes');
+  location.hash = '#/' + destino;
+  mostrarTela(destino);
 }
 
 /**
@@ -1881,9 +1912,17 @@ function momentoDoLancamento(l) {
 }
 
 function desenharDetalheCartao() {
-  if (!cartaoDetalheId) return;
+  if (!cartaoDetalheId) {
+    location.hash = '#/cartoes';
+    mostrarTela('cartoes');
+    return;
+  }
   const cartao = cartaoPorId(estado, cartaoDetalheId);
-  if (!cartao) return;
+  if (!cartao) {
+    location.hash = '#/cartoes';
+    mostrarTela('cartoes');
+    return;
+  }
 
   const fatura = faturaDoMes(estado, cartao.id, mesVisivel);
   const paga = estaRealizado(estado.realizados, idDaFatura(cartao.id), mesVisivel);
@@ -2096,7 +2135,7 @@ function salvarValorDaFaturaDetalhe() {
 
 /** @param {string} cartaoId */
 function abrirFatura(cartaoId) {
-  abrirDetalheCartao(cartaoId);
+  abrirDetalheCartao(cartaoId, 'inicio');
 }
 
 function anotarCompraNaFatura() {
