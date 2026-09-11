@@ -1833,6 +1833,12 @@ conferir('mas ela continua sendo um lancamento de setembro',
   const outubro = resumoDoMes(COM_CARTAO.lancamentos, pago, '2026-10', faturasDoMes(COM_CARTAO, '2026-10'));
   conferir('fatura paga entra no realizado', outubro.despesas.realizado, 25000);
   conferir('e nao falta mais nada a sair', outubro.faltaSair, 0);
+
+  /* A fatura marcada como paga faz as compras daquele ciclo contarem como realizadas no Relatório. */
+  const quebra = gastosPorCategoria(COM_CARTAO.lancamentos, pago, '2026-09', COM_CARTAO.cartoes);
+  conferir('mercado no cartao consta como realizado quando a fatura e paga', acharGasto(quebra, 'mercado').realizado, 20000);
+  conferir('saude no cartao consta como realizado quando a fatura e paga', acharGasto(quebra, 'saude').realizado, 5000);
+  conferir('despesa que nao e do cartao continua pendente', acharGasto(quebra, 'casa').realizado, 0);
 }
 
 /* itensDoMes junta os dois e ordena por dia: e o que a lista desenha. */

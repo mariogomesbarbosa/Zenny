@@ -1540,7 +1540,7 @@ function selecionarCategoria(id) {
     const fatia = linhasDoRelatorio(mesVisivel).find((linha) => linha.id === id);
 
     $dialogo('dialogo-categoria').close();
-    abrirLimite(id, categoria.nome, fatia ? fatia.total : 0);
+    abrirLimite(id, categoria.nome, fatia ? fatia.realizado : 0);
     return;
   }
 
@@ -2043,7 +2043,7 @@ function desenharRelatorio() {
  * @returns {GastoDeCategoria[]}
  */
 function linhasDoRelatorio(mes) {
-  const fatias = gastosPorCategoria(estado.lancamentos, estado.realizados, mes);
+  const fatias = gastosPorCategoria(estado.lancamentos, estado.realizados, mes, estado.cartoes);
   const jaListadas = new Set(fatias.map((f) => f.id));
 
   const semGasto = Object.keys(estado.limites)

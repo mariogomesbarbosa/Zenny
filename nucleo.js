@@ -1721,9 +1721,10 @@ export function proporcoesDasBarras(resumo) {
  * @param {Lancamento[]} lancamentos
  * @param {Realizados} realizados
  * @param {Mes} mes
+ * @param {Cartao[]} [cartoes]
  * @returns {GastoDeCategoria[]}
  */
-export function gastosPorCategoria(lancamentos, realizados, mes) {
+export function gastosPorCategoria(lancamentos, realizados, mes, cartoes = []) {
   /** @type {Map<string|null, { id: string|null, previsto: number, realizado: number, quantidade: number }>} */
   const porCategoria = new Map();
 
@@ -1734,7 +1735,20 @@ export function gastosPorCategoria(lancamentos, realizados, mes) {
     const fatia = porCategoria.get(id) || { id, previsto: 0, realizado: 0, quantidade: 0 };
     fatia.previsto += l.valor;
     fatia.quantidade += 1;
-    if (estaRealizado(realizados, l.id, mes)) {
+
+    let pago = estaRealizado(realizados, l.id, mes);
+    if (!pago && l.cartao && cartoes && cartoes.length > 0) {
+      const cartao = cartoes.find((c) => c.id === l.cartao);
+      if (cartao) {
+        const data = l.fixo ? mes + '-' + String(l.dia).padStart(2, '0') : l.data;
+        const mesFatura = faturaDaCompra(cartao, data);
+        pago =
+          estaRealizado(realizados, idDaFatura(cartao.id), mesFatura) ||
+          estaRealizado(realizados, idDaFatura(cartao.id), mes);
+      }
+    }
+
+    if (pago) {
       fatia.realizado += l.valor;
     }
     porCategoria.set(id, fatia);
