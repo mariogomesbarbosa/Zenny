@@ -850,6 +850,7 @@ dialog::backdrop { background: var(--veu); }
    dinheiro de fato classificado. */
 .linha-categoria-botao.vazia .barra-nome { color: var(--tinta-suave); font-style: italic; }
 .trecho.cheio.categoria-vazia { background: var(--tinta-fraca); }
+.trecho.claro.categoria-vazia { background: var(--borda); }
 
 /* O quanto do limite já foi usado, na própria linha (decisão 6b do B5): um
    aviso que precisa de três toques para aparecer é quase mudo. Ocupa a grade

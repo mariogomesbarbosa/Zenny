@@ -164,9 +164,11 @@
  * Uma fatia da quebra do mês. `id` é `null` no registro que ficou sem categoria.
  * @typedef {object} GastoDeCategoria
  * @property {string|null} id
- * @property {number} total Centavos já realizados.
+ * @property {number} previsto Centavos planejados/previstos no mês.
+ * @property {number} realizado Centavos já pagos no mês.
+ * @property {number} total Centavos planejados no mês (mantido para compatibilidade).
  * @property {number} quantidade
- * @property {number} proporcao Largura da barra, em % do maior gasto do mês.
+ * @property {{ realizado: number, previsto: number }} proporcao Largura dos trechos (% da maior categoria do mês).
  */
 
 /**
@@ -1700,10 +1702,9 @@ export function proporcoesDasBarras(resumo) {
 
 /* A quebra do mês, do maior para o menor.
  *
- * Só SAÍDAS, e só o que já foi marcado como pago (decisão 9): um limite compara
- * com o que já saiu. Dizer "você já usou 380 dos 400" sobre dinheiro que ainda
- * não saiu seria mentir sobre o presente — o previsto continua sendo assunto do
- * painel.
+ * Só SAÍDAS. Inclui lançamentos planejados e realizados: quem entra no
+ * Relatório no início do mês vê para onde o dinheiro está planejado para ir, e
+ * à medida que paga vê a barra encher (melhoria 1).
  *
  * O valor de cada fixo vem de `lancamentosDoMes`, e não de `valores`: é o que
  * mantém a linha do tempo do B3 invisível aqui, e o que garante que a quebra de
@@ -1713,11 +1714,9 @@ export function proporcoesDasBarras(resumo) {
  * Outros: a tela precisa poder convidar ao toque justo em cima do que o app não
  * soube classificar.
  *
- * `proporcao` é largura de barra, em porcentagem do MAIOR gasto do mês — e não
- * da soma. Proporção da soma foi recusada: com oito categorias parecidas nenhuma
- * barra passaria de 20% da tela em 360px, e a comparação que a pessoa faz ali é
- * entre categorias, não contra um total que o painel já mostra. A divisão fica
- * aqui, e não no app.js, porque a interface não faz conta com dinheiro. */
+ * `proporcao` divide-se em dois trechos: `realizado` (o que já foi pago) e
+ * `previsto` (o que ainda falta pagar), medidos em porcentagem do MAIOR gasto do
+ * mês. Segue a mesma linguagem visual das barras do painel do Início. */
 /**
  * @param {Lancamento[]} lancamentos
  * @param {Realizados} realizados
@@ -1725,22 +1724,24 @@ export function proporcoesDasBarras(resumo) {
  * @returns {GastoDeCategoria[]}
  */
 export function gastosPorCategoria(lancamentos, realizados, mes) {
-  /** @type {Map<string|null, { id: string|null, total: number, quantidade: number }>} */
+  /** @type {Map<string|null, { id: string|null, previsto: number, realizado: number, quantidade: number }>} */
   const porCategoria = new Map();
 
   for (const l of lancamentosDoMes(lancamentos, mes)) {
     if (l.tipo !== 'saida') continue;
-    if (!estaRealizado(realizados, l.id, mes)) continue;
 
     const id = l.categoria ?? null;
-    const fatia = porCategoria.get(id) || { id, total: 0, quantidade: 0 };
-    fatia.total += l.valor;
+    const fatia = porCategoria.get(id) || { id, previsto: 0, realizado: 0, quantidade: 0 };
+    fatia.previsto += l.valor;
     fatia.quantidade += 1;
+    if (estaRealizado(realizados, l.id, mes)) {
+      fatia.realizado += l.valor;
+    }
     porCategoria.set(id, fatia);
   }
 
   const fatias = [...porCategoria.values()];
-  const maior = fatias.reduce((m, f) => Math.max(m, f.total), 0);
+  const maior = fatias.reduce((m, f) => Math.max(m, Math.max(f.previsto, f.realizado)), 0);
 
   /* Empate desempata pelo id, e "sem categoria" fica por último: a ordem só
      precisa ser ESTÁVEL — duas categorias com o mesmo total tanto faz quem vem
@@ -1749,8 +1750,25 @@ export function gastosPorCategoria(lancamentos, realizados, mes) {
   const ordem = (/** @type {{ id: string|null }} */ f) => (f.id === null ? '\uffff' : f.id);
 
   return fatias
-    .map((f) => ({ ...f, proporcao: maior === 0 ? 0 : (f.total / maior) * 100 }))
-    .sort((a, b) => b.total - a.total || (ordem(a) < ordem(b) ? -1 : ordem(a) > ordem(b) ? 1 : 0));
+    .map((f) => {
+      const previstoRestante = Math.max(f.previsto - f.realizado, 0);
+      return {
+        id: f.id,
+        previsto: f.previsto,
+        realizado: f.realizado,
+        total: f.previsto,
+        quantidade: f.quantidade,
+        proporcao: {
+          realizado: maior === 0 ? 0 : (f.realizado / maior) * 100,
+          previsto: maior === 0 ? 0 : (previstoRestante / maior) * 100,
+        },
+      };
+    })
+    .sort((a, b) => {
+      const totalA = Math.max(a.previsto, a.realizado);
+      const totalB = Math.max(b.previsto, b.realizado);
+      return totalB - totalA || (ordem(a) < ordem(b) ? -1 : ordem(a) > ordem(b) ? 1 : 0);
+    });
 }
 
 /* Zero, vazio ou lixo REMOVE o limite, em vez de gravar um limite de R$ 0,00.
