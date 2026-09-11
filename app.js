@@ -1844,6 +1844,33 @@ function timestampDeCriacao(l) {
   return 0;
 }
 
+/** @param {LancamentoDoMes} l @returns {string} */
+function dataDaCompra(l) {
+  return !l.fixo ? l.data : (mesVisivel + '-' + String(l.dia).padStart(2, '0'));
+}
+
+/**
+ * Retorna o momento em milissegundos para ordenação cronológica decrescente da compra.
+ * Combina a data da compra (dia em que foi feita) com o horário em que foi anotada.
+ * @param {LancamentoDoMes} l
+ * @returns {number}
+ */
+function momentoDoLancamento(l) {
+  const dataISO = dataDaCompra(l);
+  const tsCriacao = timestampDeCriacao(l);
+  let msNoDia = 0;
+  if (tsCriacao > 0) {
+    const d = new Date(tsCriacao);
+    msNoDia = d.getHours() * 3600000 + d.getMinutes() * 60000 + d.getSeconds() * 1000 + d.getMilliseconds();
+  }
+  const partes = dataISO.split('-').map(Number);
+  if (partes.length === 3) {
+    const baseDia = new Date(partes[0], partes[1] - 1, partes[2]).getTime();
+    return baseDia + msNoDia;
+  }
+  return tsCriacao;
+}
+
 function desenharDetalheCartao() {
   if (!cartaoDetalheId) return;
   const cartao = cartaoPorId(estado, cartaoDetalheId);
@@ -1888,7 +1915,9 @@ function desenharDetalheCartao() {
   const lista = $('lista-compras-detalhe');
   lista.textContent = '';
 
-  const comprasOrdenadas = [...compras].sort((a, b) => timestampDeCriacao(b) - timestampDeCriacao(a));
+  const comprasOrdenadas = [...compras].sort(
+    (a, b) => momentoDoLancamento(b) - momentoDoLancamento(a) || b.id.localeCompare(a.id)
+  );
 
   let totalCompras = 0;
   for (const compra of comprasOrdenadas) {
