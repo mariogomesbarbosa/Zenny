@@ -60,6 +60,7 @@
  * @property {string} descricao
  * @property {string|null} [categoria] Id de categoria, ou `null` para sem categoria.
  * @property {string|null} [cartao] Id do cartão em que foi pago, ou `null`.
+ * @property {string} [criadoEm] Timestamp ISO de quando o lançamento foi anotado.
  * @property {false} fixo
  * @property {number} valor Em centavos.
  * @property {Data} data
@@ -72,6 +73,7 @@
  * @property {string} descricao
  * @property {string|null} [categoria] Id de categoria, ou `null` para sem categoria.
  * @property {string|null} [cartao] Id do cartão em que é pago, ou `null`.
+ * @property {string} [criadoEm] Timestamp ISO de quando o lançamento foi anotado.
  * @property {true} fixo
  * @property {number} dia
  * @property {Mes} inicio
@@ -931,13 +933,16 @@ export function normalizarEstado(bruto) {
   for (const cru of bruto.lancamentos) {
     if (!cru || typeof cru !== 'object') continue;
 
+    const criadoEm = typeof cru.criadoEm === 'string' && cru.criadoEm ? cru.criadoEm : undefined;
+
     /* Anotado porque a inferência alarga `tipo` para `string`, e aí ele não
        serve mais como a metade discriminante de Avulso|Fixo. */
-    /** @type {{ id: string, tipo: TipoDeLancamento, descricao: string }} */
+    /** @type {{ id: string, tipo: TipoDeLancamento, descricao: string, criadoEm?: string }} */
     const base = {
       id: String(cru.id ?? ''),
       tipo: cru.tipo === 'entrada' ? 'entrada' : 'saida',
       descricao: String(cru.descricao ?? '').trim(),
+      ...(criadoEm ? { criadoEm } : {}),
     };
 
     if (!base.id || !base.descricao) continue;

@@ -550,14 +550,21 @@ function pedirExclusao(lancamento) {
     return;
   }
 
-  const anterior = instantaneo();
-  estado = {
-    ...estado,
-    lancamentos: excluirLancamento(estado.lancamentos, lancamento.id),
-    realizados: limparRealizadosDe(estado.realizados, lancamento.id),
-  };
-  salvar();
-  avisar(`"${lancamento.descricao}" foi removido.`, () => restaurar(anterior));
+  pedirConfirmacao({
+    titulo: 'Excluir lançamento?',
+    mensagem: `O lançamento "${lancamento.descricao}" será removido.`,
+    textoConfirmar: 'Excluir',
+    aoConfirmar: () => {
+      const anterior = instantaneo();
+      estado = {
+        ...estado,
+        lancamentos: excluirLancamento(estado.lancamentos, lancamento.id),
+        realizados: limparRealizadosDe(estado.realizados, lancamento.id),
+      };
+      salvar();
+      avisar(`"${lancamento.descricao}" foi removido.`, () => restaurar(anterior));
+    },
+  });
 }
 
 /**
@@ -612,6 +619,35 @@ $('excluir-todos').addEventListener('click', () =>
 $('excluir-cancelar').addEventListener('click', () => {
   pendenteDeExclusao = null;
   $dialogo('dialogo-exclusao').close();
+});
+
+/* ---------- Confirmação para ações destrutivas ---------- */
+
+/** @type {(() => void)|null} */
+let pendenteDeConfirmacao = null;
+
+/**
+ * Pede confirmação antes de executar uma ação destrutiva.
+ * @param {{ titulo?: string, mensagem: string, textoConfirmar?: string, aoConfirmar: () => void }} opcoes
+ */
+function pedirConfirmacao({ titulo = 'Tem certeza?', mensagem, textoConfirmar = 'Confirmar', aoConfirmar }) {
+  $('titulo-do-confirmar').textContent = titulo;
+  $('mensagem-do-confirmar').textContent = mensagem;
+  $('confirmar-acao').textContent = textoConfirmar;
+  pendenteDeConfirmacao = aoConfirmar;
+  $dialogo('dialogo-confirmar').showModal();
+}
+
+$('confirmar-acao').addEventListener('click', () => {
+  const acao = pendenteDeConfirmacao;
+  pendenteDeConfirmacao = null;
+  $dialogo('dialogo-confirmar').close();
+  if (acao) acao();
+});
+
+$('confirmar-cancelar').addEventListener('click', () => {
+  pendenteDeConfirmacao = null;
+  $dialogo('dialogo-confirmar').close();
 });
 
 /* ---------- Navegação entre telas ---------- */
@@ -875,6 +911,7 @@ $('botao-adicionar').addEventListener('click', () => abrirFormulario(null));
 for (const id of [
   'dialogo',
   'dialogo-exclusao',
+  'dialogo-confirmar',
   'dialogo-valor',
   'dialogo-restaurar',
   'dialogo-apagar',
@@ -882,6 +919,7 @@ for (const id of [
   'dialogo-limite',
   'dialogo-cartao',
   'dialogo-fatura',
+  'dialogo-ajuste-fatura',
 ]) {
   $dialogo(id).addEventListener('click', (evento) => {
     if (evento.target === $dialogo(id)) $dialogo(id).close();
@@ -894,6 +932,7 @@ for (const id of [
      próximo diálogo. */
   $dialogo(id).addEventListener('close', () => {
     if (id === 'dialogo-exclusao') pendenteDeExclusao = null;
+    if (id === 'dialogo-confirmar') pendenteDeConfirmacao = null;
     if (id === 'dialogo-valor') pendenteDeValor = null;
     if (id === 'dialogo-restaurar') pendenteDeRestauracao = null;
     if (id === 'dialogo-categoria') {
@@ -984,6 +1023,7 @@ function aplicarAlteracao(alteracao, modo) {
     descricao,
     categoria: categoriaParaAlteracao(descricao),
     cartao,
+    criadoEm: editando && editando.criadoEm ? editando.criadoEm : new Date().toISOString(),
   };
 
   /** @type {Lancamento} */
@@ -1741,16 +1781,25 @@ function erroDoCartao(texto) {
 
 function arquivarCartaoAberto() {
   if (!cartaoEmEdicao) return;
-  const anterior = instantaneo();
-  const nome = cartaoPorId(estado, cartaoEmEdicao)?.nome ?? 'Cartão';
-
-  estado = arquivarCartao(estado, cartaoEmEdicao);
+  const id = cartaoEmEdicao;
+  const nome = cartaoPorId(estado, id)?.nome ?? 'Cartão';
   $dialogo('dialogo-cartao').close();
-  salvar();
-  /* "Arquivado", e não "excluído": a palavra tem que corresponder ao que
-     aconteceu. As compras e as faturas pagas continuam lá, e dizer "excluído"
-     faria a pessoa achar que perdeu o histórico. */
-  avisar(nome + ' foi arquivado.', () => restaurar(anterior));
+
+  pedirConfirmacao({
+    titulo: 'Arquivar cartão?',
+    mensagem: `O cartão "${nome}" será arquivado. Suas compras e faturas anteriores continuarão registradas.`,
+    textoConfirmar: 'Arquivar cartão',
+    aoConfirmar: () => {
+      const anterior = instantaneo();
+      estado = arquivarCartao(estado, id);
+      cartaoEmEdicao = null;
+      salvar();
+      /* "Arquivado", e não "excluído": a palavra tem que corresponder ao que
+         aconteceu. As compras e as faturas pagas continuam lá, e dizer "excluído"
+         faria a pessoa achar que perdeu o histórico. */
+      avisar(nome + ' foi arquivado.', () => restaurar(anterior));
+    },
+  });
 }
 
 /* ---------- A fatura e a tela de detalhamento em tela cheia ---------- */
@@ -1769,6 +1818,30 @@ function fecharDetalheCartao() {
   fecharDialogoAjusteFatura();
   cartaoDetalheId = null;
   mostrarTela('cartoes');
+}
+
+/**
+ * Retorna o timestamp (em ms) de quando o lançamento foi criado.
+ * @param {LancamentoDoMes} l
+ * @returns {number}
+ */
+function timestampDeCriacao(l) {
+  if (l.criadoEm) {
+    const t = new Date(l.criadoEm).getTime();
+    if (!isNaN(t)) return t;
+  }
+  if (l.id && typeof l.id === 'string') {
+    const base36 = l.id.slice(0, 8);
+    const parsed = parseInt(base36, 36);
+    if (parsed > 1577836800000 && parsed < 2524608000000) {
+      return parsed;
+    }
+  }
+  if (!l.fixo && l.data) {
+    const d = new Date(l.data + 'T12:00:00');
+    if (!isNaN(d.getTime())) return d.getTime();
+  }
+  return 0;
 }
 
 function desenharDetalheCartao() {
@@ -1815,8 +1888,10 @@ function desenharDetalheCartao() {
   const lista = $('lista-compras-detalhe');
   lista.textContent = '';
 
+  const comprasOrdenadas = [...compras].sort((a, b) => timestampDeCriacao(b) - timestampDeCriacao(a));
+
   let totalCompras = 0;
-  for (const compra of compras) {
+  for (const compra of comprasOrdenadas) {
     totalCompras += compra.tipo === 'entrada' ? -compra.valor : compra.valor;
     lista.appendChild(linhaDaCompraDetalhe(compra));
   }
@@ -1833,6 +1908,16 @@ function desenharDetalheCartao() {
 function linhaDaCompraDetalhe(compra) {
   const item = document.createElement('li');
   item.className = 'lancamento-detalhe';
+  item.setAttribute('role', 'button');
+  item.tabIndex = 0;
+  item.setAttribute('aria-label', 'Editar ' + compra.descricao);
+  item.addEventListener('click', () => abrirFormulario(compra));
+  item.addEventListener('keydown', (evento) => {
+    if (evento.key === 'Enter' || evento.key === ' ') {
+      evento.preventDefault();
+      abrirFormulario(compra);
+    }
+  });
 
   const esquerda = document.createElement('div');
   esquerda.className = 'lancamento-detalhe-esquerda';
@@ -1840,6 +1925,15 @@ function linhaDaCompraDetalhe(compra) {
   const dataISO = !compra.fixo ? compra.data : (mesVisivel + '-' + String(compra.dia).padStart(2, '0'));
   const partes = dataISO.split('-');
   const dataTexto = partes.length === 3 ? `${partes[2]}/${partes[1]}/${partes[0]}` : String(compra.dia).padStart(2, '0');
+
+  const ts = timestampDeCriacao(compra);
+  let horaTexto = '';
+  if (ts > 0) {
+    const d = new Date(ts);
+    const h = String(d.getHours()).padStart(2, '0');
+    const m = String(d.getMinutes()).padStart(2, '0');
+    horaTexto = `${h}:${m}`;
+  }
 
   const nome = document.createElement('span');
   nome.className = 'lancamento-detalhe-nome';
@@ -1850,18 +1944,8 @@ function linhaDaCompraDetalhe(compra) {
 
   const data = document.createElement('span');
   data.className = 'lancamento-detalhe-data tabular';
-  data.textContent = dataTexto;
+  data.textContent = horaTexto ? `${dataTexto} · ${horaTexto}` : dataTexto;
   meta.appendChild(data);
-
-  if (compra.categoria) {
-    const catObj = estado.categorias.find((c) => c.id === compra.categoria);
-    if (catObj) {
-      const catTag = document.createElement('span');
-      catTag.className = 'lancamento-detalhe-categoria';
-      catTag.textContent = catObj.nome;
-      meta.appendChild(catTag);
-    }
-  }
 
   esquerda.append(nome, meta);
 
@@ -1873,28 +1957,30 @@ function linhaDaCompraDetalhe(compra) {
   valor.className = 'lancamento-detalhe-valor tabular ' + (credito ? 'entrada' : 'saida');
   valor.textContent = (credito ? '+ ' : '− ') + formatarDinheiro(compra.valor);
 
-  const acoes = document.createElement('div');
-  acoes.className = 'lancamento-detalhe-acoes';
+  const categoria = categoriaPorId(estado, compra.categoria);
+  const botaoCat = document.createElement('button');
+  botaoCat.type = 'button';
+  if (categoria) {
+    botaoCat.className = 'lancamento-detalhe-categoria-btn';
+    botaoCat.setAttribute('aria-label', `Categoria: ${categoria.nome}. Toque para mudar.`);
+    botaoCat.textContent = categoria.nome;
+  } else {
+    botaoCat.className = 'lancamento-detalhe-categoria-btn sem-categoria';
+    botaoCat.setAttribute('aria-label', 'Adicionar categoria');
+    botaoCat.textContent = '+ categoria';
+  }
 
-  const editar = document.createElement('button');
-  editar.type = 'button';
-  editar.className = 'lancamento-detalhe-btn editar';
-  editar.setAttribute('aria-label', 'Editar ' + compra.descricao);
-  editar.title = 'Editar lançamento';
-  editar.innerHTML = '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg><span>Editar</span>';
-  editar.addEventListener('click', () => abrirFormulario(compra));
+  botaoCat.addEventListener('click', (evento) => {
+    evento.stopPropagation();
+    abrirEscolhaDeCategoria(compra);
+  });
+  botaoCat.addEventListener('keydown', (evento) => {
+    if (evento.key === 'Enter' || evento.key === ' ') {
+      evento.stopPropagation();
+    }
+  });
 
-  const excluir = document.createElement('button');
-  excluir.type = 'button';
-  excluir.className = 'lancamento-detalhe-btn excluir';
-  excluir.setAttribute('aria-label', 'Excluir ' + compra.descricao);
-  excluir.title = 'Excluir lançamento';
-  excluir.innerHTML = '<svg viewBox="0 0 24 24" aria-hidden="true"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/><path d="M10 11v6M14 11v6"/><path d="M9 6V4h6v2"/></svg><span>Excluir</span>';
-  excluir.addEventListener('click', () => pedirExclusao(compra));
-
-  acoes.append(editar, excluir);
-  direita.append(valor, acoes);
-
+  direita.append(valor, botaoCat);
   item.append(esquerda, direita);
   return item;
 }
@@ -2231,13 +2317,21 @@ $('limite-salvar').addEventListener('click', () => {
 
 $('limite-remover').addEventListener('click', () => {
   if (!limiteEmEdicao) return;
-  const anterior = instantaneo();
-
-  estado = { ...estado, limites: definirLimite(estado.limites, limiteEmEdicao.id, 0) };
-  salvar();
+  const alvo = limiteEmEdicao;
   $dialogo('dialogo-limite').close();
-  limiteEmEdicao = null;
-  avisar('Limite removido.', () => restaurar(anterior));
+
+  pedirConfirmacao({
+    titulo: 'Remover limite?',
+    mensagem: `O limite para ${alvo.nome} será removido.`,
+    textoConfirmar: 'Remover limite',
+    aoConfirmar: () => {
+      const anterior = instantaneo();
+      estado = { ...estado, limites: definirLimite(estado.limites, alvo.id, 0) };
+      salvar();
+      limiteEmEdicao = null;
+      avisar('Limite removido.', () => restaurar(anterior));
+    },
+  });
 });
 
 $('botao-definir-limite').addEventListener('click', abrirEscolhaParaLimite);

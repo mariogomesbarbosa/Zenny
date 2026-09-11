@@ -1029,6 +1029,19 @@ dialog::backdrop { background: var(--veu); }
   border: 1px solid var(--borda);
   border-radius: 12px;
   box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05);
+  cursor: pointer;
+  -webkit-tap-highlight-color: transparent;
+  transition: background .15s, border-color .15s;
+}
+
+.lancamento-detalhe:hover {
+  background: var(--areia);
+  border-color: var(--tinta-fraca);
+}
+
+.lancamento-detalhe:focus-visible {
+  outline: 2px solid var(--verde);
+  outline-offset: 2px;
 }
 
 .lancamento-detalhe:last-child {
@@ -1064,15 +1077,6 @@ dialog::backdrop { background: var(--veu); }
   white-space: nowrap;
 }
 
-.lancamento-detalhe-categoria {
-  font-size: .75rem;
-  color: var(--tinta-suave);
-  background: var(--areia);
-  padding: 2px 8px;
-  border-radius: 6px;
-  white-space: nowrap;
-}
-
 .lancamento-detalhe-direita {
   display: flex;
   flex-direction: column;
@@ -1090,18 +1094,12 @@ dialog::backdrop { background: var(--veu); }
 .lancamento-detalhe-valor.entrada { color: var(--verde); }
 .lancamento-detalhe-valor.saida   { color: var(--coral); }
 
-.lancamento-detalhe-acoes {
-  display: flex;
-  align-items: center;
-  gap: 6px;
-}
-
-.lancamento-detalhe-btn {
+.lancamento-detalhe-categoria-btn {
   display: inline-flex;
   align-items: center;
   gap: 4px;
-  padding: 4px 10px;
-  border-radius: 6px;
+  padding: 3px 8px;
+  border-radius: 12px;
   border: 1px solid var(--borda);
   background: var(--areia);
   font: inherit;
@@ -1111,33 +1109,27 @@ dialog::backdrop { background: var(--veu); }
   cursor: pointer;
   -webkit-tap-highlight-color: transparent;
   transition: background .15s, color .15s, border-color .15s;
+  white-space: nowrap;
+  max-width: 150px;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 
-.lancamento-detalhe-btn svg {
-  width: 14px;
-  height: 14px;
-  stroke: currentColor;
-  fill: none;
-  stroke-width: 2;
-  stroke-linecap: round;
-  stroke-linejoin: round;
-  flex-shrink: 0;
+.lancamento-detalhe-categoria-btn:hover {
+  border-color: var(--tinta-fraca);
+  color: var(--tinta);
 }
 
-.lancamento-detalhe-btn.editar:hover {
-  background: var(--verde-fraco);
-  border-color: var(--verde);
+.lancamento-detalhe-categoria-btn.sem-categoria {
+  color: var(--tinta-fraca);
+  border-style: dashed;
+  background: transparent;
+}
+
+.lancamento-detalhe-categoria-btn.sem-categoria:hover {
   color: var(--verde);
-}
-
-.lancamento-detalhe-btn.excluir {
-  color: var(--tinta-suave);
-}
-
-.lancamento-detalhe-btn.excluir:hover {
-  background: var(--coral-fraco);
-  border-color: var(--coral);
-  color: var(--coral);
+  border-color: var(--verde);
+  background: var(--verde-fraco);
 }
 
 /* As compras que compõem a fatura, dentro da folha. Rola quando são muitas, em
