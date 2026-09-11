@@ -8,10 +8,12 @@
   "scripts": {
     "tipos": "tsc",
     "testes": "node tests/nucleo.mjs",
-    "conferir": "npm run tipos && npm run testes"
+    "conferir": "npm run tipos && npm run testes",
+    "mockup": "node tools/gerar-mockup.mjs"
   },
   "devDependencies": {
     "@types/node": "^26.4.1",
+    "playwright": "^1.63.0",
     "typescript": "^7.0.2"
   }
 }
