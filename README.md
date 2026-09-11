@@ -20,6 +20,10 @@
   <sub>Abre no navegador e instala como app no Android — funciona sem internet.</sub>
 </p>
 
+<p align="center">
+  <img src="assets/preview.png" alt="Demonstração do Zenny: Início, Fatura do Cartão e Relatório de Gastos" width="100%" />
+</p>
+
 ---
 
 ## 📌 Sobre o Zenny
