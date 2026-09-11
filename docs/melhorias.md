@@ -113,7 +113,7 @@ app. Vale plano próprio em `docs/`, como manda o `CLAUDE.md`.
 
 ## 4. Os campos de valor precisam de máscara
 
-**Status:** 🔴 Aberta
+**Status:** 🟡 Em andamento — `feat/mascara-de-valor-e-validacao-de-dia`
 **Onde:** `app.js` (os cinco campos de dinheiro), `index.html`
 **Pedido:** máscara nos campos de valor, para não ser preciso digitar a
 vírgula — como na maioria dos aplicativos de banco.
@@ -150,7 +150,7 @@ Três coisas que a implementação não pode esquecer:
 
 ## 5. O limite de 1 a 31 nos dias não é respeitado
 
-**Status:** 🔴 Aberta
+**Status:** 🟡 Em andamento — `feat/mascara-de-valor-e-validacao-de-dia`
 **Onde:** `index.html` (os três campos de dia), `nucleo.js` (`limitarDia`)
 **Pedido:** o campo de dia de fechamento e de vencimento deve ser numérico,
 com limite de 1 a 31.

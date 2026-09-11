@@ -10,6 +10,7 @@ import {
   analisarValor,
   formatarDinheiro,
   valorParaCampo,
+  aplicarMascaraValor,
   mesDe,
   deslocarMes,
   diasNoMes,
@@ -228,6 +229,18 @@ conferir('formata indefinido como zero', formatarDinheiro(lixo(undefined)), `R$$
 conferir('valor para o campo', valorParaCampo(123456), '1234,56');
 conferir('valor para o campo, centavos', valorParaCampo(7), '0,07');
 conferir('ida e volta pelo campo', analisarValor(valorParaCampo(602891)), 602891);
+
+/* ---------- aplicarMascaraValor ---------- */
+conferir('máscara vazia', aplicarMascaraValor(''), '');
+conferir('máscara zero', aplicarMascaraValor('0'), '');
+conferir('máscara 1 dígito', aplicarMascaraValor('1'), '0,01');
+conferir('máscara 2 dígitos', aplicarMascaraValor('12'), '0,12');
+conferir('máscara 3 dígitos', aplicarMascaraValor('123'), '1,23');
+conferir('máscara 4 dígitos', aplicarMascaraValor('1234'), '12,34');
+conferir('máscara com milhar', aplicarMascaraValor('123456'), '1.234,56');
+conferir('máscara com milhão', aplicarMascaraValor('123456789'), '1.234.567,89');
+conferir('máscara mantendo zeros à esquerda eliminados', aplicarMascaraValor('00050'), '0,50');
+conferir('máscara limpando caracteres não numéricos', aplicarMascaraValor('R$ 1.234,56'), '1.234,56');
 
 /* Soma de muitos valores continua exata — a razão de tudo ser centavo inteiro. */
 const muitos = Array.from({ length: 1000 }, () => analisarValor('0,07'));
