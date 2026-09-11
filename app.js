@@ -416,6 +416,21 @@ function linhaDoLancamento(lancamento) {
   const item = document.createElement('li');
   item.className =
     'lancamento' + (feito ? ' realizado' : '') + (lancamento.ehFatura ? ' fatura' : '');
+  item.setAttribute('role', 'button');
+  item.tabIndex = 0;
+  item.setAttribute(
+    'aria-label',
+    (lancamento.ehFatura ? 'Abrir ' : 'Editar ') + lancamento.descricao
+  );
+  item.addEventListener('click', () =>
+    lancamento.ehFatura ? abrirFatura(lancamento.cartaoId) : abrirFormulario(lancamento)
+  );
+  item.addEventListener('keydown', (evento) => {
+    if (evento.key === 'Enter' || evento.key === ' ') {
+      evento.preventDefault();
+      lancamento.ehFatura ? abrirFatura(lancamento.cartaoId) : abrirFormulario(lancamento);
+    }
+  });
 
   const marcador = document.createElement('button');
   marcador.type = 'button';
@@ -428,98 +443,92 @@ function linhaDoLancamento(lancamento) {
   );
   marcador.innerHTML =
     '<svg viewBox="0 0 12 12" aria-hidden="true"><path d="M1.5 6.4 4.4 9.3 10.5 3"/></svg>';
-  marcador.addEventListener('click', () => alternarFeito(lancamento));
+  marcador.addEventListener('click', (evento) => {
+    evento.stopPropagation();
+    alternarFeito(lancamento);
+  });
+  marcador.addEventListener('keydown', (evento) => {
+    if (evento.key === 'Enter' || evento.key === ' ') {
+      evento.stopPropagation();
+    }
+  });
 
-  const toque = document.createElement('button');
-  toque.type = 'button';
-  toque.className = 'lancamento-toque';
-  toque.setAttribute(
-    'aria-label',
-    (lancamento.ehFatura ? 'Abrir ' : 'Editar ') + lancamento.descricao
-  );
-  toque.addEventListener('click', () =>
-    lancamento.ehFatura ? abrirFatura(lancamento.cartaoId) : abrirFormulario(lancamento)
-  );
+  const esquerda = document.createElement('div');
+  esquerda.className = 'lancamento-esquerda';
 
-  const dia = document.createElement('span');
-  dia.className = 'lancamento-dia tabular';
-  dia.textContent = String(lancamento.dia).padStart(2, '0');
+  const nome = document.createElement('span');
+  nome.className = 'lancamento-nome';
+  nome.textContent = lancamento.descricao;
 
-  const descricao = document.createElement('span');
-  descricao.className = 'lancamento-descricao';
-  descricao.textContent = lancamento.descricao;
+  const meta = document.createElement('div');
+  meta.className = 'lancamento-meta';
 
-  const valor = document.createElement('span');
-  valor.className = 'lancamento-valor tabular ' + (entrada ? 'entrada' : 'saida');
-  valor.textContent = formatarDinheiro(lancamento.valor);
+  const data = document.createElement('span');
+  data.className = 'lancamento-data tabular';
+  data.textContent = 'dia ' + String(lancamento.dia).padStart(2, '0');
+  meta.appendChild(data);
 
-  toque.append(dia, descricao, valor);
-
-  // A etiqueta de categoria vive FORA do botão de editar (toque): um <button>
-  // dentro de outro <button> é HTML inválido, e é a mesma razão pela qual o
-  // marcador e o excluir já eram irmãos do toque, não filhos.
-  const etiquetas = document.createElement('div');
-  etiquetas.className = 'lancamento-etiquetas';
-
-  /* A fatura não tem botão de excluir nem etiqueta de categoria, e as duas
-     ausências são a mesma decisão: ela é DERIVADA. Não existe o que apagar —
-     apagar teria que significar apagar o cartão, as compras ou o valor
-     informado, e nenhum desses três é o que a pessoa pediu ao tocar num X. E
-     categoria ela não tem porque cartão é forma de pagamento: as compras que a
-     compõem é que carregam suas categorias, cada uma a sua. */
   if (lancamento.ehFatura) {
     const cartao = document.createElement('span');
     cartao.className = 'etiqueta';
     cartao.textContent = 'cartão';
-    etiquetas.appendChild(cartao);
-
-    item.append(marcador, toque, etiquetas);
-    return item;
-  }
-
-  const excluir = document.createElement('button');
-  excluir.type = 'button';
-  excluir.className = 'lancamento-excluir';
-  excluir.setAttribute('aria-label', 'Excluir ' + lancamento.descricao);
-  excluir.innerHTML = '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6 6l12 12M18 6 6 18"/></svg>';
-  excluir.addEventListener('click', () => pedirExclusao(lancamento));
-
-  if (lancamento.fixo) {
+    meta.appendChild(cartao);
+  } else if (lancamento.fixo) {
     const fixa = document.createElement('span');
     fixa.className = 'etiqueta';
     fixa.textContent = 'fixa';
-    etiquetas.appendChild(fixa);
+    meta.appendChild(fixa);
   }
 
-  etiquetas.appendChild(botaoDeCategoria(lancamento));
+  esquerda.append(nome, meta);
 
-  item.append(marcador, toque, excluir, etiquetas);
+  const direita = document.createElement('div');
+  direita.className = 'lancamento-direita';
+
+  const valor = document.createElement('span');
+  valor.className = 'lancamento-valor tabular ' + (entrada ? 'entrada' : 'saida');
+  valor.textContent = (entrada ? '+ ' : '− ') + formatarDinheiro(lancamento.valor);
+  direita.appendChild(valor);
+
+  if (!lancamento.ehFatura) {
+    direita.appendChild(botaoDeCategoria(lancamento));
+  }
+
+  item.append(marcador, esquerda, direita);
   return item;
 }
 
 /**
  * A etiqueta de categoria do registro. Mostra o nome quando há categoria, e um
- * convite honesto ("Sem categoria") quando não há — a etiqueta vazia É o
- * convite ao toque, não um erro a esconder (decisão do B5).
+ * convite honesto ("+ categoria") quando não há.
  * @param {LancamentoDoMes} lancamento
+ * @param {string} [classe]
  * @returns {HTMLButtonElement}
  */
-function botaoDeCategoria(lancamento) {
+function botaoDeCategoria(lancamento, classe = 'lancamento-categoria-btn') {
   const categoria = categoriaPorId(estado, lancamento.categoria);
 
   const botao = document.createElement('button');
   botao.type = 'button';
-  botao.className = 'etiqueta-categoria';
-  botao.setAttribute(
-    'aria-label',
-    (categoria ? `Categoria: ${categoria.nome}` : 'Sem categoria') + '. Toque para mudar.'
-  );
-  botao.addEventListener('click', () => abrirEscolhaDeCategoria(lancamento));
+  if (categoria) {
+    botao.className = classe;
+    botao.setAttribute('aria-label', `Categoria: ${categoria.nome}. Toque para mudar.`);
+    botao.textContent = categoria.nome;
+  } else {
+    botao.className = classe + ' sem-categoria';
+    botao.setAttribute('aria-label', 'Adicionar categoria');
+    botao.textContent = '+ categoria';
+  }
 
-  const texto = document.createElement('span');
-  texto.className = 'etiqueta' + (categoria ? '' : ' etiqueta-vazia');
-  texto.textContent = categoria ? categoria.nome : 'Sem categoria';
-  botao.appendChild(texto);
+  botao.addEventListener('click', (evento) => {
+    evento.stopPropagation();
+    abrirEscolhaDeCategoria(lancamento);
+  });
+  botao.addEventListener('keydown', (evento) => {
+    if (evento.key === 'Enter' || evento.key === ' ') {
+      evento.stopPropagation();
+    }
+  });
 
   return botao;
 }
@@ -1986,28 +1995,7 @@ function linhaDaCompraDetalhe(compra) {
   valor.className = 'lancamento-detalhe-valor tabular ' + (credito ? 'entrada' : 'saida');
   valor.textContent = (credito ? '+ ' : '− ') + formatarDinheiro(compra.valor);
 
-  const categoria = categoriaPorId(estado, compra.categoria);
-  const botaoCat = document.createElement('button');
-  botaoCat.type = 'button';
-  if (categoria) {
-    botaoCat.className = 'lancamento-detalhe-categoria-btn';
-    botaoCat.setAttribute('aria-label', `Categoria: ${categoria.nome}. Toque para mudar.`);
-    botaoCat.textContent = categoria.nome;
-  } else {
-    botaoCat.className = 'lancamento-detalhe-categoria-btn sem-categoria';
-    botaoCat.setAttribute('aria-label', 'Adicionar categoria');
-    botaoCat.textContent = '+ categoria';
-  }
-
-  botaoCat.addEventListener('click', (evento) => {
-    evento.stopPropagation();
-    abrirEscolhaDeCategoria(compra);
-  });
-  botaoCat.addEventListener('keydown', (evento) => {
-    if (evento.key === 'Enter' || evento.key === ' ') {
-      evento.stopPropagation();
-    }
-  });
+  const botaoCat = botaoDeCategoria(compra, 'lancamento-detalhe-categoria-btn');
 
   direita.append(valor, botaoCat);
   item.append(esquerda, direita);
