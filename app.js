@@ -1696,7 +1696,7 @@ function linhaDoCartao(cartao) {
   toque.type = 'button';
   toque.className = 'cartao-toque';
   toque.setAttribute('aria-label', 'Abrir a fatura do ' + cartao.nome);
-  toque.addEventListener('click', () => abrirDetalheCartao(cartao.id, 'cartoes'));
+  toque.addEventListener('click', () => abrirDetalheCartao(cartao.id));
 
   const nome = document.createElement('span');
   nome.className = 'cartao-nome';
@@ -1841,15 +1841,8 @@ function arquivarCartaoAberto() {
 /** @type {string|null} */
 let cartaoDetalheId = null;
 
-/** @type {string} */
-let origemDetalheCartao = 'cartoes';
-
-/**
- * @param {string} cartaoId
- * @param {string} [origem]
- */
-function abrirDetalheCartao(cartaoId, origem) {
-  origemDetalheCartao = origem || (document.body.dataset.tela === 'inicio' ? 'inicio' : 'cartoes');
+/** @param {string} cartaoId */
+function abrirDetalheCartao(cartaoId) {
   cartaoDetalheId = cartaoId;
   location.hash = '#/cartao-detalhe';
   desenharDetalheCartao();
@@ -1858,11 +1851,9 @@ function abrirDetalheCartao(cartaoId, origem) {
 
 function fecharDetalheCartao() {
   fecharDialogoAjusteFatura();
-  const destino = origemDetalheCartao || 'cartoes';
-  origemDetalheCartao = 'cartoes';
   cartaoDetalheId = null;
-  location.hash = '#/' + destino;
-  mostrarTela(destino);
+  location.hash = '#/cartoes';
+  mostrarTela('cartoes');
 }
 
 /**
@@ -2132,7 +2123,7 @@ function salvarValorDaFaturaDetalhe() {
 
 /** @param {string} cartaoId */
 function abrirFatura(cartaoId) {
-  abrirDetalheCartao(cartaoId, 'inicio');
+  abrirDetalheCartao(cartaoId);
 }
 
 function anotarCompraNaFatura() {
