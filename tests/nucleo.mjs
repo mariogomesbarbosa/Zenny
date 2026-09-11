@@ -851,20 +851,35 @@ const quebra = gastosPorCategoria(GASTOS, GASTOS_FEITOS, '2026-09');
 
 conferir(
   'a quebra vem do maior para o menor',
-  quebra.map((g) => [g.id, g.total]),
-  [['casa', 100000], [null, 40000], ['mercado', 25000], ['transporte', 3000]]
+  quebra.map((g) => [g.id, g.previsto, g.realizado]),
+  [['casa', 100000, 100000], [null, 40000, 40000], ['mercado', 25000, 25000], ['lazer', 6000, 0], ['transporte', 3000, 3000]]
 );
 conferir('e conta quantos registros deram naquele total', acharGasto(quebra, 'mercado').quantidade, 2);
-conferir('a barra do maior é cheia, e as outras são fração dele', quebra.map((g) => g.proporcao), [100, 40, 25, 3]);
+conferir(
+  'a barra do maior é cheia, e as outras são fração dele (cheio e claro)',
+  quebra.map((g) => g.proporcao),
+  [
+    { realizado: 100, previsto: 0 },
+    { realizado: 40, previsto: 0 },
+    { realizado: 25, previsto: 0 },
+    { realizado: 0, previsto: 6 },
+    { realizado: 3, previsto: 0 },
+  ]
+);
 
 /* A entrada realizada não entra: a pergunta é para onde o dinheiro FOI. */
 conferir('entrada não aparece na quebra', quebra.some((g) => g.id === 'salario'), false);
 
-/* Decisão 9: só o realizado conta. O cinema está previsto e não foi pago, então
-   não existe nesta lista — e um limite que contasse o previsto mentiria sobre o
-   presente. */
-conferir('o previsto que não saiu fica fora', quebra.some((g) => g.id === 'lazer'), false);
-conferir('sem nada marcado, a quebra é vazia', gastosPorCategoria(GASTOS, {}, '2026-09'), []);
+/* Melhoria 1: o previsto que ainda não saiu entra na quebra com realizado zero */
+conferir('o previsto que não saiu entra com realizado zero', acharGasto(quebra, 'lazer'), {
+  id: 'lazer',
+  previsto: 6000,
+  realizado: 0,
+  total: 6000,
+  quantidade: 1,
+  proporcao: { realizado: 0, previsto: 6 },
+});
+conferir('sem nada marcado, a quebra mostra os planejados', gastosPorCategoria(GASTOS, {}, '2026-09').length, 5);
 conferir('mês sem registro nenhum', gastosPorCategoria(GASTOS, GASTOS_FEITOS, '2026-08'), []);
 
 /* O fixo entra com o valor DAQUELE mês, e não com o último da linha do tempo:
@@ -872,7 +887,7 @@ conferir('mês sem registro nenhum', gastosPorCategoria(GASTOS, GASTOS_FEITOS, '
 conferir(
   'janeiro usa o aluguel de janeiro',
   gastosPorCategoria(GASTOS, GASTOS_FEITOS, '2027-01'),
-  [{ id: 'casa', total: 120000, quantidade: 1, proporcao: 100 }]
+  [{ id: 'casa', previsto: 120000, realizado: 120000, total: 120000, quantidade: 1, proporcao: { realizado: 100, previsto: 0 } }]
 );
 
 /* Registro sem categoria aparece como fatia própria, com id nulo, e não somado
@@ -880,8 +895,8 @@ conferir(
    soube classificar. O campo ausente vale o mesmo que `null`. */
 conferir(
   'registro sem o campo categoria cai em "sem categoria"',
-  gastosPorCategoria(LANCAMENTOS, REALIZADOS, '2026-09'),
-  [{ id: null, total: 32450, quantidade: 1, proporcao: 100 }]
+  gastosPorCategoria([MERCADO], REALIZADOS, '2026-09'),
+  [{ id: null, previsto: 32450, realizado: 32450, total: 32450, quantidade: 1, proporcao: { realizado: 100, previsto: 0 } }]
 );
 
 /* Empate desempata pelo id, e "sem categoria" fica por último — a ordem precisa
@@ -1798,7 +1813,7 @@ conferir('mas ela continua sendo um lancamento de setembro',
   const quebraSetembro = gastosPorCategoria(COM_CARTAO.lancamentos, realizados, '2026-09');
   conferir('compras de cartao entram em gastosPorCategoria no mes da compra',
     quebraSetembro.map((g) => [g.id, g.total]),
-    [['mercado', 20000], ['saude', 5000]]);
+    [['casa', 180000], ['mercado', 20000], ['saude', 5000]]);
 }
 
 /* NENHUM CENTAVO CONTADO DUAS VEZES no total do periodo. */
@@ -1818,6 +1833,12 @@ conferir('mas ela continua sendo um lancamento de setembro',
   const outubro = resumoDoMes(COM_CARTAO.lancamentos, pago, '2026-10', faturasDoMes(COM_CARTAO, '2026-10'));
   conferir('fatura paga entra no realizado', outubro.despesas.realizado, 25000);
   conferir('e nao falta mais nada a sair', outubro.faltaSair, 0);
+
+  /* A fatura marcada como paga faz as compras daquele ciclo contarem como realizadas no Relatório. */
+  const quebra = gastosPorCategoria(COM_CARTAO.lancamentos, pago, '2026-09', COM_CARTAO.cartoes);
+  conferir('mercado no cartao consta como realizado quando a fatura e paga', acharGasto(quebra, 'mercado').realizado, 20000);
+  conferir('saude no cartao consta como realizado quando a fatura e paga', acharGasto(quebra, 'saude').realizado, 5000);
+  conferir('despesa que nao e do cartao continua pendente', acharGasto(quebra, 'casa').realizado, 0);
 }
 
 /* itensDoMes junta os dois e ordena por dia: e o que a lista desenha. */

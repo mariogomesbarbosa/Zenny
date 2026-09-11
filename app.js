@@ -1540,7 +1540,7 @@ function selecionarCategoria(id) {
     const fatia = linhasDoRelatorio(mesVisivel).find((linha) => linha.id === id);
 
     $dialogo('dialogo-categoria').close();
-    abrirLimite(id, categoria.nome, fatia ? fatia.total : 0);
+    abrirLimite(id, categoria.nome, fatia ? fatia.realizado : 0);
     return;
   }
 
@@ -2043,7 +2043,7 @@ function desenharRelatorio() {
  * @returns {GastoDeCategoria[]}
  */
 function linhasDoRelatorio(mes) {
-  const fatias = gastosPorCategoria(estado.lancamentos, estado.realizados, mes);
+  const fatias = gastosPorCategoria(estado.lancamentos, estado.realizados, mes, estado.cartoes);
   const jaListadas = new Set(fatias.map((f) => f.id));
 
   const semGasto = Object.keys(estado.limites)
@@ -2051,7 +2051,14 @@ function linhasDoRelatorio(mes) {
     .map((id) => categoriaPorId(estado, id))
     .filter((categoria) => categoria !== null)
     .sort((a, b) => a.nome.localeCompare(b.nome, 'pt-BR'))
-    .map((categoria) => ({ id: categoria.id, total: 0, quantidade: 0, proporcao: 0 }));
+    .map((categoria) => ({
+      id: categoria.id,
+      previsto: 0,
+      realizado: 0,
+      total: 0,
+      quantidade: 0,
+      proporcao: { realizado: 0, previsto: 0 },
+    }));
 
   return [...fatias, ...semGasto];
 }
@@ -2066,7 +2073,8 @@ function linhaDoRelatorio(fatia) {
   // hoje, de um id que não existe em lugar nenhum.
   const nome = semCategoria ? 'Sem categoria' : categoria ? categoria.nome : 'Categoria removida';
   const limite = fatia.id ? estado.limites[fatia.id] || 0 : 0;
-  const situacao = limite > 0 ? situacaoDoLimite(fatia.total, limite) : null;
+  // O limite compara com o que já saiu (realizado), e não com o planejado (decisão 9)
+  const situacao = limite > 0 ? situacaoDoLimite(fatia.realizado, limite) : null;
 
   const item = document.createElement('li');
   item.className = 'linha-categoria';
@@ -2081,14 +2089,20 @@ function linhaDoRelatorio(fatia) {
 
   const valor = document.createElement('span');
   valor.className = 'barra-valor tabular';
-  valor.textContent = formatarDinheiro(fatia.total);
+  valor.textContent = formatarDinheiro(fatia.previsto);
 
   const trilho = document.createElement('div');
   trilho.className = 'trilho';
-  const trecho = document.createElement('div');
-  trecho.className = 'trecho cheio ' + (semCategoria ? 'categoria-vazia' : 'saida');
-  trecho.style.width = fatia.proporcao + '%';
-  trilho.appendChild(trecho);
+
+  const trechoCheio = document.createElement('div');
+  trechoCheio.className = 'trecho cheio ' + (semCategoria ? 'categoria-vazia' : 'saida');
+  trechoCheio.style.width = fatia.proporcao.realizado + '%';
+
+  const trechoClaro = document.createElement('div');
+  trechoClaro.className = 'trecho claro ' + (semCategoria ? 'categoria-vazia' : 'saida');
+  trechoClaro.style.width = fatia.proporcao.previsto + '%';
+
+  trilho.append(trechoCheio, trechoClaro);
 
   botao.append(rotuloNome, valor, trilho);
 
@@ -2096,8 +2110,8 @@ function linhaDoRelatorio(fatia) {
   // leitor de tela — por isso a legenda do limite entra nele também, e não só
   // no texto visível (decisão 6b do B5).
   let rotuloAcessivel = semCategoria
-    ? `Sem categoria: ${formatarDinheiro(fatia.total)}. Toque para corrigir.`
-    : `Ver o limite de ${nome}: ${formatarDinheiro(fatia.total)}.`;
+    ? `Sem categoria: ${formatarDinheiro(fatia.previsto)} planejado, ${formatarDinheiro(fatia.realizado)} pago. Toque para corrigir.`
+    : `Ver o limite de ${nome}: ${formatarDinheiro(fatia.previsto)} planejado, ${formatarDinheiro(fatia.realizado)} pago.`;
 
   if (situacao) {
     const legenda = document.createElement('p');
@@ -2113,12 +2127,27 @@ function linhaDoRelatorio(fatia) {
       : `${base}.`;
     botao.appendChild(legenda);
     rotuloAcessivel += ` ${legenda.textContent}`;
+  } else if (fatia.previsto > 0 && fatia.realizado > 0 && fatia.realizado < fatia.previsto) {
+    const legenda = document.createElement('p');
+    legenda.className = 'legenda-limite';
+    legenda.textContent = `${formatarDinheiro(fatia.realizado)} pago.`;
+    botao.appendChild(legenda);
+  } else if (fatia.previsto > 0 && fatia.realizado === 0) {
+    const legenda = document.createElement('p');
+    legenda.className = 'legenda-limite';
+    legenda.textContent = 'A pagar.';
+    botao.appendChild(legenda);
+  } else if (fatia.previsto > 0 && fatia.realizado >= fatia.previsto) {
+    const legenda = document.createElement('p');
+    legenda.className = 'legenda-limite';
+    legenda.textContent = 'Pago.';
+    botao.appendChild(legenda);
   }
 
   botao.setAttribute('aria-label', rotuloAcessivel);
   botao.addEventListener('click', () => {
     if (semCategoria) irCorrigirSemCategoria();
-    else if (fatia.id) abrirLimite(fatia.id, nome, fatia.total);
+    else if (fatia.id) abrirLimite(fatia.id, nome, fatia.realizado);
   });
 
   item.appendChild(botao);
