@@ -435,23 +435,44 @@ h1 { font-size: 1.75rem; line-height: 1.2; letter-spacing: -.02em; margin: 8px 0
   color: var(--tinta-suave);
 }
 
-/* ---------- Linha do lançamento ---------- */
+/* ---------- Lançamentos (cards do Início e do Detalhe do Cartão) ---------- */
 
 .lancamentos { list-style: none; margin: 0; padding: 0; }
 
-.lancamento {
-  display: grid;
-  grid-template-columns: 28px 1fr 32px;
+.lancamento,
+.lancamento-detalhe {
+  list-style: none;
+  display: flex;
   align-items: center;
-  gap: 4px 8px;
-  padding: 8px 0;
-  border-bottom: 1px solid var(--borda-fraca);
+  justify-content: space-between;
+  gap: 12px;
+  padding: 12px 14px;
+  margin-bottom: 10px;
+  background: var(--superficie);
+  border: 1px solid var(--borda);
+  border-radius: 12px;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05);
+  cursor: pointer;
+  -webkit-tap-highlight-color: transparent;
+  transition: background .15s, border-color .15s;
 }
 
-/* A fatura não tem botão de excluir, então não reserva a coluna dele. Sem
-   isto, "Fatura do Nubank" cortava em 360px por causa de 32px guardados para
-   um botão que aquela linha nunca desenha. */
-.lancamento.fatura { grid-template-columns: 28px 1fr; }
+.lancamento:hover,
+.lancamento-detalhe:hover {
+  background: var(--areia);
+  border-color: var(--tinta-fraca);
+}
+
+.lancamento:focus-visible,
+.lancamento-detalhe:focus-visible {
+  outline: 2px solid var(--verde);
+  outline-offset: 2px;
+}
+
+.lancamento:last-child,
+.lancamento-detalhe:last-child {
+  margin-bottom: 0;
+}
 
 .marcador-realizado {
   width: 28px; height: 28px;
@@ -463,6 +484,7 @@ h1 { font-size: 1.75rem; line-height: 1.2; letter-spacing: -.02em; margin: 8px 0
   cursor: pointer;
   -webkit-tap-highlight-color: transparent;
   transition: background .12s ease, border-color .12s ease;
+  flex-shrink: 0;
 }
 
 .marcador-realizado svg {
@@ -476,31 +498,100 @@ h1 { font-size: 1.75rem; line-height: 1.2; letter-spacing: -.02em; margin: 8px 0
 .marcador-realizado.entrada[aria-pressed="true"] { background: var(--verde); border-color: var(--verde); }
 .marcador-realizado.saida[aria-pressed="true"] { background: var(--coral); border-color: var(--coral); }
 
-.lancamento-toque {
-  display: grid;
-  grid-template-columns: 24px 1fr auto;
-  align-items: center;
-  gap: 10px;
-  width: 100%;
-  min-height: 48px;
-  padding: 6px 0;
-  border: 0;
-  background: none;
-  color: inherit;
-  font: inherit;
-  text-align: left;
-  cursor: pointer;
-  -webkit-tap-highlight-color: transparent;
+.lancamento-esquerda,
+.lancamento-detalhe-esquerda {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  min-width: 0;
+  flex: 1;
 }
 
-.lancamento-dia { font-size: .78125rem; color: var(--tinta-fraca); text-align: right; }
-
-.lancamento-descricao {
-  min-width: 0;
+.lancamento-nome,
+.lancamento-detalhe-nome {
+  font-size: .9375rem;
+  font-weight: 600;
+  color: var(--tinta);
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
+}
+
+.lancamento-meta,
+.lancamento-detalhe-meta {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.lancamento-data,
+.lancamento-detalhe-data {
+  font-size: .78125rem;
+  color: var(--tinta-fraca);
+  white-space: nowrap;
+}
+
+.lancamento-direita,
+.lancamento-detalhe-direita {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 6px;
+  flex-shrink: 0;
+}
+
+.lancamento-valor,
+.lancamento-detalhe-valor {
+  font-weight: 700;
   font-size: .9375rem;
+  white-space: nowrap;
+}
+
+.lancamento-valor.entrada,
+.lancamento-detalhe-valor.entrada { color: var(--verde); }
+.lancamento-valor.saida,
+.lancamento-detalhe-valor.saida   { color: var(--coral); }
+
+.lancamento-categoria-btn,
+.lancamento-detalhe-categoria-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 3px 8px;
+  border-radius: 12px;
+  border: 1px solid var(--borda);
+  background: var(--areia);
+  font: inherit;
+  font-size: .75rem;
+  font-weight: 500;
+  color: var(--tinta-suave);
+  cursor: pointer;
+  -webkit-tap-highlight-color: transparent;
+  transition: background .15s, color .15s, border-color .15s;
+  white-space: nowrap;
+  max-width: 150px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.lancamento-categoria-btn:hover,
+.lancamento-detalhe-categoria-btn:hover {
+  border-color: var(--tinta-fraca);
+  color: var(--tinta);
+}
+
+.lancamento-categoria-btn.sem-categoria,
+.lancamento-detalhe-categoria-btn.sem-categoria {
+  color: var(--tinta-fraca);
+  border-style: dashed;
+  background: transparent;
+}
+
+.lancamento-categoria-btn.sem-categoria:hover,
+.lancamento-detalhe-categoria-btn.sem-categoria:hover {
+  color: var(--verde);
+  border-color: var(--verde);
+  background: var(--verde-fraco);
 }
 
 .etiqueta {
@@ -513,58 +604,10 @@ h1 { font-size: 1.75rem; line-height: 1.2; letter-spacing: -.02em; margin: 8px 0
   vertical-align: 1px;
 }
 
-/* A segunda linha do registro: a etiqueta "fixa" (se houver) ao lado da
-   categoria, sempre presente — é ela que convida ao toque quando não há
-   categoria nenhuma. Recuada para alinhar com o início da descrição, não com
-   o dia. */
-.lancamento-etiquetas {
-  grid-column: 2;
-  display: flex;
-  align-items: stretch;
-  flex-wrap: wrap;
-  gap: 2px 6px;
-  min-height: var(--alvo);
-  padding-left: 34px;
-}
-
-.lancamento-etiquetas > .etiqueta { align-self: center; }
-
-.etiqueta-categoria {
-  display: inline-flex;
-  align-items: center;
-  padding: 0 2px;
-  border: 0;
-  background: none;
-  cursor: pointer;
-  -webkit-tap-highlight-color: transparent;
-}
-
-/* Sem categoria é honesto, não um erro: traço tracejado convida ao toque em
-   vez de soar como falta. */
-.etiqueta-vazia { color: var(--tinta-fraca); border-style: dashed; }
-
-.lancamento-valor { font-weight: 600; font-size: .9375rem; white-space: nowrap; }
-.lancamento-valor.entrada { color: var(--verde); }
-.lancamento-valor.saida { color: var(--coral); }
-
 /* Já aconteceu: recua para o segundo plano, sem sumir. */
-.lancamento.realizado .lancamento-descricao,
-.lancamento.realizado .lancamento-dia { color: var(--tinta-fraca); }
+.lancamento.realizado .lancamento-nome,
+.lancamento.realizado .lancamento-data { color: var(--tinta-fraca); }
 .lancamento.realizado .lancamento-valor { opacity: .55; }
-
-.lancamento-excluir {
-  width: 32px; height: 32px;
-  display: grid; place-items: center;
-  padding: 0;
-  border: 0; border-radius: 8px;
-  background: none;
-  color: var(--tinta-fraca);
-  cursor: pointer;
-  -webkit-tap-highlight-color: transparent;
-}
-
-.lancamento-excluir svg { width: 16px; height: 16px; }
-.lancamento-excluir:hover { color: var(--coral); background: var(--coral-fraco); }
 
 /* ---------- Botão flutuante ---------- */
 
@@ -1015,122 +1058,6 @@ dialog::backdrop { background: var(--veu); }
   stroke-linejoin: round;
 }
 
-/* ---------- Lançamentos na tela de detalhe do cartão ---------- */
-
-.lancamento-detalhe {
-  list-style: none;
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 12px;
-  padding: 12px 14px;
-  margin-bottom: 10px;
-  background: var(--superficie);
-  border: 1px solid var(--borda);
-  border-radius: 12px;
-  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05);
-  cursor: pointer;
-  -webkit-tap-highlight-color: transparent;
-  transition: background .15s, border-color .15s;
-}
-
-.lancamento-detalhe:hover {
-  background: var(--areia);
-  border-color: var(--tinta-fraca);
-}
-
-.lancamento-detalhe:focus-visible {
-  outline: 2px solid var(--verde);
-  outline-offset: 2px;
-}
-
-.lancamento-detalhe:last-child {
-  margin-bottom: 0;
-}
-
-.lancamento-detalhe-esquerda {
-  display: flex;
-  flex-direction: column;
-  gap: 4px;
-  min-width: 0;
-  flex: 1;
-}
-
-.lancamento-detalhe-nome {
-  font-size: .9375rem;
-  font-weight: 600;
-  color: var(--tinta);
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-
-.lancamento-detalhe-meta {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-}
-
-.lancamento-detalhe-data {
-  font-size: .78125rem;
-  color: var(--tinta-fraca);
-  white-space: nowrap;
-}
-
-.lancamento-detalhe-direita {
-  display: flex;
-  flex-direction: column;
-  align-items: flex-end;
-  gap: 6px;
-  flex-shrink: 0;
-}
-
-.lancamento-detalhe-valor {
-  font-weight: 700;
-  font-size: .9375rem;
-  white-space: nowrap;
-}
-
-.lancamento-detalhe-valor.entrada { color: var(--verde); }
-.lancamento-detalhe-valor.saida   { color: var(--coral); }
-
-.lancamento-detalhe-categoria-btn {
-  display: inline-flex;
-  align-items: center;
-  gap: 4px;
-  padding: 3px 8px;
-  border-radius: 12px;
-  border: 1px solid var(--borda);
-  background: var(--areia);
-  font: inherit;
-  font-size: .75rem;
-  font-weight: 500;
-  color: var(--tinta-suave);
-  cursor: pointer;
-  -webkit-tap-highlight-color: transparent;
-  transition: background .15s, color .15s, border-color .15s;
-  white-space: nowrap;
-  max-width: 150px;
-  overflow: hidden;
-  text-overflow: ellipsis;
-}
-
-.lancamento-detalhe-categoria-btn:hover {
-  border-color: var(--tinta-fraca);
-  color: var(--tinta);
-}
-
-.lancamento-detalhe-categoria-btn.sem-categoria {
-  color: var(--tinta-fraca);
-  border-style: dashed;
-  background: transparent;
-}
-
-.lancamento-detalhe-categoria-btn.sem-categoria:hover {
-  color: var(--verde);
-  border-color: var(--verde);
-  background: var(--verde-fraco);
-}
 
 /* As compras que compõem a fatura, dentro da folha. Rola quando são muitas, em
    vez de empurrar o campo do valor e os botões para fora da tela — foi
