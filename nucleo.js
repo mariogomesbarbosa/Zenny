@@ -2066,3 +2066,49 @@ export function textoDoUltimoBackup(iso, agora) {
   if (dias === 1) return 'Última cópia: ontem.';
   return `Última cópia: há ${dias} dias.`;
 }
+
+// — Backup no Google Drive —————————————————————————————————————————
+
+/* Formata bytes em texto legível no padrão brasileiro. A unidade maior que
+   aparece no Zenny é MB — o backup é um JSON pequeno. */
+/**
+ * @param {number} bytes
+ * @returns {string}
+ */
+export function formatarTamanho(bytes) {
+  if (bytes < 0 || !Number.isFinite(bytes)) return '0 B';
+  if (bytes < 1024) return `${bytes} B`;
+  if (bytes < 1048576) {
+    const kb = (bytes / 1024).toFixed(1).replace('.', ',');
+    return `${kb} KB`;
+  }
+  const mb = (bytes / 1048576).toFixed(1).replace('.', ',');
+  return `${mb} MB`;
+}
+
+/* A frase do card do Drive nos Ajustes. Diferente da frase do backup manual
+   porque inclui o tamanho do arquivo — dado que o Drive fornece. */
+/**
+ * @param {string|null|undefined} iso  — data ISO do último backup no Drive
+ * @param {number|null|undefined} bytes — tamanho do arquivo no Drive
+ * @param {Date} agora
+ * @returns {string}
+ */
+export function textoDoBackupDrive(iso, bytes, agora) {
+  if (!iso) return 'Nenhuma cópia no Drive ainda.';
+
+  const dias = diasEntre(iso, agora);
+  if (dias === null) return 'Nenhuma cópia no Drive ainda.';
+
+  let quando;
+  if (dias <= 0) quando = 'hoje';
+  else if (dias === 1) quando = 'ontem';
+  else quando = `há ${dias} dias`;
+
+  const tamanho = typeof bytes === 'number' && bytes > 0
+    ? ` · ${formatarTamanho(bytes)}`
+    : '';
+
+  return `Última cópia: ${quando}${tamanho}`;
+}
+

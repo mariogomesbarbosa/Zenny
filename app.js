@@ -38,6 +38,7 @@ import {
   nomeDoArquivo,
   lerBackup,
   textoDoUltimoBackup,
+  textoDoBackupDrive,
   sugerirCategoria,
   categoriasDisponiveis,
   categoriaPorId,
@@ -59,6 +60,16 @@ import {
   idDaFatura,
   situacaoDoLimite,
 } from './nucleo.js';
+
+import {
+  inicializarDrive,
+  conectar,
+  desconectar,
+  estaConectado,
+  salvarNoDrive,
+  buscarDoDrive,
+  infoDoBackupDrive,
+} from './drive.js';
 
 /**
  * Os tipos do domínio moram no núcleo, junto das funções que os produzem.
@@ -1212,11 +1223,27 @@ $('botao-excluir').addEventListener('click', () => {
 /** @type {Extract<ReturnType<typeof lerBackup>, { ok: true }>|null} */
 let pendenteDeRestauracao = null;
 
+/** @type {{ exportadoEm: string, tamanho: number }|null} */
+let infoDrive = null;
+
 function desenharAjustes() {
   $('estado-do-backup').textContent = textoDoUltimoBackup(
     armazenamento.ler(CHAVE_BACKUP),
     new Date()
   );
+
+  const conectado = estaConectado();
+  const blocoDesconectado = $('drive-desconectado');
+  const blocoConectado = $('drive-conectado');
+  const estadoDrive = $('estado-do-drive');
+
+  if (blocoDesconectado && blocoConectado && estadoDrive) {
+    blocoDesconectado.hidden = conectado;
+    blocoConectado.hidden = !conectado;
+    estadoDrive.textContent = conectado
+      ? textoDoBackupDrive(infoDrive?.exportadoEm, infoDrive?.tamanho, new Date())
+      : '—';
+  }
 }
 
 /** @param {Date} quando */
@@ -1400,6 +1427,70 @@ async function arquivoEscolhido(evento) {
 $('botao-guardar').addEventListener('click', guardarCopia);
 $('botao-trazer').addEventListener('click', () => $campo('arquivo-do-backup').click());
 $campo('arquivo-do-backup').addEventListener('change', arquivoEscolhido);
+
+$('botao-conectar-drive')?.addEventListener('click', () => {
+  try {
+    conectar();
+  } catch (e) {
+    avisar(e instanceof Error ? e.message : 'Não consegui conectar ao Google Drive.');
+  }
+});
+
+$('botao-salvar-drive')?.addEventListener('click', async () => {
+  const btn = $('botao-salvar-drive');
+  if (btn.hasAttribute('aria-busy')) return;
+  btn.setAttribute('aria-busy', 'true');
+  const textoOriginal = btn.textContent;
+  btn.textContent = 'Salvando no Drive...';
+  try {
+    const agora = new Date();
+    const texto = JSON.stringify(montarBackup(estado, agora), null, 2);
+    infoDrive = await salvarNoDrive(texto);
+    desenharAjustes();
+    avisar('Cópia salva no Google Drive.');
+  } catch (e) {
+    avisar(e instanceof Error ? e.message : 'Não consegui salvar no Drive.');
+    desenharAjustes();
+  } finally {
+    btn.removeAttribute('aria-busy');
+    btn.textContent = textoOriginal;
+  }
+});
+
+$('botao-trazer-drive')?.addEventListener('click', async () => {
+  const btn = $('botao-trazer-drive');
+  if (btn.hasAttribute('aria-busy')) return;
+  btn.setAttribute('aria-busy', 'true');
+  const textoOriginal = btn.textContent;
+  btn.textContent = 'Buscando do Drive...';
+  try {
+    const texto = await buscarDoDrive();
+    if (!texto) {
+      avisar('Nenhuma cópia encontrada no Google Drive.');
+      return;
+    }
+    const lido = lerBackup(texto);
+    if (!lido.ok) {
+      avisar(ERROS_DO_ARQUIVO[lido.erro] || 'Não consegui ler o arquivo do Drive.');
+      return;
+    }
+    pendenteDeRestauracao = lido;
+    $('explicacao-do-restaurar').textContent = explicarRestauracao(lido);
+    $dialogo('dialogo-restaurar').showModal();
+  } catch (e) {
+    avisar(e instanceof Error ? e.message : 'Não consegui buscar o arquivo do Drive.');
+  } finally {
+    btn.removeAttribute('aria-busy');
+    btn.textContent = textoOriginal;
+  }
+});
+
+$('botao-desconectar-drive')?.addEventListener('click', async () => {
+  await desconectar();
+  infoDrive = null;
+  desenharAjustes();
+  avisar('Desconectado do Google Drive.');
+});
 
 $('restaurar-confirmar').addEventListener('click', () => {
   const lido = pendenteDeRestauracao;
@@ -2517,3 +2608,14 @@ estado = carregar();
 sincronizarTema();
 mostrarTela(telaDaUrl());
 desenhar();
+
+inicializarDrive(async () => {
+  try {
+    infoDrive = await infoDoBackupDrive();
+  } catch (_) {
+    infoDrive = null;
+  }
+  desenharAjustes();
+  avisar('Conectado ao Google Drive.');
+});
+

@@ -820,6 +820,21 @@ dialog::backdrop { background: var(--veu); }
 
 .botao.apagado:hover { background: var(--coral-fraco); }
 
+.botao:disabled,
+.botao[aria-busy="true"] {
+  opacity: .6;
+  cursor: not-allowed;
+}
+
+.botao-texto.menor {
+  color: var(--tinta-suave);
+  align-self: center;
+  margin-top: 4px;
+}
+.botao-texto.menor:hover {
+  color: var(--coral);
+}
+
 /* ---------- Categorias e limites (B5) ---------- */
 
 /* A folha de escolher categoria: cada opção é um botão de largura cheia, a
