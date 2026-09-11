@@ -108,8 +108,81 @@ duas vezes em toda mudança futura, e a divergência vai crescer sozinha.
 - Se virar um só, é uma função com variações declaradas — e não duas funções
   parecidas, que é o estado atual.
 
-Esta é a de maior alcance das três, porque encosta na lista mais vista do
+Esta é a de maior alcance da lista, porque encosta na lista mais vista do
 app. Vale plano próprio em `docs/`, como manda o `CLAUDE.md`.
+
+## 4. Os campos de valor precisam de máscara
+
+**Status:** 🔴 Aberta
+**Onde:** `app.js` (os cinco campos de dinheiro), `index.html`
+**Pedido:** máscara nos campos de valor, para não ser preciso digitar a
+vírgula — como na maioria dos aplicativos de banco.
+
+Hoje os campos são texto livre com `inputmode="decimal"`, e quem digita
+"1234" quis dizer mil duzentos e trinta e quatro reais, não doze reais e
+trinta e quatro centavos. O app só descobre a intenção quando a pessoa
+digita a vírgula — e digitar vírgula no teclado numérico do Android é uma
+troca de teclado que ninguém quer fazer dez vezes por dia.
+
+A máscara que os bancos usam preenche **da direita para a esquerda**: cada
+dígito empurra os anteriores, e a vírgula fica fixa duas casas antes do fim.
+
+| Digita | Mostra |
+|---|---|
+| `1` | R$ 0,01 |
+| `12` | R$ 0,12 |
+| `1234` | R$ 12,34 |
+| `123456` | R$ 1.234,56 |
+
+Três coisas que a implementação não pode esquecer:
+
+- **São CINCO campos**, não um: `campo-valor`, `campo-limite-do-cartao`,
+  `campo-fatura`, `campo-limite` e `campo-fatura-detalhe`. A máscara tem que
+  ser uma função compartilhada — cinco cópias divergem na primeira correção.
+- **`analisarValor` continua existindo.** Ela deixa de receber texto torto da
+  digitação, mas continua lendo o que vem do arquivo de backup e de texto
+  colado. Tirá-la seria confiar que todo valor entrou pela máscara, o que é
+  falso.
+- **O cursor.** Máscara que reformata a cada tecla costuma jogar o cursor para
+  lugar errado. O preenchimento da direita para a esquerda evita isso por
+  construção — o cursor fica sempre no fim, que é onde o próximo dígito entra
+  — e é por isso que esse é o desenho certo, e não só o mais familiar.
+
+## 5. O limite de 1 a 31 nos dias não é respeitado
+
+**Status:** 🔴 Aberta
+**Onde:** `index.html` (os três campos de dia), `nucleo.js` (`limitarDia`)
+**Pedido:** o campo de dia de fechamento e de vencimento deve ser numérico,
+com limite de 1 a 31.
+
+**Metade disto já existe, e é importante dizer:** os três campos já são
+numéricos com os limites declarados.
+
+```html
+<input type="number" id="campo-fechamento" inputmode="numeric" min="1" max="31" value="30">
+```
+
+O que **não** existe é o limite valer. O formulário é `novalidate` (de
+propósito: a validação nativa do navegador é hostil e em português ruim),
+então `min` e `max` não bloqueiam nada. Quem digita 45 consegue digitar 45 —
+e o `limitarDia` do núcleo corta para 31 **em silêncio**, na hora de salvar:
+
+```js
+// nucleo.js
+export function limitarDia(dia) {
+  return Math.min(31, Math.max(1, Math.trunc(Number(dia)) || 1));
+}
+```
+
+O corte silencioso é o defeito de verdade, e é pior que o campo aceitar o
+número: a pessoa digita 45, salva, e o cartão passa a fechar dia 31 sem que
+ninguém tenha dito nada. Num app de dinheiro, número corrigido em silêncio é
+a mesma família de erro que este projeto já corrigiu duas vezes.
+
+O `limitarDia` **fica como está** — ele é a última defesa contra dado torto
+vindo do arquivo de backup, e essa defesa tem que continuar calada. O
+conserto é na tela: impedir a digitação fora da faixa, ou dizer que corrigiu.
+Qual das duas é decisão a tomar na implementação.
 
 ---
 
