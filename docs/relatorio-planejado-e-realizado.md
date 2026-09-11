@@ -1,4 +1,4 @@
-﻿# Planejado e realizado no Relatorio
+# Planejado e realizado no Relatorio
 
 > Documento de decisoes da melhoria 1 de `docs/melhorias.md`.
 
@@ -33,10 +33,10 @@ Isso mantem as categorias comparaveis entre si em telas pequenas de 360px.
 ### 3. O valor e as legendas
 
 - **Valor da linha:** exibe o total planejado (`previsto`) para o mes.
-- **Quando ha limite:** a legenda continua comparando o que de fato ja saiu
-  (`situacaoDoLimite(fatia.realizado, limite)`), preservando a decisao 9 do B5:
-  limite mede dinheiro consumido no presente, sem dar bronca nem acusar estouro de
-  dinheiro que ainda nao saiu.
+- **Quando ha limite:** a legenda compara o gasto total comprometido com a categoria
+  no mes (`Math.max(fatia.previsto, fatia.realizado)`), garantindo que lancamentos
+  ainda nao pagos (como compras no cartao de credito cuja fatura ainda nao venceu)
+  tambem preencham a meta.
 - **Quando nao ha limite:**
   - Se nada foi pago: `A pagar.`
   - Se parte foi paga: `X pago.`

@@ -1540,7 +1540,7 @@ function selecionarCategoria(id) {
     const fatia = linhasDoRelatorio(mesVisivel).find((linha) => linha.id === id);
 
     $dialogo('dialogo-categoria').close();
-    abrirLimite(id, categoria.nome, fatia ? fatia.realizado : 0);
+    abrirLimite(id, categoria.nome, fatia ? Math.max(fatia.previsto, fatia.realizado) : 0);
     return;
   }
 
@@ -2073,8 +2073,9 @@ function linhaDoRelatorio(fatia) {
   // hoje, de um id que não existe em lugar nenhum.
   const nome = semCategoria ? 'Sem categoria' : categoria ? categoria.nome : 'Categoria removida';
   const limite = fatia.id ? estado.limites[fatia.id] || 0 : 0;
-  // O limite compara com o que já saiu (realizado), e não com o planejado (decisão 9)
-  const situacao = limite > 0 ? situacaoDoLimite(fatia.realizado, limite) : null;
+  // O limite compara com o gasto total da categoria no mês, inclusive o planejado
+  const totalGasto = Math.max(fatia.previsto, fatia.realizado);
+  const situacao = limite > 0 ? situacaoDoLimite(totalGasto, limite) : null;
 
   const item = document.createElement('li');
   item.className = 'linha-categoria';
@@ -2147,7 +2148,7 @@ function linhaDoRelatorio(fatia) {
   botao.setAttribute('aria-label', rotuloAcessivel);
   botao.addEventListener('click', () => {
     if (semCategoria) irCorrigirSemCategoria();
-    else if (fatia.id) abrirLimite(fatia.id, nome, fatia.realizado);
+    else if (fatia.id) abrirLimite(fatia.id, nome, totalGasto);
   });
 
   item.appendChild(botao);
