@@ -85,7 +85,7 @@ a decidir na implementação.
 
 ## 3. Os cards de lançamento da home ficaram atrás do redesenho do cartão
 
-**Status:** 🟡 Em andamento — [PR #31](https://github.com/mariogomesbarbosa/Zenny/pull/31)
+**Status:** 🟢 Feita — [PR #31](https://github.com/mariogomesbarbosa/Zenny/pull/31)
 **Onde:** `app.js` (`linhaDoLancamento` e `linhaDaCompraDetalhe`), `styles.css`
 **Pedido:** melhorar o card de lançamento da home, aplicando o novo layout unificado
 com o do cartão de crédito (com marcador de realizado e exibição do dia).
@@ -186,7 +186,7 @@ Qual das duas é decisão a tomar na implementação.
 
 ## 6. Card de compras do cartão e confirmação para ações destrutivas
 
-**Status:** 🟡 Em andamento — `feat/ajustes-card-compras-cartao`
+**Status:** 🟢 Feita — [PR #30](https://github.com/mariogomesbarbosa/Zenny/pull/30)
 **Onde:** `app.js`, `styles.css`, `index.html`, `nucleo.js`
 **Pedido:**
 - Remover botões inline de editar e excluir dos cards de compras na fatura do cartão, abrindo o drawer de edição ao tocar no card.
@@ -200,7 +200,9 @@ Qual das duas é decisão a tomar na implementação.
 
 - **1. O Relatório só mostra o que já foi pago** — [PR #27](https://github.com/mariogomesbarbosa/Zenny/pull/27)
 - **2. O botão flutuante "Adicionar" aparece na tela de detalhe da fatura** — [PR #28](https://github.com/mariogomesbarbosa/Zenny/pull/28)
+- **3. Os cards de lançamento da home ficaram atrás do redesenho do cartão** — [PR #31](https://github.com/mariogomesbarbosa/Zenny/pull/31)
 - **4. Os campos de valor precisam de máscara** — [PR #26](https://github.com/mariogomesbarbosa/Zenny/pull/26)
 - **5. O limite de 1 a 31 nos dias não é respeitado** — [PR #26](https://github.com/mariogomesbarbosa/Zenny/pull/26)
+- **6. Card de compras do cartão e confirmação para ações destrutivas** — [PR #30](https://github.com/mariogomesbarbosa/Zenny/pull/30)
 
 As melhorias que entraram antes desta lista existir estão na seção "Resolvidas" de [pendencias.md](pendencias.md).
