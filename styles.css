@@ -941,8 +941,7 @@ dialog::backdrop { background: var(--veu); }
 .folha h2 { font-size: 1.25rem; margin: 4px 0 16px; letter-spacing: -.01em; }
 
 .alternador {
-  display: grid;
-  grid-template-columns: 1fr 1fr;
+  display: flex;
   gap: 4px;
   padding: 4px;
   border-radius: 12px;
@@ -951,15 +950,34 @@ dialog::backdrop { background: var(--veu); }
 }
 
 .alternador button {
-  min-height: var(--alvo);
+  flex: 1 1 0;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  min-height: 40px;
+  padding: 6px 8px;
   border: 0;
   border-radius: 9px;
   background: none;
   color: var(--tinta-suave);
   font: inherit;
+  font-size: .875rem;
   font-weight: 600;
   cursor: pointer;
+  white-space: nowrap;
   transition: background-color .18s ease, color .18s ease, box-shadow .18s ease, transform .1s ease;
+}
+
+.alternador button[hidden] {
+  display: none;
+}
+
+.alternador button svg {
+  width: 15px;
+  height: 15px;
+  stroke-width: 2.2;
+  flex-shrink: 0;
 }
 
 .alternador button:active { transform: scale(.96); }
@@ -975,6 +993,18 @@ dialog::backdrop { background: var(--veu); }
 
 @media (prefers-color-scheme: dark) {
   #tipo-cartao[aria-pressed="true"] { color: #60a5fa; }
+}
+
+@media (max-width: 360px) {
+  .alternador button {
+    gap: 4px;
+    padding: 6px 4px;
+    font-size: .8125rem;
+  }
+  .alternador button svg {
+    width: 14px;
+    height: 14px;
+  }
 }
 
 .campo { margin-bottom: 14px; }
