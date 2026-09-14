@@ -1939,7 +1939,8 @@ function selecionarCategoria(id) {
 
     /* O gasto vem da lista do mês, e não de uma soma feita aqui: quem não
        aparece na lista não gastou nada, e zero é um fato, não uma conta. */
-    const fatia = linhasDoRelatorio(mesVisivel).find((linha) => linha.id === id);
+    const fatias = gastosPorCategoria(estado.lancamentos, estado.realizados, mesVisivel, estado.cartoes);
+    const fatia = fatias.find((linha) => linha.id === id);
 
     $dialogo('dialogo-categoria').close();
     abrirLimite(id, categoria.nome, fatia ? Math.max(fatia.previsto, fatia.realizado) : 0);
@@ -2472,142 +2473,313 @@ function salvarValorDaFatura() {
  * defasados quando a pessoa volta a ela.
  */
 
-function desenharRelatorio() {
-  const linhas = linhasDoRelatorio(mesVisivel);
+const CORES_CATEGORIAS = [
+  '#2e9e70', // verde zenny
+  '#2563eb', // azul
+  '#9333ea', // roxo
+  '#ea580c', // laranja
+  '#0891b2', // ciano
+  '#db2777', // rosa
+  '#d97706', // ambar
+  '#059669', // esmeralda
+  '#4f46e5', // indigo
+];
+const COR_SEM_CATEGORIA = '#94a3b8';
 
-  $('relatorio-mes').textContent = 'Em ' + rotuloDoMes(mesVisivel) + '.';
-
-  const lista = $('lista-relatorio');
-  lista.textContent = '';
-  for (const linha of linhas) lista.appendChild(linhaDoRelatorio(linha));
-
-  lista.hidden = linhas.length === 0;
-  $('relatorio-vazio').hidden = linhas.length > 0;
+/**
+ * @param {string|null} id
+ * @param {number} indice
+ * @returns {string}
+ */
+function corDaCategoria(id, indice) {
+  if (!id) return COR_SEM_CATEGORIA;
+  return CORES_CATEGORIAS[indice % CORES_CATEGORIAS.length];
 }
 
 /**
- * Junta o que já foi gasto no mês com quem tem limite definido mas ficou em
- * R$ 0,00 (decisão 6 do B5, corrigida): sem esta segunda parte, um limite
- * posto num mês sem gasto naquela categoria fica sem porta de saída — a falha
- * que o `juiz` apontou na primeira versão deste bloco.
- *
- * É só junção, filtro e ordenação por nome — nenhuma conta nova com dinheiro.
- * O total de quem não gastou é `0`, um fato conhecido, não um valor inventado;
- * por isso a função mora aqui, e não no núcleo.
- * @param {Mes} mes
- * @returns {GastoDeCategoria[]}
+ * @param {Array<{ id: string|null, total: number, cor: string }>} fatias
+ * @param {number} totalGasto
  */
-function linhasDoRelatorio(mes) {
-  const fatias = gastosPorCategoria(estado.lancamentos, estado.realizados, mes, estado.cartoes);
-  const jaListadas = new Set(fatias.map((f) => f.id));
+function desenharGraficoRosca(fatias, totalGasto) {
+  const svg = $('grafico-rosca');
+  svg.textContent = '';
 
-  const semGasto = Object.keys(estado.limites)
-    .filter((id) => !jaListadas.has(id))
-    .map((id) => categoriaPorId(estado, id))
-    .filter((categoria) => categoria !== null)
-    .sort((a, b) => a.nome.localeCompare(b.nome, 'pt-BR'))
-    .map((categoria) => ({
-      id: categoria.id,
-      previsto: 0,
-      realizado: 0,
-      total: 0,
-      quantidade: 0,
-      proporcao: { realizado: 0, previsto: 0 },
-    }));
+  const raio = 60;
+  const cx = 80;
+  const cy = 80;
+  const C = 2 * Math.PI * raio; // ~376.991
 
-  return [...fatias, ...semGasto];
+  // Fundo/trilho do gráfico
+  const fundo = document.createElementNS('http://www.w3.org/2000/svg', 'circle');
+  fundo.setAttribute('cx', String(cx));
+  fundo.setAttribute('cy', String(cy));
+  fundo.setAttribute('r', String(raio));
+  fundo.setAttribute('fill', 'none');
+  fundo.setAttribute('stroke', 'var(--borda-fraca)');
+  fundo.setAttribute('stroke-width', '18');
+  svg.appendChild(fundo);
+
+  if (totalGasto <= 0 || fatias.length === 0) return;
+
+  let offsetAcumulado = 0;
+  for (const fatia of fatias) {
+    if (fatia.total <= 0) continue;
+    const proporcao = fatia.total / totalGasto;
+    const comprimento = proporcao * C;
+
+    const arco = document.createElementNS('http://www.w3.org/2000/svg', 'circle');
+    arco.setAttribute('cx', String(cx));
+    arco.setAttribute('cy', String(cy));
+    arco.setAttribute('r', String(raio));
+    arco.setAttribute('fill', 'none');
+    arco.setAttribute('stroke', fatia.cor);
+    arco.setAttribute('stroke-width', '18');
+    arco.setAttribute('stroke-dasharray', `${comprimento.toFixed(2)} ${(C - comprimento).toFixed(2)}`);
+    arco.setAttribute('stroke-dashoffset', `${(-offsetAcumulado).toFixed(2)}`);
+    arco.setAttribute('class', 'grafico-fatia');
+    svg.appendChild(arco);
+
+    offsetAcumulado += comprimento;
+  }
 }
 
-/** @param {GastoDeCategoria} fatia @returns {HTMLLIElement} */
-function linhaDoRelatorio(fatia) {
+function desenharRelatorio() {
+  $('relatorio-mes').textContent = 'Em ' + rotuloDoMes(mesVisivel) + '.';
+
+  // 1. Gastos por Categoria
+  const fatiasBrutas = gastosPorCategoria(estado.lancamentos, estado.realizados, mesVisivel, estado.cartoes);
+  const fatiasComGasto = fatiasBrutas.filter((f) => Math.max(f.previsto, f.realizado) > 0);
+  const totalGasto = fatiasComGasto.reduce((acc, f) => acc + Math.max(f.previsto, f.realizado), 0);
+
+  $('relatorio-total-gastos').textContent = formatarDinheiro(totalGasto);
+  $('grafico-total-centro').textContent = formatarDinheiro(totalGasto);
+
+  const conteinerGrafico = $('conteiner-grafico-rosca');
+  const listaGastos = $('lista-relatorio');
+  const vazioGastos = $('relatorio-vazio');
+
+  listaGastos.textContent = '';
+
+  if (fatiasComGasto.length === 0) {
+    conteinerGrafico.hidden = true;
+    listaGastos.hidden = true;
+    vazioGastos.hidden = false;
+  } else {
+    conteinerGrafico.hidden = false;
+    listaGastos.hidden = false;
+    vazioGastos.hidden = true;
+
+    const fatiasComCor = fatiasComGasto.map((f, i) => ({
+      ...f,
+      gasto: Math.max(f.previsto, f.realizado),
+      cor: corDaCategoria(f.id, i),
+    }));
+
+    desenharGraficoRosca(
+      fatiasComCor.map((f) => ({ id: f.id, total: f.gasto, cor: f.cor })),
+      totalGasto
+    );
+
+    for (const fatia of fatiasComCor) {
+      listaGastos.appendChild(linhaDoGasto(fatia, totalGasto));
+    }
+  }
+
+  // 2. Limites de Gastos
+  desenharBlocoLimites(fatiasBrutas);
+}
+
+/**
+ * @param {GastoDeCategoria & { gasto: number, cor: string }} fatia
+ * @param {number} totalGasto
+ * @returns {HTMLLIElement}
+ */
+function linhaDoGasto(fatia, totalGasto) {
   const semCategoria = fatia.id === null;
-  const categoria = fatia.id === null ? null : categoriaPorId(estado, fatia.id);
-  // Uma categoria do usuário pode ter sido escondida depois de já ter gasto
-  // registrado em meses anteriores — categoriaPorId ainda a encontra (decisão
-  // 4), então "categoria removida" só cobre o caso, teoricamente impossível
-  // hoje, de um id que não existe em lugar nenhum.
+  const categoria = semCategoria ? null : categoriaPorId(estado, fatia.id);
   const nome = semCategoria ? 'Sem categoria' : categoria ? categoria.nome : 'Categoria removida';
-  const limite = fatia.id ? estado.limites[fatia.id] || 0 : 0;
-  // O limite compara com o gasto total da categoria no mês, inclusive o planejado
-  const totalGasto = Math.max(fatia.previsto, fatia.realizado);
-  const situacao = limite > 0 ? situacaoDoLimite(totalGasto, limite) : null;
+  const pct = totalGasto > 0 ? (fatia.gasto / totalGasto) * 100 : 0;
+  const pctFormatada = pct.toFixed(1).replace('.', ',') + '%';
 
   const item = document.createElement('li');
   item.className = 'linha-categoria';
 
   const botao = document.createElement('button');
   botao.type = 'button';
-  botao.className = 'barra linha-categoria-botao' + (semCategoria ? ' vazia' : '');
+  botao.className = 'linha-categoria-botao' + (semCategoria ? ' vazia' : '');
+
+  const topo = document.createElement('div');
+  topo.className = 'linha-gasto-topo';
+
+  const ponto = document.createElement('span');
+  ponto.className = 'ponto-categoria';
+  ponto.style.backgroundColor = fatia.cor;
 
   const rotuloNome = document.createElement('span');
   rotuloNome.className = 'barra-nome';
   rotuloNome.textContent = nome;
 
+  const rotuloPct = document.createElement('span');
+  rotuloPct.className = 'porcentagem-gasto-categoria tabular';
+  rotuloPct.textContent = pctFormatada;
+
   const valor = document.createElement('span');
   valor.className = 'barra-valor tabular';
-  valor.textContent = formatarDinheiro(fatia.previsto);
+  valor.textContent = formatarDinheiro(fatia.gasto);
+
+  topo.append(ponto, rotuloNome, rotuloPct, valor);
 
   const trilho = document.createElement('div');
   trilho.className = 'trilho';
 
-  const trechoCheio = document.createElement('div');
-  trechoCheio.className = 'trecho cheio ' + (semCategoria ? 'categoria-vazia' : 'saida');
-  trechoCheio.style.width = fatia.proporcao.realizado + '%';
+  const trecho = document.createElement('div');
+  trecho.className = 'trecho';
+  trecho.style.backgroundColor = fatia.cor;
+  trecho.style.width = pct.toFixed(1) + '%';
+  trilho.appendChild(trecho);
 
-  const trechoClaro = document.createElement('div');
-  trechoClaro.className = 'trecho claro ' + (semCategoria ? 'categoria-vazia' : 'saida');
-  trechoClaro.style.width = fatia.proporcao.previsto + '%';
+  botao.append(topo, trilho);
 
-  trilho.append(trechoCheio, trechoClaro);
-
-  botao.append(rotuloNome, valor, trilho);
-
-  // aria-label no botão substitui todo o texto dos filhos para quem usa
-  // leitor de tela — por isso a legenda do limite entra nele também, e não só
-  // no texto visível (decisão 6b do B5).
-  let rotuloAcessivel = semCategoria
-    ? `Sem categoria: ${formatarDinheiro(fatia.previsto)} planejado, ${formatarDinheiro(fatia.realizado)} pago. Toque para corrigir.`
-    : `Ver o limite de ${nome}: ${formatarDinheiro(fatia.previsto)} planejado, ${formatarDinheiro(fatia.realizado)} pago.`;
-
-  if (situacao) {
-    const legenda = document.createElement('p');
-    legenda.className = 'legenda-limite';
-    legenda.classList.toggle('estourou', situacao.estourou);
-    // Informação, nunca bronca (decisão 5 do B5): coral, sem ícone de alerta,
-    // sem exclamação, sem a palavra "estourou" na tela. O excedente vem pronto
-    // do núcleo, em positivo — inverter o sinal aqui seria conta com dinheiro
-    // fora do lugar.
-    const base = `${formatarDinheiro(situacao.usado)} de ${formatarDinheiro(limite)}`;
-    legenda.textContent = situacao.estourou
-      ? `${base} — ${formatarDinheiro(situacao.excedente)} a mais.`
-      : `${base}.`;
-    botao.appendChild(legenda);
-    rotuloAcessivel += ` ${legenda.textContent}`;
-  } else if (fatia.previsto > 0 && fatia.realizado > 0 && fatia.realizado < fatia.previsto) {
-    const legenda = document.createElement('p');
-    legenda.className = 'legenda-limite';
-    legenda.textContent = `${formatarDinheiro(fatia.realizado)} pago.`;
-    botao.appendChild(legenda);
-  } else if (fatia.previsto > 0 && fatia.realizado === 0) {
-    const legenda = document.createElement('p');
-    legenda.className = 'legenda-limite';
-    legenda.textContent = 'A pagar.';
-    botao.appendChild(legenda);
-  } else if (fatia.previsto > 0 && fatia.realizado >= fatia.previsto) {
-    const legenda = document.createElement('p');
-    legenda.className = 'legenda-limite';
-    legenda.textContent = 'Pago.';
-    botao.appendChild(legenda);
+  if (semCategoria) {
+    const avisoSemCat = document.createElement('span');
+    avisoSemCat.className = 'legenda-limite';
+    avisoSemCat.textContent = 'Toque para atribuir uma categoria aos lançamentos.';
+    botao.appendChild(avisoSemCat);
+    botao.setAttribute(
+      'aria-label',
+      `Sem categoria: ${pctFormatada} do total, ${formatarDinheiro(fatia.gasto)}. Toque para classificar.`
+    );
+    botao.addEventListener('click', irCorrigirSemCategoria);
+  } else {
+    botao.setAttribute(
+      'aria-label',
+      `${nome}: ${pctFormatada} do total, ${formatarDinheiro(fatia.gasto)}.`
+    );
+    botao.addEventListener('click', () => {
+      if (fatia.id) abrirLimite(fatia.id, nome, fatia.gasto);
+    });
   }
-
-  botao.setAttribute('aria-label', rotuloAcessivel);
-  botao.addEventListener('click', () => {
-    if (semCategoria) irCorrigirSemCategoria();
-    else if (fatia.id) abrirLimite(fatia.id, nome, totalGasto);
-  });
 
   item.appendChild(botao);
   return item;
+}
+
+/**
+ * @param {GastoDeCategoria[]} fatiasBrutas
+ */
+function desenharBlocoLimites(fatiasBrutas) {
+  const listaLimites = $('lista-limites');
+  const vazioLimites = $('limites-vazio');
+  listaLimites.textContent = '';
+
+  /** @type {Map<string, number>} */
+  const gastosMap = new Map();
+  for (const f of fatiasBrutas) {
+    if (f.id) gastosMap.set(f.id, Math.max(f.previsto, f.realizado));
+  }
+
+  const limitesDefinidos = Object.entries(estado.limites)
+    .filter(([_, valor]) => valor > 0)
+    .map(([id, limite]) => {
+      const cat = categoriaPorId(estado, id);
+      return {
+        id,
+        nome: cat ? cat.nome : 'Categoria removida',
+        limite,
+        gasto: gastosMap.get(id) || 0,
+      };
+    })
+    .sort((a, b) => a.nome.localeCompare(b.nome, 'pt-BR'));
+
+  if (limitesDefinidos.length === 0) {
+    listaLimites.hidden = true;
+    vazioLimites.hidden = false;
+    return;
+  }
+
+  listaLimites.hidden = false;
+  vazioLimites.hidden = true;
+
+  for (const item of limitesDefinidos) {
+    listaLimites.appendChild(linhaDeLimite(item));
+  }
+}
+
+/**
+ * @param {{ id: string, nome: string, limite: number, gasto: number }} param
+ * @returns {HTMLLIElement}
+ */
+function linhaDeLimite({ id, nome, limite, gasto }) {
+  const situacao = situacaoDoLimite(gasto, limite);
+
+  const li = document.createElement('li');
+  li.className = 'linha-limite';
+
+  const botao = document.createElement('button');
+  botao.type = 'button';
+  botao.className = 'cartao-limite-toque';
+
+  const topo = document.createElement('div');
+  topo.className = 'linha-limite-topo';
+
+  const rotuloNome = document.createElement('span');
+  rotuloNome.className = 'limite-nome';
+  rotuloNome.textContent = nome;
+
+  const rotuloPct = document.createElement('span');
+  rotuloPct.className = 'limite-porcentagem tabular';
+  rotuloPct.textContent = `${Math.round(situacao.proporcao)}%`;
+
+  topo.append(rotuloNome, rotuloPct);
+
+  const trilho = document.createElement('div');
+  trilho.className = 'trilho-limite';
+
+  const trecho = document.createElement('div');
+  trecho.className = 'trecho-limite';
+
+  if (situacao.estourou) {
+    trecho.classList.add('estourou');
+    rotuloPct.classList.add('estourou');
+    trecho.style.width = '100%';
+  } else if (situacao.proporcao >= 80) {
+    trecho.classList.add('atencao');
+    rotuloPct.classList.add('atencao');
+    trecho.style.width = `${Math.min(situacao.proporcao, 100)}%`;
+  } else {
+    trecho.style.width = `${Math.min(situacao.proporcao, 100)}%`;
+  }
+  trilho.appendChild(trecho);
+
+  const rodape = document.createElement('div');
+  rodape.className = 'linha-limite-rodape';
+
+  const valores = document.createElement('span');
+  valores.className = 'limite-valores tabular';
+  valores.textContent = `${formatarDinheiro(situacao.usado)} de ${formatarDinheiro(limite)}`;
+
+  const status = document.createElement('span');
+  status.className = 'limite-status tabular';
+  if (situacao.estourou) {
+    status.className += ' estourou';
+    status.textContent = `${formatarDinheiro(situacao.excedente)} a mais`;
+  } else {
+    if (situacao.proporcao >= 80) status.className += ' atencao';
+    status.textContent = `Restam ${formatarDinheiro(situacao.restante)}`;
+  }
+
+  rodape.append(valores, status);
+  botao.append(topo, trilho, rodape);
+
+  const rotuloAcessivel = `Limite de ${nome}: ${formatarDinheiro(situacao.usado)} de ${formatarDinheiro(limite)}, ${Math.round(situacao.proporcao)}%. ${situacao.estourou ? formatarDinheiro(situacao.excedente) + ' acima do limite.' : 'Restam ' + formatarDinheiro(situacao.restante) + '.'} Toque para editar.`;
+  botao.setAttribute('aria-label', rotuloAcessivel);
+
+  botao.addEventListener('click', () => {
+    abrirLimite(id, nome, gasto);
+  });
+
+  li.appendChild(botao);
+  return li;
 }
 
 /* "Sem categoria" não tem para onde levar um limite — limite é por categoria,
