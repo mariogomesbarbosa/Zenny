@@ -342,10 +342,35 @@
 
 </main>
 
-<button id="botao-adicionar" class="botao-flutuante" type="button">
-  <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 5v14M5 12h14"/></svg>
-  <span>Adicionar</span>
-</button>
+<div id="veu-menu-flutuante" class="veu-menu-flutuante" hidden></div>
+
+<div id="menu-flutuante" class="menu-flutuante">
+  <div id="menu-flutuante-opcoes" class="menu-flutuante-opcoes" role="menu" aria-label="Opções de lançamento" hidden>
+    <button type="button" class="opcao-flutuante opcao-cartao" id="opcao-add-cartao" role="menuitem">
+      <span class="opcao-flutuante-icone">
+        <svg viewBox="0 0 24 24" aria-hidden="true"><rect x="2" y="5" width="20" height="14" rx="2"/><path d="M2 10h20"/></svg>
+      </span>
+      <span class="opcao-flutuante-rotulo">Cartão</span>
+    </button>
+    <button type="button" class="opcao-flutuante opcao-despesa" id="opcao-add-despesa" role="menuitem">
+      <span class="opcao-flutuante-icone">
+        <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 5v14M19 12l-7 7-7-7"/></svg>
+      </span>
+      <span class="opcao-flutuante-rotulo">Despesa</span>
+    </button>
+    <button type="button" class="opcao-flutuante opcao-receita" id="opcao-add-receita" role="menuitem">
+      <span class="opcao-flutuante-icone">
+        <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 19V5M5 12l7-7 7 7"/></svg>
+      </span>
+      <span class="opcao-flutuante-rotulo">Receita</span>
+    </button>
+  </div>
+
+  <button id="botao-adicionar" class="botao-flutuante" type="button" aria-expanded="false" aria-haspopup="menu" aria-label="Adicionar lançamento">
+    <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 5v14M5 12h14"/></svg>
+    <span class="rotulo-adicionar">Adicionar</span>
+  </button>
+</div>
 
 <nav class="navegacao" aria-label="Navegação principal">
   <a href="#/inicio" data-tela="inicio" aria-current="page">
@@ -374,6 +399,7 @@
     <div class="alternador" role="group" aria-label="Tipo">
       <button type="button" id="tipo-entrada" aria-pressed="true">Receita</button>
       <button type="button" id="tipo-saida" aria-pressed="false">Despesa</button>
+      <button type="button" id="tipo-cartao" aria-pressed="false" hidden>Cartão</button>
     </div>
 
     <div class="campo">
@@ -424,7 +450,7 @@
       <p class="dica" id="dica-do-cartao" hidden></p>
     </div>
 
-    <label class="marcador">
+    <label class="marcador" id="campo-do-realizado">
       <input type="checkbox" id="campo-realizado">
       <span id="rotulo-realizado">Já recebi</span>
     </label>
