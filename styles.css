@@ -941,28 +941,33 @@ dialog::backdrop { background: var(--veu); }
 .folha h2 { font-size: 1.25rem; margin: 4px 0 16px; letter-spacing: -.01em; }
 
 .alternador {
-  display: flex;
+  display: flex !important;
+  flex-direction: row !important;
+  flex-wrap: nowrap !important;
   gap: 4px;
   padding: 4px;
   border-radius: 12px;
   background: var(--areia);
   margin-bottom: 18px;
+  width: 100%;
+  box-sizing: border-box;
 }
 
 .alternador button {
-  flex: 1 1 0;
+  flex: 1 1 0 !important;
+  min-width: 0 !important;
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  gap: 6px;
-  min-height: 40px;
-  padding: 6px 8px;
+  gap: 5px;
+  min-height: 38px;
+  padding: 6px 4px;
   border: 0;
   border-radius: 9px;
   background: none;
   color: var(--tinta-suave);
   font: inherit;
-  font-size: .875rem;
+  font-size: .8125rem;
   font-weight: 600;
   cursor: pointer;
   white-space: nowrap;
@@ -970,14 +975,20 @@ dialog::backdrop { background: var(--veu); }
 }
 
 .alternador button[hidden] {
-  display: none;
+  display: none !important;
 }
 
 .alternador button svg {
-  width: 15px;
-  height: 15px;
+  width: 14px;
+  height: 14px;
   stroke-width: 2.2;
   flex-shrink: 0;
+}
+
+.alternador button span {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .alternador button:active { transform: scale(.96); }
@@ -997,13 +1008,13 @@ dialog::backdrop { background: var(--veu); }
 
 @media (max-width: 360px) {
   .alternador button {
-    gap: 4px;
-    padding: 6px 4px;
-    font-size: .8125rem;
+    gap: 3px;
+    padding: 6px 2px;
+    font-size: .75rem;
   }
   .alternador button svg {
-    width: 14px;
-    height: 14px;
+    width: 13px;
+    height: 13px;
   }
 }
 
