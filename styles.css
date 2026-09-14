@@ -208,10 +208,11 @@ svg {
   color: var(--tinta-suave);
   cursor: pointer;
   -webkit-tap-highlight-color: transparent;
+  transition: background-color .15s ease, color .15s ease, transform .12s ease;
 }
 
 .botao-icone:hover { background: var(--superficie); color: var(--tinta); }
-.botao-icone:active { background: var(--borda); }
+.botao-icone:active { background: var(--borda); transform: scale(.92); }
 
 .botao-texto {
   flex: none;
@@ -226,9 +227,11 @@ svg {
   font-weight: 600;
   cursor: pointer;
   -webkit-tap-highlight-color: transparent;
+  transition: background-color .15s ease, color .15s ease, transform .12s ease;
 }
 
 .botao-texto:hover { background: var(--superficie); }
+.botao-texto:active { transform: scale(.96); }
 
 /* ---------- Conteúdo ---------- */
 
@@ -243,7 +246,38 @@ svg {
   padding-bottom: calc(104px + env(safe-area-inset-bottom));
   width: 100%;
   max-width: var(--largura-maxima);
-  margin-inline: auto;
+  margin: 0 auto;
+}
+
+/* Transição suave ao alternar entre telas */
+.tela:not([hidden]) {
+  animation: tela-entrar .18s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+}
+
+#tela-cartao-detalhe:not([hidden]) {
+  animation: tela-detalhe-entrar .22s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+}
+
+@keyframes tela-entrar {
+  from {
+    opacity: 0;
+    transform: translateY(6px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes tela-detalhe-entrar {
+  from {
+    opacity: 0;
+    transform: translateX(14px);
+  }
+  to {
+    opacity: 1;
+    transform: translateX(0);
+  }
 }
 
 h1 { font-size: 1.75rem; line-height: 1.2; letter-spacing: -.02em; margin: 8px 0 2px; }
@@ -347,7 +381,7 @@ h1 { font-size: 1.75rem; line-height: 1.2; letter-spacing: -.02em; margin: 8px 0
   overflow: hidden;
 }
 
-.trecho { height: 100%; width: 0; transition: width .25s ease; }
+.trecho { height: 100%; width: 0; transition: width .36s cubic-bezier(0.16, 1, 0.3, 1); }
 
 /* A barrinha do cartão. SEM fundo, de propósito: um segundo trilho cinza de
    ponta a ponta leria como uma terceira barra do painel, competindo com
@@ -483,18 +517,31 @@ h1 { font-size: 1.75rem; line-height: 1.2; letter-spacing: -.02em; margin: 8px 0
   background: var(--superficie);
   cursor: pointer;
   -webkit-tap-highlight-color: transparent;
-  transition: background .12s ease, border-color .12s ease;
+  transition: background .18s cubic-bezier(0.16, 1, 0.3, 1), border-color .18s cubic-bezier(0.16, 1, 0.3, 1), transform .12s ease;
   flex-shrink: 0;
 }
+
+.marcador-realizado:active { transform: scale(.86); }
 
 .marcador-realizado svg {
   width: 13px; height: 13px;
   stroke: var(--sobre-cor); stroke-width: 2.4;
   opacity: 0; transform: scale(.7);
-  transition: opacity .12s ease, transform .12s ease;
+  transition: opacity .15s ease, transform .15s ease;
 }
 
-.marcador-realizado[aria-pressed="true"] svg { opacity: 1; transform: none; }
+.marcador-realizado[aria-pressed="true"] svg {
+  opacity: 1;
+  transform: none;
+  animation: pop-check .22s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+@keyframes pop-check {
+  0% { transform: scale(.5); }
+  65% { transform: scale(1.2); }
+  100% { transform: scale(1); }
+}
+
 .marcador-realizado.entrada[aria-pressed="true"] { background: var(--verde); border-color: var(--verde); }
 .marcador-realizado.saida[aria-pressed="true"] { background: var(--coral); border-color: var(--coral); }
 
@@ -634,6 +681,7 @@ h1 { font-size: 1.75rem; line-height: 1.2; letter-spacing: -.02em; margin: 8px 0
   box-shadow: var(--sombra-flutuante);
   cursor: pointer;
   -webkit-tap-highlight-color: transparent;
+  transition: transform .14s cubic-bezier(0.16, 1, 0.3, 1), box-shadow .14s ease;
 }
 
 body[data-tela="inicio"] .botao-flutuante {
@@ -641,7 +689,7 @@ body[data-tela="inicio"] .botao-flutuante {
 }
 
 .botao-flutuante svg { width: 18px; height: 18px; stroke-width: 2.4; }
-.botao-flutuante:active { transform: translateY(1px); }
+.botao-flutuante:active { transform: scale(.92); }
 
 /* ---------- Navegação ---------- */
 
@@ -663,9 +711,18 @@ body[data-tela="inicio"] .botao-flutuante {
   color: var(--tinta-suave);
   text-decoration: none;
   font-size: .75rem;
+  transition: color .15s ease, transform .12s ease;
+  -webkit-tap-highlight-color: transparent;
+}
+
+.navegacao a:active { transform: scale(.93); }
+
+.navegacao a svg {
+  transition: transform .2s cubic-bezier(0.16, 1, 0.3, 1);
 }
 
 .navegacao a[aria-current="page"] { color: var(--verde); }
+.navegacao a[aria-current="page"] svg { transform: scale(1.12); }
 
 /* Com quatro abas, cada uma fica com 90px em 360px. "Relatório" é a palavra
    mais longa da barra e precisa caber inteira: sem isto ela quebra em duas
@@ -695,7 +752,43 @@ dialog {
   box-shadow: var(--sombra-folha);
 }
 
+dialog[open] {
+  animation: folha-entrar .26s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+}
+
+dialog[open]::backdrop {
+  animation: veu-entrar .22s ease-out forwards;
+}
+
+dialog.fechando {
+  animation: folha-sair .18s cubic-bezier(0.4, 0, 1, 1) forwards;
+}
+
+dialog.fechando::backdrop {
+  animation: veu-sair .18s ease-in forwards;
+}
+
 dialog::backdrop { background: var(--veu); }
+
+@keyframes folha-entrar {
+  from { transform: translateY(100%); }
+  to { transform: translateY(0); }
+}
+
+@keyframes folha-sair {
+  from { transform: translateY(0); }
+  to { transform: translateY(100%); }
+}
+
+@keyframes veu-entrar {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+@keyframes veu-sair {
+  from { opacity: 1; }
+  to { opacity: 0; }
+}
 
 .pegador {
   width: 38px; height: 4px;
@@ -726,7 +819,10 @@ dialog::backdrop { background: var(--veu); }
   font: inherit;
   font-weight: 600;
   cursor: pointer;
+  transition: background-color .18s ease, color .18s ease, box-shadow .18s ease, transform .1s ease;
 }
+
+.alternador button:active { transform: scale(.96); }
 
 .alternador button[aria-pressed="true"] {
   background: var(--superficie);
@@ -796,7 +892,10 @@ dialog::backdrop { background: var(--veu); }
   font-weight: 600;
   cursor: pointer;
   -webkit-tap-highlight-color: transparent;
+  transition: background-color .15s ease, border-color .15s ease, transform .12s ease, filter .12s ease;
 }
+
+.botao:active:not(:disabled) { transform: scale(.97); }
 
 .botao.contorno { background: transparent; color: var(--tinta); border-color: var(--borda); }
 .botao.contorno:hover { background: var(--areia); }
@@ -816,9 +915,11 @@ dialog::backdrop { background: var(--veu); }
   color: var(--coral);
   border-color: transparent;
   padding-inline: 12px;
+  transition: background-color .15s ease, color .15s ease, transform .12s ease;
 }
 
 .botao.apagado:hover { background: var(--coral-fraco); }
+.botao.apagado:active { transform: scale(.97); }
 
 .botao:disabled,
 .botao[aria-busy="true"] {
@@ -864,7 +965,10 @@ dialog::backdrop { background: var(--veu); }
   text-align: left;
   cursor: pointer;
   -webkit-tap-highlight-color: transparent;
+  transition: background-color .12s ease, transform .12s ease;
 }
+
+.opcao-categoria:active { transform: scale(.985); }
 
 .opcao-categoria:last-child { border-bottom: 0; }
 .opcao-categoria.selecionada { color: var(--verde); font-weight: 600; }
@@ -898,7 +1002,10 @@ dialog::backdrop { background: var(--veu); }
   text-align: left;
   cursor: pointer;
   -webkit-tap-highlight-color: transparent;
+  transition: opacity .12s ease, transform .12s ease;
 }
+
+.linha-categoria-botao:active { transform: scale(.985); }
 
 /* "Sem categoria" não é uma categoria de verdade: o nome recua para o tom
    fraco, e a barra fica neutra em vez de coral — ela não compete com o
@@ -948,7 +1055,10 @@ dialog::backdrop { background: var(--veu); }
   text-align: left;
   cursor: pointer;
   -webkit-tap-highlight-color: transparent;
+  transition: opacity .12s ease, transform .12s ease;
 }
+
+.cartao-toque:active { transform: scale(.985); }
 
 .cartao-nome { font-weight: 600; letter-spacing: -.01em; }
 .cartao-valor { font-weight: 600; text-align: right; }
@@ -1112,19 +1222,27 @@ dialog::backdrop { background: var(--veu); }
   text-align: left;
   cursor: pointer;
   -webkit-tap-highlight-color: transparent;
+  transition: opacity .12s ease, transform .12s ease;
 }
+
+.compra-toque:active { transform: scale(.985); }
 
 .compra-excluir {
   display: grid;
   place-items: center;
   width: 32px;
-  height: var(--alvo);
+  height: 32px;
   border: 0;
+  border-radius: 50%;
   background: none;
   color: var(--tinta-fraca);
   cursor: pointer;
   -webkit-tap-highlight-color: transparent;
+  transition: color .15s ease, transform .12s ease;
 }
+
+.compra-excluir:hover { color: var(--coral); }
+.compra-excluir:active { transform: scale(.88); }
 
 .compra-excluir svg { width: 15px; height: 15px; }
 
@@ -1154,6 +1272,21 @@ dialog::backdrop { background: var(--veu); }
   color: var(--areia);
   font-size: .875rem;
   box-shadow: var(--sombra-aviso);
+}
+
+.aviso:not([hidden]) {
+  animation: aviso-entrar .25s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+}
+
+@keyframes aviso-entrar {
+  from {
+    opacity: 0;
+    transform: translate(-50%, 14px) scale(.95);
+  }
+  to {
+    opacity: 1;
+    transform: translate(-50%, 0) scale(1);
+  }
 }
 
 .aviso span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
@@ -1277,6 +1410,36 @@ dialog::backdrop { background: var(--veu); }
     box-shadow: var(--sombra-modal);
   }
 
+  dialog[open] {
+    animation: modal-entrar .22s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+  }
+
+  dialog.fechando {
+    animation: modal-sair .16s cubic-bezier(0.4, 0, 1, 1) forwards;
+  }
+
+  @keyframes modal-entrar {
+    from {
+      opacity: 0;
+      transform: scale(.95) translateY(4px);
+    }
+    to {
+      opacity: 1;
+      transform: scale(1) translateY(0);
+    }
+  }
+
+  @keyframes modal-sair {
+    from {
+      opacity: 1;
+      transform: scale(1) translateY(0);
+    }
+    to {
+      opacity: 0;
+      transform: scale(.95) translateY(4px);
+    }
+  }
+
   .pegador { display: none; }
   .folha { padding: 20px 24px 24px; }
   .campo input, .campo select { font-size: .9375rem; min-height: 40px; }
@@ -1288,5 +1451,12 @@ dialog::backdrop { background: var(--veu); }
 }
 
 @media (prefers-reduced-motion: reduce) {
-  * { transition: none !important; animation: none !important; }
+  *, *::before, *::after {
+    transition: none !important;
+    animation: none !important;
+  }
+  dialog[open], dialog.fechando, .tela:not([hidden]), .aviso:not([hidden]) {
+    transform: none !important;
+    opacity: 1 !important;
+  }
 }
