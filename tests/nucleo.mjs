@@ -66,6 +66,7 @@ import {
   textoDoUltimoBackup,
   formatarTamanho,
   textoDoBackupDrive,
+  estadoTemDados,
 } from '../nucleo.js';
 
 /* Fuso fixo, e de proposito um em que a data local difere da UTC por boa parte
@@ -2143,6 +2144,19 @@ conferir('formatarTamanho — NaN devolve 0 B', formatarTamanho(NaN), '0 B');
     textoDoBackupDrive('2026-09-12T10:00:00Z', 500, hoje),
     'Última cópia: hoje · 500 B');
 }
+
+/* ---------- estadoTemDados ---------- */
+
+conferir('estadoTemDados — estado nulo ou indefinido', estadoTemDados(null), false);
+conferir('estadoTemDados — estado vazio', estadoTemDados(estadoVazio()), false);
+conferir('estadoTemDados — com lancamento', estadoTemDados({
+  ...estadoVazio(),
+  lancamentos: [AVULSO],
+}), true);
+conferir('estadoTemDados — com cartao', estadoTemDados({
+  ...estadoVazio(),
+  cartoes: [{ id: 'c1', nome: 'Nubank', limite: 1000, fechamento: 1, vencimento: 10, arquivado: false }],
+}), true);
 
 /* ---------- resultado ---------- */
 

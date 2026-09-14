@@ -39,6 +39,7 @@ import {
   lerBackup,
   textoDoUltimoBackup,
   textoDoBackupDrive,
+  estadoTemDados,
   sugerirCategoria,
   categoriasDisponiveis,
   categoriaPorId,
@@ -1243,6 +1244,42 @@ function desenharAjustes() {
     estadoDrive.textContent = conectado
       ? textoDoBackupDrive(infoDrive?.exportadoEm, infoDrive?.tamanho, new Date())
       : '—';
+
+    const temDados = estadoTemDados(estado);
+
+    const btnConectarSalvar = $('botao-conectar-drive');
+    const btnConectarTrazer = $('botao-conectar-trazer-drive');
+    const pilhaDesconectado = $('pilha-drive-desconectado');
+    if (btnConectarSalvar && btnConectarTrazer && pilhaDesconectado) {
+      if (temDados) {
+        btnConectarSalvar.className = 'botao';
+        btnConectarSalvar.textContent = 'Salvar no Google Drive';
+        btnConectarTrazer.className = 'botao contorno';
+        btnConectarTrazer.textContent = 'Trazer do Google Drive';
+        pilhaDesconectado.append(btnConectarSalvar, btnConectarTrazer);
+      } else {
+        btnConectarTrazer.className = 'botao';
+        btnConectarTrazer.textContent = 'Trazer do Google Drive';
+        btnConectarSalvar.className = 'botao contorno';
+        btnConectarSalvar.textContent = 'Conectar ao Google Drive';
+        pilhaDesconectado.append(btnConectarTrazer, btnConectarSalvar);
+      }
+    }
+
+    const btnSalvar = $('botao-salvar-drive');
+    const btnTrazer = $('botao-trazer-drive');
+    const pilhaConectado = $('pilha-drive-conectado');
+    if (btnSalvar && btnTrazer && pilhaConectado) {
+      if (temDados) {
+        btnSalvar.className = 'botao';
+        btnTrazer.className = 'botao contorno';
+        pilhaConectado.append(btnSalvar, btnTrazer);
+      } else {
+        btnTrazer.className = 'botao';
+        btnSalvar.className = 'botao contorno';
+        pilhaConectado.append(btnTrazer, btnSalvar);
+      }
+    }
   }
 }
 
@@ -1428,10 +1465,58 @@ $('botao-guardar').addEventListener('click', guardarCopia);
 $('botao-trazer').addEventListener('click', () => $campo('arquivo-do-backup').click());
 $campo('arquivo-do-backup').addEventListener('change', arquivoEscolhido);
 
+/** @type {'trazer'|'salvar'|null} */
+let acaoPendenteDrive = null;
+
+/**
+ * Busca o arquivo de backup no Google Drive e exibe o diálogo de restauração.
+ */
+async function trazerCopiaDoDrive() {
+  const btn = $('botao-trazer-drive');
+  if (btn?.hasAttribute('aria-busy')) return;
+  btn?.setAttribute('aria-busy', 'true');
+  const textoOriginal = btn?.textContent || '';
+  if (btn) btn.textContent = 'Buscando do Drive...';
+  try {
+    const texto = await buscarDoDrive();
+    if (!texto) {
+      avisar('Nenhuma cópia encontrada no Google Drive.');
+      return;
+    }
+    const lido = lerBackup(texto);
+    if (!lido.ok) {
+      avisar(ERROS_DO_ARQUIVO[lido.erro] || 'Não consegui ler o arquivo do Drive.');
+      return;
+    }
+    pendenteDeRestauracao = lido;
+    $('explicacao-do-restaurar').textContent = explicarRestauracao(lido);
+    $dialogo('dialogo-restaurar').showModal();
+  } catch (e) {
+    avisar(e instanceof Error ? e.message : 'Não consegui buscar o arquivo do Drive.');
+  } finally {
+    if (btn) {
+      btn.removeAttribute('aria-busy');
+      btn.textContent = textoOriginal;
+    }
+  }
+}
+
 $('botao-conectar-drive')?.addEventListener('click', () => {
   try {
+    acaoPendenteDrive = 'salvar';
     conectar();
   } catch (e) {
+    acaoPendenteDrive = null;
+    avisar(e instanceof Error ? e.message : 'Não consegui conectar ao Google Drive.');
+  }
+});
+
+$('botao-conectar-trazer-drive')?.addEventListener('click', () => {
+  try {
+    acaoPendenteDrive = 'trazer';
+    conectar();
+  } catch (e) {
+    acaoPendenteDrive = null;
     avisar(e instanceof Error ? e.message : 'Não consegui conectar ao Google Drive.');
   }
 });
@@ -1439,6 +1524,15 @@ $('botao-conectar-drive')?.addEventListener('click', () => {
 $('botao-salvar-drive')?.addEventListener('click', async () => {
   const btn = $('botao-salvar-drive');
   if (btn.hasAttribute('aria-busy')) return;
+
+  const temDados = estadoTemDados(estado);
+  if (!temDados && infoDrive) {
+    const querMesmo = window.confirm(
+      'Este aparelho não tem nenhum lançamento nem cartão. Se salvar agora, você substituirá a cópia existente no Google Drive por uma base vazia.\n\nDeseja continuar mesmo assim?'
+    );
+    if (!querMesmo) return;
+  }
+
   btn.setAttribute('aria-busy', 'true');
   const textoOriginal = btn.textContent;
   btn.textContent = 'Salvando no Drive...';
@@ -1457,33 +1551,7 @@ $('botao-salvar-drive')?.addEventListener('click', async () => {
   }
 });
 
-$('botao-trazer-drive')?.addEventListener('click', async () => {
-  const btn = $('botao-trazer-drive');
-  if (btn.hasAttribute('aria-busy')) return;
-  btn.setAttribute('aria-busy', 'true');
-  const textoOriginal = btn.textContent;
-  btn.textContent = 'Buscando do Drive...';
-  try {
-    const texto = await buscarDoDrive();
-    if (!texto) {
-      avisar('Nenhuma cópia encontrada no Google Drive.');
-      return;
-    }
-    const lido = lerBackup(texto);
-    if (!lido.ok) {
-      avisar(ERROS_DO_ARQUIVO[lido.erro] || 'Não consegui ler o arquivo do Drive.');
-      return;
-    }
-    pendenteDeRestauracao = lido;
-    $('explicacao-do-restaurar').textContent = explicarRestauracao(lido);
-    $dialogo('dialogo-restaurar').showModal();
-  } catch (e) {
-    avisar(e instanceof Error ? e.message : 'Não consegui buscar o arquivo do Drive.');
-  } finally {
-    btn.removeAttribute('aria-busy');
-    btn.textContent = textoOriginal;
-  }
-});
+$('botao-trazer-drive')?.addEventListener('click', trazerCopiaDoDrive);
 
 $('botao-desconectar-drive')?.addEventListener('click', async () => {
   await desconectar();
@@ -2617,5 +2685,15 @@ inicializarDrive(async () => {
   }
   desenharAjustes();
   avisar('Conectado ao Google Drive.');
+
+  const acao = acaoPendenteDrive;
+  acaoPendenteDrive = null;
+
+  const temDados = estadoTemDados(estado);
+
+  // Se o usuário tocou para trazer do Drive, ou se esta máquina está vazia e existe cópia no Drive:
+  if (acao === 'trazer' || (!temDados && infoDrive)) {
+    await trazerCopiaDoDrive();
+  }
 });
 

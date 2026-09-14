@@ -300,18 +300,19 @@
 
       <!-- Estado: não conectado -->
       <div id="drive-desconectado">
-        <div class="pilha">
-          <button type="button" class="botao" id="botao-conectar-drive">Conectar ao Google Drive</button>
+        <div class="pilha" id="pilha-drive-desconectado">
+          <button type="button" class="botao" id="botao-conectar-trazer-drive">Trazer do Google Drive</button>
+          <button type="button" class="botao contorno" id="botao-conectar-drive">Conectar ao Google Drive</button>
         </div>
         <p class="nota">
-          Salva uma cópia dos seus dados no Google Drive, invisível para
-          todo mundo — só o Zenny acessa. Funciona como no WhatsApp.
+          Guarde uma cópia dos seus dados no Google Drive ou recupere suas
+          anotações ao trocar de aparelho. Funciona como no WhatsApp.
         </p>
       </div>
 
       <!-- Estado: conectado -->
       <div id="drive-conectado" hidden>
-        <div class="pilha">
+        <div class="pilha" id="pilha-drive-conectado">
           <button type="button" class="botao" id="botao-salvar-drive">Salvar no Drive</button>
           <button type="button" class="botao contorno" id="botao-trazer-drive">Trazer do Drive</button>
         </div>

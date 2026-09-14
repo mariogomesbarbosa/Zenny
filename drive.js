@@ -15,6 +15,7 @@
 
 /* O Client ID do Google Cloud Console. Público por definição — aparece no
    JavaScript que o navegador baixa. */
+/** @type {string} */
 const CLIENT_ID = '595876283616-a993k9p6jjmf8mfnbkr9bcf10a7osmnp.apps.googleusercontent.com';
 const ESCOPO = 'https://www.googleapis.com/auth/drive.appdata';
 const NOME_DO_ARQUIVO = 'zenny-backup.json';
