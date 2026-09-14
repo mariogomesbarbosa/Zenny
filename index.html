@@ -19,7 +19,7 @@
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
 <meta name="apple-mobile-web-app-title" content="Zenny">
 
-<link rel="stylesheet" href="styles.css?v=5">
+<link rel="stylesheet" href="styles.css?v=6">
 
 <!-- Tema antes da primeira pintura: se isso esperar o app.js, a tela pisca
      branca em quem usa o tema escuro. -->
@@ -165,31 +165,50 @@
     <h1 id="titulo-relatorio">Relatório</h1>
     <p class="subtitulo" id="relatorio-mes">—</p>
 
-    <!-- A tela vai abrigar mais seções além desta. Cada uma tem seu próprio
-         título e responde a uma pergunta: aqui, "para onde o dinheiro foi".
-         O h2 é o que dá a hierarquia, e é por ele que um leitor de tela navega
-         entre as seções. -->
-    <section class="secao-relatorio" aria-labelledby="titulo-dos-gastos">
-      <h2 id="titulo-dos-gastos">Gastos</h2>
-      <p class="nota">O que já saiu neste mês, por categoria.</p>
+    <div class="grade-relatorio">
+      <!-- Seção 1: Distribuição de Gastos por Categoria -->
+      <section class="secao-relatorio" id="secao-gastos" aria-labelledby="titulo-dos-gastos">
+        <div class="cabecalho-secao-relatorio">
+          <h2 id="titulo-dos-gastos">Gastos por categoria</h2>
+          <span class="total-destaque tabular" id="relatorio-total-gastos">R$ 0,00</span>
+        </div>
+        <p class="nota">Onde o dinheiro foi gasto neste mês.</p>
 
-      <ul class="quebra-categorias" id="lista-relatorio"></ul>
+        <div class="conteiner-grafico-rosca" id="conteiner-grafico-rosca">
+          <svg class="grafico-rosca" id="grafico-rosca" viewBox="0 0 160 160" aria-hidden="true"></svg>
+          <div class="centro-grafico-rosca">
+            <span class="centro-rotulo">Total</span>
+            <span class="centro-valor tabular" id="grafico-total-centro">R$ 0,00</span>
+          </div>
+        </div>
 
-      <div class="cartao vazio" id="relatorio-vazio" hidden>
-        <h3>Nada por aqui ainda</h3>
-        <p>
-          Assim que você marcar uma despesa como paga, ela aparece aqui. Mas dá
-          para combinar um limite desde já.
-        </p>
-      </div>
+        <ul class="quebra-categorias" id="lista-relatorio"></ul>
 
-      <!-- A porta para quem ainda não gastou. Sem ela, um limite só podia ser
-           definido a partir de uma linha da lista — e no dia 1º do mês, ou numa
-           categoria em que nunca se gastou, não havia linha nenhuma. -->
-      <button type="button" class="botao contorno" id="botao-definir-limite">
-        Combinar um limite
-      </button>
-    </section>
+        <div class="cartao vazio" id="relatorio-vazio" hidden>
+          <h3>Nada por aqui ainda</h3>
+          <p>Assim que houver despesas neste mês, o gráfico e as categorias aparecerão aqui.</p>
+        </div>
+      </section>
+
+      <!-- Seção 2: Limites de Gastos (Orçamentos) -->
+      <section class="secao-relatorio" id="secao-limites" aria-labelledby="titulo-dos-limites">
+        <div class="cabecalho-secao-relatorio">
+          <h2 id="titulo-dos-limites">Limites de gastos</h2>
+        </div>
+        <p class="nota">Acompanhe quanto já gastou em relação ao limite estipulado.</p>
+
+        <ul class="lista-limites" id="lista-limites"></ul>
+
+        <div class="cartao vazio" id="limites-vazio" hidden>
+          <h3>Nenhum limite definido</h3>
+          <p>Defina limites para categorias como Mercado, Comida fora ou Lazer para acompanhar seu teto de gastos.</p>
+        </div>
+
+        <button type="button" class="botao contorno" id="botao-definir-limite">
+          + Definir limite
+        </button>
+      </section>
+    </div>
   </section>
 
   <section class="tela" id="tela-cartoes" aria-labelledby="titulo-cartoes" hidden>

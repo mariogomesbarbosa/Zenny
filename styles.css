@@ -29,6 +29,8 @@
   --verde-fraco: #cfe4da;
   --coral: #c8553a;
   --coral-fraco: #f0d8d1;
+  --ambar: #d97706;
+  --ambar-fraco: #fef3c7;
 
   /* A fatia de cartão, no painel. Contraste conferido com conta, e não a olho:
      6,69:1 sobre a superfície do cartão, acima do 4,36:1 que o coral pratica.
@@ -72,6 +74,8 @@
     --verde-fraco: #27473a;
     --coral: #e8845f;
     --coral-fraco: #4a2e25;
+    --ambar: #fbbf24;
+    --ambar-fraco: #451a03;
     --roxo: #b39ddb;
     --borda: #2a3138;
     --borda-fraca: #232930;
@@ -90,6 +94,8 @@
   --verde-fraco: #27473a;
   --coral: #e8845f;
   --coral-fraco: #4a2e25;
+  --ambar: #fbbf24;
+  --ambar-fraco: #451a03;
   --roxo: #b39ddb;
   --borda: #2a3138;
   --borda-fraca: #232930;
@@ -1162,20 +1168,115 @@ dialog::backdrop { background: var(--veu); }
 
 /* ---------- Relatório ---------- */
 
-/* Cada seção do Relatório é um bloco fechado com seu próprio título. A regra
-   existe para quando houver a segunda: sem espaço entre elas, duas listas
-   seguidas leem como uma lista só. */
-.secao-relatorio { margin-bottom: 32px; }
-.secao-relatorio:last-child { margin-bottom: 0; }
-.secao-relatorio h2 { font-size: 1.125rem; margin: 0 0 2px; letter-spacing: -.01em; }
-.secao-relatorio > .nota { margin: 0 0 14px; }
-.secao-relatorio .cartao.vazio h3 { font-size: 1.05rem; margin: 0 0 6px; }
+.grade-relatorio {
+  display: flex;
+  flex-direction: column;
+  gap: 32px;
+}
 
-/* A quebra do mês por categoria: reusa o visual da barra do painel — mesma
-   grade, mesmo trilho — porque é a mesma ideia, uma fatia do que já saiu. */
-.quebra-categorias { list-style: none; margin: 0 0 8px; padding: 0; }
-.linha-categoria { border-bottom: 1px solid var(--borda-fraca); }
-.linha-categoria:last-child { border-bottom: 0; }
+/* Cada seção do Relatório é um bloco fechado com seu próprio título. */
+.secao-relatorio {
+  margin-bottom: 0;
+}
+
+.cabecalho-secao-relatorio {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  gap: 12px;
+  margin-bottom: 2px;
+}
+
+.cabecalho-secao-relatorio h2 {
+  font-size: 1.125rem;
+  margin: 0;
+  letter-spacing: -.01em;
+}
+
+.total-destaque {
+  font-weight: 700;
+  font-size: 1.125rem;
+  color: var(--coral);
+}
+
+.secao-relatorio > .nota {
+  margin: 0 0 14px;
+}
+
+.secao-relatorio .cartao.vazio h3 {
+  font-size: 1.05rem;
+  margin: 0 0 6px;
+}
+
+/* Gráfico de Rosca (Donut Chart) em SVG Nativo */
+.conteiner-grafico-rosca {
+  position: relative;
+  width: 170px;
+  height: 170px;
+  margin: 16px auto 20px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.grafico-rosca {
+  width: 100%;
+  height: 100%;
+  transform: rotate(-90deg);
+  overflow: visible;
+}
+
+.grafico-fatia {
+  fill: transparent;
+  stroke-width: 20;
+  transition: stroke-dasharray .4s cubic-bezier(0.16, 1, 0.3, 1), stroke-dashoffset .4s cubic-bezier(0.16, 1, 0.3, 1), opacity .2s ease;
+  stroke-linecap: butt;
+}
+
+.grafico-fatia:hover {
+  opacity: .85;
+}
+
+.centro-grafico-rosca {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  pointer-events: none;
+  text-align: center;
+}
+
+.centro-rotulo {
+  font-size: .75rem;
+  font-weight: 500;
+  text-transform: uppercase;
+  letter-spacing: .06em;
+  color: var(--tinta-suave);
+}
+
+.centro-valor {
+  font-size: 1rem;
+  font-weight: 700;
+  color: var(--tinta);
+  margin-top: 2px;
+}
+
+/* A quebra do mês por categoria */
+.quebra-categorias {
+  list-style: none;
+  margin: 0 0 8px;
+  padding: 0;
+}
+
+.linha-categoria {
+  border-bottom: 1px solid var(--borda-fraca);
+}
+
+.linha-categoria:last-child {
+  border-bottom: 0;
+}
 
 .linha-categoria-botao {
   width: 100%;
@@ -1191,22 +1292,203 @@ dialog::backdrop { background: var(--veu); }
   transition: opacity .12s ease, transform .12s ease;
 }
 
-.linha-categoria-botao:active { transform: scale(.985); }
+.linha-categoria-botao:active {
+  transform: scale(.985);
+}
 
-/* "Sem categoria" não é uma categoria de verdade: o nome recua para o tom
-   fraco, e a barra fica neutra em vez de coral — ela não compete com o
-   dinheiro de fato classificado. */
-.linha-categoria-botao.vazia .barra-nome { color: var(--tinta-suave); font-style: italic; }
-.trecho.cheio.categoria-vazia { background: var(--tinta-fraca); }
-.trecho.claro.categoria-vazia { background: var(--borda); }
+.linha-gasto-topo {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 6px;
+}
 
-/* O quanto do limite já foi usado, na própria linha (decisão 6b do B5): um
-   aviso que precisa de três toques para aparecer é quase mudo. Ocupa a grade
-   inteira, embaixo do trilho, e nunca é bronca (decisão 5) — coral é a mesma
-   cor que o app já usa para "dinheiro que sai", não um vermelho de erro. */
-.legenda-limite { grid-column: 1 / -1; margin: 2px 0 0; font-size: .75rem; color: var(--tinta-suave); }
-.legenda-limite.estourou,
-#limite-situacao.estourou { color: var(--coral); }
+.ponto-categoria {
+  width: 9px;
+  height: 9px;
+  border-radius: 50%;
+  flex-shrink: 0;
+}
+
+.linha-gasto-topo .barra-nome {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-weight: 600;
+  font-size: .9375rem;
+  color: var(--tinta);
+}
+
+.porcentagem-gasto-categoria {
+  font-size: .8125rem;
+  font-weight: 500;
+  color: var(--tinta-suave);
+  flex-shrink: 0;
+}
+
+.linha-gasto-topo .barra-valor {
+  font-weight: 700;
+  font-size: .9375rem;
+  color: var(--tinta);
+  flex-shrink: 0;
+  text-align: right;
+}
+
+.linha-categoria-botao.vazia .barra-nome {
+  color: var(--tinta-suave);
+  font-style: italic;
+}
+
+.linha-categoria-botao .trilho {
+  width: 100%;
+  height: 6px;
+  border-radius: 3px;
+  background: var(--borda-fraca);
+  overflow: hidden;
+  display: flex;
+}
+
+.linha-categoria-botao .trecho {
+  height: 100%;
+  border-radius: 3px;
+  transition: width .36s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.legenda-limite {
+  grid-column: 1 / -1;
+  margin: 4px 0 0;
+  font-size: .75rem;
+  color: var(--tinta-suave);
+  display: block;
+}
+
+/* Bloco de Limites de Gastos */
+.lista-limites {
+  list-style: none;
+  margin: 0 0 16px;
+  padding: 0;
+  display: grid;
+  gap: 10px;
+}
+
+.linha-limite {
+  position: relative;
+  border: 1px solid var(--borda-fraca);
+  border-radius: 14px;
+  background: var(--superficie);
+  box-shadow: var(--sombra-sutil);
+  overflow: hidden;
+  transition: transform .12s ease, border-color .15s ease;
+}
+
+.linha-limite:hover {
+  border-color: var(--borda);
+}
+
+.cartao-limite-toque {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  width: 100%;
+  padding: 14px 16px;
+  border: 0;
+  background: none;
+  color: inherit;
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+  -webkit-tap-highlight-color: transparent;
+  transition: opacity .12s ease, transform .12s ease;
+}
+
+.cartao-limite-toque:active {
+  transform: scale(.99);
+}
+
+.linha-limite-topo {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  gap: 12px;
+}
+
+.limite-nome {
+  font-weight: 600;
+  font-size: .9375rem;
+  color: var(--tinta);
+  letter-spacing: -.01em;
+}
+
+.limite-porcentagem {
+  font-size: .875rem;
+  font-weight: 700;
+  color: var(--verde);
+}
+
+.limite-porcentagem.atencao {
+  color: var(--ambar);
+}
+
+.limite-porcentagem.estourou {
+  color: var(--coral);
+}
+
+.trilho-limite {
+  width: 100%;
+  height: 8px;
+  border-radius: 4px;
+  background: var(--borda-fraca);
+  overflow: hidden;
+  display: flex;
+}
+
+.trecho-limite {
+  height: 100%;
+  border-radius: 4px;
+  background: var(--verde);
+  transition: width .36s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.trecho-limite.atencao {
+  background: var(--ambar);
+}
+
+.trecho-limite.estourou {
+  background: var(--coral);
+}
+
+.linha-limite-rodape {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 8px;
+  font-size: .75rem;
+  color: var(--tinta-suave);
+}
+
+.limite-valores {
+  font-weight: 500;
+}
+
+.limite-status {
+  font-weight: 600;
+  text-align: right;
+  color: var(--tinta-suave);
+}
+
+.limite-status.atencao {
+  color: var(--ambar);
+}
+
+.limite-status.estourou {
+  color: var(--coral);
+}
+
+#botao-definir-limite {
+  width: 100%;
+}
 
 /* ---------- Cartões de crédito (B6) ---------- */
 
@@ -1580,6 +1862,13 @@ dialog::backdrop { background: var(--veu); }
     grid-template-columns: minmax(220px, 300px) 1fr;
     gap: 34px;
     padding: 22px 24px;
+  }
+
+  .grade-relatorio {
+    display: grid;
+    grid-template-columns: minmax(0, 1.15fr) minmax(0, 0.85fr);
+    gap: 36px;
+    align-items: start;
   }
 
   .menu-flutuante { bottom: 24px; right: 24px; }
