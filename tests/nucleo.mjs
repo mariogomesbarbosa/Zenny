@@ -64,6 +64,8 @@ import {
   lerBackup,
   diasEntre,
   textoDoUltimoBackup,
+  formatarTamanho,
+  textoDoBackupDrive,
 } from '../nucleo.js';
 
 /* Fuso fixo, e de proposito um em que a data local difere da UTC por boa parte
@@ -2084,6 +2086,62 @@ conferir('total informado igual a soma atravessa sem criar ajuste',
   const ajuste = menor.lancamentos.find((l) => l.descricao === DESCRICAO_DO_AJUSTE);
   conferir('informado menor gera credito na travessia', ajuste?.tipo, 'entrada');
   conferir('e a fatura segue valendo o informado', faturaDoMes(menor, 'c1', '2026-10')?.valor, 3000);
+}
+
+/* ---------- formatarTamanho ---------- */
+
+conferir('formatarTamanho — zero', formatarTamanho(0), '0 B');
+conferir('formatarTamanho — bytes pequenos', formatarTamanho(500), '500 B');
+conferir('formatarTamanho — exatamente 1 KB', formatarTamanho(1024), '1,0 KB');
+conferir('formatarTamanho — kilobytes fracionados', formatarTamanho(1536), '1,5 KB');
+conferir('formatarTamanho — 2,3 KB', formatarTamanho(2355), '2,3 KB');
+conferir('formatarTamanho — quase 1 MB', formatarTamanho(1048575), '1024,0 KB');
+conferir('formatarTamanho — exatamente 1 MB', formatarTamanho(1048576), '1,0 MB');
+conferir('formatarTamanho — megabytes fracionados', formatarTamanho(3670016), '3,5 MB');
+conferir('formatarTamanho — negativo devolve 0 B', formatarTamanho(-100), '0 B');
+conferir('formatarTamanho — Infinity devolve 0 B', formatarTamanho(Infinity), '0 B');
+conferir('formatarTamanho — NaN devolve 0 B', formatarTamanho(NaN), '0 B');
+
+/* ---------- textoDoBackupDrive ---------- */
+
+{
+  const hoje = new Date('2026-09-11T14:00:00-03:00');
+
+  conferir('textoDoBackupDrive — sem backup',
+    textoDoBackupDrive(null, null, hoje),
+    'Nenhuma cópia no Drive ainda.');
+
+  conferir('textoDoBackupDrive — undefined tambem e sem backup',
+    textoDoBackupDrive(undefined, undefined, hoje),
+    'Nenhuma cópia no Drive ainda.');
+
+  conferir('textoDoBackupDrive — hoje com tamanho',
+    textoDoBackupDrive('2026-09-11T10:00:00Z', 2355, hoje),
+    'Última cópia: hoje · 2,3 KB');
+
+  conferir('textoDoBackupDrive — ontem com tamanho',
+    textoDoBackupDrive('2026-09-10T18:00:00Z', 1024, hoje),
+    'Última cópia: ontem · 1,0 KB');
+
+  conferir('textoDoBackupDrive — ha 5 dias com tamanho',
+    textoDoBackupDrive('2026-09-06T12:00:00Z', 3670016, hoje),
+    'Última cópia: há 5 dias · 3,5 MB');
+
+  conferir('textoDoBackupDrive — hoje sem tamanho (null)',
+    textoDoBackupDrive('2026-09-11T10:00:00Z', null, hoje),
+    'Última cópia: hoje');
+
+  conferir('textoDoBackupDrive — hoje sem tamanho (0)',
+    textoDoBackupDrive('2026-09-11T10:00:00Z', 0, hoje),
+    'Última cópia: hoje');
+
+  conferir('textoDoBackupDrive — data invalida',
+    textoDoBackupDrive('lixo', 100, hoje),
+    'Nenhuma cópia no Drive ainda.');
+
+  conferir('textoDoBackupDrive — data futura trata como hoje',
+    textoDoBackupDrive('2026-09-12T10:00:00Z', 500, hoje),
+    'Última cópia: hoje · 500 B');
 }
 
 /* ---------- resultado ---------- */

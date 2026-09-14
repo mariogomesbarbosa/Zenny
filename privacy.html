@@ -1,0 +1,256 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Política de Privacidade — Zenny</title>
+<meta name="description" content="Política de privacidade do Zenny. Transparência sobre armazenamento local no aparelho e cópia de segurança opcional no Google Drive.">
+<link rel="icon" type="image/svg+xml" href="assets/logo.svg">
+<style>
+  *, *::before, *::after {
+    box-sizing: border-box;
+  }
+
+  body {
+    margin: 0;
+    padding: 2.5rem 1.25rem 5rem;
+    background-color: #fbf9f5;
+    color: #14181c;
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+    font-size: 1rem;
+    line-height: 1.65;
+    -webkit-font-smoothing: antialiased;
+  }
+
+  .container {
+    max-width: 640px;
+    margin: 0 auto;
+  }
+
+  header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: 2.5rem;
+    padding-bottom: 1.25rem;
+    border-bottom: 1px solid #e4e0d8;
+  }
+
+  .marca {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.75rem;
+    text-decoration: none;
+    color: #14181c;
+  }
+
+  .marca svg {
+    width: 36px;
+    height: 36px;
+    display: block;
+    flex-shrink: 0;
+  }
+
+  .marca-nome {
+    font-size: 1.25rem;
+    font-weight: 700;
+    letter-spacing: -0.02em;
+  }
+
+  .link-app {
+    font-size: 0.9rem;
+    font-weight: 500;
+    color: #35b37e;
+    text-decoration: none;
+  }
+
+  .link-app:hover {
+    text-decoration: underline;
+  }
+
+  h1 {
+    font-size: 1.85rem;
+    line-height: 1.25;
+    font-weight: 700;
+    margin: 0 0 0.5rem;
+    letter-spacing: -0.02em;
+  }
+
+  .subtitulo {
+    color: #5c6570;
+    font-size: 0.95rem;
+    margin: 0 0 2rem;
+  }
+
+  h2 {
+    font-size: 1.25rem;
+    line-height: 1.35;
+    font-weight: 600;
+    margin: 2.25rem 0 0.75rem;
+    letter-spacing: -0.01em;
+  }
+
+  p {
+    margin: 0 0 1rem;
+  }
+
+  ul {
+    margin: 0 0 1.25rem;
+    padding-left: 1.25rem;
+  }
+
+  li {
+    margin-bottom: 0.5rem;
+  }
+
+  code {
+    font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+    font-size: 0.9em;
+    background-color: #efece5;
+    padding: 0.15em 0.4em;
+    border-radius: 4px;
+  }
+
+  a {
+    color: #35b37e;
+    text-decoration: underline;
+    text-underline-offset: 3px;
+  }
+
+  a:hover {
+    color: #2e9e70;
+  }
+
+  .destaque {
+    background-color: #ffffff;
+    border: 1px solid #e4e0d8;
+    border-left: 4px solid #35b37e;
+    border-radius: 8px;
+    padding: 1rem 1.25rem;
+    margin: 1.5rem 0;
+  }
+
+  .destaque p:last-child {
+    margin-bottom: 0;
+  }
+
+  footer {
+    margin-top: 3.5rem;
+    padding-top: 1.5rem;
+    border-top: 1px solid #e4e0d8;
+    font-size: 0.875rem;
+    color: #5c6570;
+    display: flex;
+    flex-direction: column;
+    gap: 0.75rem;
+  }
+
+  @media (min-width: 480px) {
+    footer {
+      flex-direction: row;
+      justify-content: space-between;
+      align-items: center;
+    }
+  }
+</style>
+</head>
+<body>
+
+<div class="container">
+  <header>
+    <a class="marca" href="https://mariogomesbarbosa.github.io/Zenny/" title="Ir para o Zenny">
+      <svg width="96" height="96" viewBox="0 0 96 96" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+        <!-- Marca do Zenny: o enso, circulo aberto do zen, que tambem le como moeda.
+             A abertura no canto superior direito e proposital: nada aqui esta
+             fechado ou definitivo. -->
+        <rect width="96" height="96" rx="22" fill="#14181C"/>
+        <circle cx="48" cy="48" r="28" stroke="#35B37E" stroke-width="8"
+                stroke-linecap="round" stroke-dasharray="153.9 22"/>
+      </svg>
+      <span class="marca-nome">Zenny</span>
+    </a>
+    <a class="link-app" href="https://mariogomesbarbosa.github.io/Zenny/">← Voltar para o app</a>
+  </header>
+
+  <main>
+    <h1>Política de Privacidade</h1>
+    <p class="subtitulo">Transparência total sobre como o Zenny lida com o que é seu.</p>
+
+    <p>
+      O <strong>Zenny</strong> é um aplicativo de planejamento financeiro pessoal feito para ajudar você a cuidar do seu dinheiro sem medo, sem complicação e sem jargões. Acreditamos que finanças pessoais exigem intimidade e respeito: por isso, nossa premissa de privacidade é a mais simples e honesta possível — <strong>o que é seu permanece com você</strong>.
+    </p>
+
+    <h2>1. Onde seus dados moram</h2>
+    <p>
+      Por padrão, tudo o que você cadastra no Zenny (suas despesas, entradas, contas fixas, faturas e categorias) fica guardado <strong>exclusivamente no seu próprio aparelho</strong>, usando o armazenamento local do navegador (<code>localStorage</code>).
+    </p>
+    <p>
+      Você não precisa criar conta, cadastrar e-mail nem inventar senha para usar o Zenny. Seus dados financeiros não saem do seu celular ou computador a menos que você decida, conscientemente, salvá-los externamente.
+    </p>
+
+    <h2>2. Cópia no Google Drive (recurso 100% opcional)</h2>
+    <p>
+      Para evitar que você perca seus registros caso troque de celular, limpe os dados de navegação ou desinstale o aplicativo, o Zenny oferece a opção de guardar uma cópia de segurança na sua conta do Google Drive.
+    </p>
+    <p>
+      Ao conectar sua conta Google, o aplicativo solicita acesso <strong>estritamente restrito</strong> à pasta de dados do próprio aplicativo (o escopo técnico <code>appDataFolder</code> da Google Drive API):
+    </p>
+    <ul>
+      <li><strong>Acesso exclusivo à pasta oculta do Zenny:</strong> essa pasta é criada pelo Google especialmente para o Zenny e fica oculta, sem poluir o seu Drive e inacessível para outros aplicativos.</li>
+      <li><strong>Seus outros arquivos continuam 100% invisíveis:</strong> o Zenny <em>não pode</em> ler, abrir, alterar, listar nem apagar nenhum outro documento, foto, planilha ou arquivo pessoal do seu Google Drive.</li>
+      <li><strong>Arquivo único:</strong> a única operação realizada é salvar e ler o arquivo de cópia dos seus lançamentos (<code>zenny-backup.json</code>).</li>
+    </ul>
+
+    <div class="destaque">
+      <p>
+        <strong>Em resumo:</strong> conectar ao Google Drive não dá ao Zenny acesso à sua vida pessoal ou aos seus arquivos. Dá acesso unicamente ao arquivo de cópia que o próprio Zenny cria para você.
+      </p>
+    </div>
+
+    <h2>3. Sem servidores intermediários</h2>
+    <p>
+      O Zenny não possui servidores de retaguarda (backend), bancos de dados em nuvem operados por nós ou computadores intermediários. Toda a comunicação para salvar ou recuperar o arquivo no Google Drive ocorre <strong>diretamente entre o seu navegador e os servidores do Google</strong>.
+    </p>
+    <p>
+      Nenhuma informação financeira, nenhum dado de navegação e nenhum token de acesso passa por nenhum servidor nosso, simplesmente porque não temos servidor algum.
+    </p>
+
+    <h2>4. Zero rastreamento e zero anúncios</h2>
+    <p>
+      Não temos nenhum interesse em vigiar a sua rotina:
+    </p>
+    <ul>
+      <li><strong>Sem ferramentas de telemetria ou analytics:</strong> não usamos Google Analytics, Mixpanel ou semelhantes.</li>
+      <li><strong>Sem anúncios:</strong> você nunca verá publicidade no Zenny.</li>
+      <li><strong>Sem cookies de marketing:</strong> não coletamos dados para criar perfis de consumo ou comercializar informações com terceiros.</li>
+    </ul>
+
+    <h2>5. Como desconectar ou revogar o acesso</h2>
+    <p>
+      Você está sempre no comando da sua conta:
+    </p>
+    <ul>
+      <li><strong>Dentro do Zenny:</strong> basta acessar a aba de Ajustes e tocar em "Desconectar". O token é apagado da memória imediatamente.</li>
+      <li><strong>Pelo painel do Google:</strong> você pode revogar a permissão do aplicativo a qualquer instante na página de <a href="https://myaccount.google.com/permissions" target="_blank" rel="noopener noreferrer">Aplicações com acesso à sua conta</a> nas configurações da sua Conta Google.</li>
+    </ul>
+    <p>
+      Mesmo sem conectar ao Google Drive, o aplicativo funciona perfeitamente. O backup manual baixado para o seu aparelho continua disponível a qualquer momento.
+    </p>
+
+    <h2>6. Contato e código aberto</h2>
+    <p>
+      O Zenny é um projeto de código aberto mantido por Mário Gomes Barbosa. Se tiver dúvidas sobre esta política de privacidade, sugestões ou apontamentos de segurança, você pode falar conosco abrindo uma questão no repositório oficial:
+    </p>
+    <p>
+      <a href="https://github.com/mariogomesbarbosa/Zenny/issues" target="_blank" rel="noopener noreferrer">github.com/mariogomesbarbosa/Zenny/issues</a>
+    </p>
+  </main>
+
+  <footer>
+    <span>Última atualização: setembro de 2026</span>
+    <a href="https://mariogomesbarbosa.github.io/Zenny/">Voltar para o Zenny</a>
+  </footer>
+</div>
+
+</body>
+</html>

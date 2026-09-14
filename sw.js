@@ -7,7 +7,7 @@
    ========================================================================= */
 
 const APP_ID = 'zenny';          // <-- em Daysk/sw.js troque para 'daysk'
-const VERSION = 'v3';
+const VERSION = 'v4';
 const CACHE_NAME = `${APP_ID}-${VERSION}`;
 
 // Caminhos relativos ao sw.js, ou seja, relativos à pasta do app.
@@ -15,6 +15,7 @@ const PRECACHE = [
   './',
   './index.html',
   './manifest.json',
+  './drive.js',
   './icons/icon-192.png',
   './icons/icon-512.png'
 ];

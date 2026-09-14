@@ -36,6 +36,11 @@
     }
   })();
 </script>
+
+<!-- Google Identity Services — primeira dependência externa do projeto.
+     Usada somente para o backup opcional no Google Drive. Carrega async para
+     não bloquear a primeira pintura. Ver docs/drive-backup.md. -->
+<script src="https://accounts.google.com/gsi/client" async defer></script>
 </head>
 <body data-tela="inicio">
 
@@ -287,6 +292,33 @@
            o seletor em alguns navegadores. -->
       <input type="file" id="arquivo-do-backup" class="oculto-visualmente"
              accept="application/json,.json" tabindex="-1" aria-hidden="true">
+    </section>
+
+    <section class="cartao ajuste" id="ajuste-drive" aria-labelledby="titulo-do-drive">
+      <h2 id="titulo-do-drive">Cópia no Google Drive</h2>
+      <p class="nota" id="estado-do-drive">—</p>
+
+      <!-- Estado: não conectado -->
+      <div id="drive-desconectado">
+        <div class="pilha">
+          <button type="button" class="botao" id="botao-conectar-drive">Conectar ao Google Drive</button>
+        </div>
+        <p class="nota">
+          Salva uma cópia dos seus dados no Google Drive, invisível para
+          todo mundo — só o Zenny acessa. Funciona como no WhatsApp.
+        </p>
+      </div>
+
+      <!-- Estado: conectado -->
+      <div id="drive-conectado" hidden>
+        <div class="pilha">
+          <button type="button" class="botao" id="botao-salvar-drive">Salvar no Drive</button>
+          <button type="button" class="botao contorno" id="botao-trazer-drive">Trazer do Drive</button>
+        </div>
+        <button type="button" class="botao-texto menor" id="botao-desconectar-drive">
+          Desconectar do Google Drive
+        </button>
+      </div>
     </section>
 
     <section class="cartao ajuste" aria-labelledby="titulo-do-tema">
