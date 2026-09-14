@@ -159,13 +159,14 @@ O fluxo de comunicação com a Drive API v3 usa apenas duas operações via `fet
 No navegador e no celular, conectado à internet:
 
 1. **Ajustes sem conexão:** Abrir Ajustes. A seção do Google Drive exibe
-   "Conectar ao Google Drive" e status indicando que não há conta conectada.
-2. **Autorização via Google:** Tocar em "Conectar ao Google Drive". A janela
-   pop-up oficial do Google abre, solicita login/seleção de conta e informa o
-   escopo restrito à pasta do aplicativo.
-3. **Estado conectado:** Após autorizar, a janela fecha e a tela de Ajustes
-   passa a exibir os botões "Salvar no Drive", "Trazer do Drive" e "Desconectar",
-   junto com o e-mail ou indicador de conexão ativa.
+   "Trazer do Google Drive" e "Conectar ao Google Drive" (com destaque adaptativo:
+   se o aparelho estiver vazio, o botão principal é "Trazer do Google Drive").
+2. **Autorização e restauração direta:** Tocar em "Trazer do Google Drive". A janela
+   pop-up oficial do Google abre; após autorizar, o app busca o backup no Drive
+   automaticamente e abre a confirmação com o resumo dos lançamentos salvos.
+3. **Estado conectado:** Após autorizar, a tela de Ajustes exibe os botões
+   "Salvar no Drive", "Trazer do Drive" e "Desconectar", com prioridade visual
+   para "Trazer do Drive" se a base local estiver vazia.
 4. **Salvar no Drive:** Com lançamentos cadastrados, tocar em "Salvar no Drive".
    O app processa o envio e atualiza a mensagem para "Cópia salva no Drive
    agora" (ou data correspondente).

@@ -2112,3 +2112,15 @@ export function textoDoBackupDrive(iso, bytes, agora) {
   return `Última cópia: ${quando}${tamanho}`;
 }
 
+/**
+ * Indica se o estado possui algum dado cadastrado pelo usuário (lançamentos ou cartões).
+ * @param {Estado|null|undefined} estado
+ * @returns {boolean}
+ */
+export function estadoTemDados(estado) {
+  if (!estado) return false;
+  const temLancamentos = Array.isArray(estado.lancamentos) && estado.lancamentos.length > 0;
+  const temCartoes = Array.isArray(estado.cartoes) && estado.cartoes.length > 0;
+  return temLancamentos || temCartoes;
+}
+
