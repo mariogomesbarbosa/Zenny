@@ -257,6 +257,8 @@ let mesVisivel = mesDe(new Date());
 let editando = null;
 /** @type {TipoDeLancamento} */
 let tipoDoFormulario = 'entrada';
+/** @type {'entrada'|'saida'|'cartao'} */
+let modoDoFormulario = 'entrada';
 /** @type {LancamentoDoMes|null} */
 let pendenteDeExclusao = null;
 /** @type {(() => void)|null} */
@@ -701,6 +703,7 @@ function mostrarTela(nome) {
   // O CSS precisa saber qual tela está aberta: nos Ajustes o botão flutuante
   // some, por não ter o que fazer lá.
   document.body.dataset.tela = nome;
+  if (nome !== 'inicio') fecharMenuFlutuante();
 
   $('conteudo').scrollTop = 0;
 
@@ -805,35 +808,46 @@ $('aviso-acao').addEventListener('click', () => {
 
 /* ---------- Formulário ---------- */
 
-/** @param {TipoDeLancamento} tipo */
-function definirTipo(tipo) {
-  tipoDoFormulario = tipo;
-  $('tipo-entrada').setAttribute('aria-pressed', String(tipo === 'entrada'));
-  $('tipo-saida').setAttribute('aria-pressed', String(tipo === 'saida'));
-  $('rotulo-realizado').textContent = tipo === 'entrada' ? 'Já recebi' : 'Já paguei';
-  desenharEscolhaDeCartao();
+/**
+ * @param {'entrada'|'saida'|'cartao'} modo
+ * @param {string} [cartaoId]
+ */
+function definirModo(modo, cartaoId) {
+  modoDoFormulario = modo;
+  tipoDoFormulario = modo === 'entrada' ? 'entrada' : 'saida';
+
+  $('tipo-entrada').setAttribute('aria-pressed', String(modo === 'entrada'));
+  $('tipo-saida').setAttribute('aria-pressed', String(modo === 'saida'));
+  $('tipo-cartao').setAttribute('aria-pressed', String(modo === 'cartao'));
+
+  const campoRealizado = $('campo-do-realizado');
+  if (campoRealizado) {
+    campoRealizado.hidden = modo === 'cartao';
+  }
+
+  $('rotulo-realizado').textContent = modo === 'entrada' ? 'Já recebi' : 'Já paguei';
+  desenharEscolhaDeCartao(cartaoId);
 }
 
-/* O "pago com" só existe em despesa, e só quando há cartão cadastrado.
- *
- * Em receita não faria sentido — cartão de crédito não recebe salário. E sem
- * nenhum cartão o campo ofereceria uma escolha só, "nenhum", que é ruído na
- * primeira tela de quem nunca cadastrou um. */
-function desenharEscolhaDeCartao() {
-  const cartoes = cartoesAtivos(estado);
-  const cabe = tipoDoFormulario === 'saida' && cartoes.length > 0;
 
-  $('campo-do-cartao').hidden = !cabe;
-  if (!cabe) return;
+/** @param {string} [cartaoId] */
+function desenharEscolhaDeCartao(cartaoId) {
+  const cartoes = cartoesAtivos(estado);
+  const temCartao = cartoes.length > 0;
+  $('tipo-cartao').hidden = !temCartao;
 
   const escolha = $selecao('campo-cartao');
-  const escolhido = escolha.value;
+  const dica = $('dica-do-cartao');
 
+  if (modoDoFormulario !== 'cartao' || !temCartao) {
+    $('campo-do-cartao').hidden = true;
+    escolha.value = '';
+    dica.hidden = true;
+    return;
+  }
+
+  $('campo-do-cartao').hidden = false;
   escolha.textContent = '';
-  const nenhum = document.createElement('option');
-  nenhum.value = '';
-  nenhum.textContent = 'Dinheiro, débito ou Pix';
-  escolha.appendChild(nenhum);
 
   for (const cartao of cartoes) {
     const opcao = document.createElement('option');
@@ -842,8 +856,13 @@ function desenharEscolhaDeCartao() {
     escolha.appendChild(opcao);
   }
 
-  // Preserva a escolha ao trocar de tipo e voltar, se o cartão ainda existe.
-  escolha.value = cartoes.some((c) => c.id === escolhido) ? escolhido : '';
+  const idValido = cartaoId && cartoes.some((c) => c.id === cartaoId)
+    ? cartaoId
+    : cartoes.some((c) => c.id === escolha.value)
+      ? escolha.value
+      : cartoes[0].id;
+
+  escolha.value = idValido;
   atualizarDicaDoCartao();
 }
 
@@ -856,7 +875,7 @@ function atualizarDicaDoCartao() {
   const escolhido = $selecao('campo-cartao').value;
   const dica = $('dica-do-cartao');
 
-  if (!escolhido) {
+  if (!escolhido || modoDoFormulario !== 'cartao') {
     dica.hidden = true;
     return;
   }
@@ -886,12 +905,22 @@ function definirRepeticao(ehFixa) {
   $('dica-mes').textContent = rotuloDoMes(editando && editando.fixo ? editando.inicio : mesVisivel);
 }
 
-/** @param {LancamentoDoMes|null} [lancamento] */
-function abrirFormulario(lancamento) {
+/**
+ * @param {LancamentoDoMes|null} [lancamento]
+ * @param {'entrada'|'saida'|'cartao'} [modoInicial]
+ * @param {string} [cartaoInicial]
+ */
+function abrirFormulario(lancamento, modoInicial, cartaoInicial) {
   editando = lancamento || null;
 
   $('titulo-do-dialogo').textContent = lancamento ? 'Editar lançamento' : 'Novo lançamento';
-  definirTipo(lancamento ? lancamento.tipo : 'entrada');
+
+  const modo = lancamento
+    ? (lancamento.tipo === 'entrada' ? 'entrada' : (lancamento.cartao ? 'cartao' : 'saida'))
+    : (modoInicial || 'entrada');
+
+  const cartaoPretendido = lancamento ? lancamento.cartao : cartaoInicial;
+  definirModo(modo, cartaoPretendido ?? undefined);
 
   $campo('campo-descricao').value = lancamento ? lancamento.descricao : '';
   $campo('campo-valor').value = lancamento ? valorParaCampo(lancamento.valor) : '';
@@ -912,9 +941,6 @@ function abrirFormulario(lancamento) {
     ? estaRealizado(estado.realizados, lancamento.id, mesVisivel)
     : false;
   $('botao-excluir').hidden = !lancamento;
-
-  $selecao('campo-cartao').value = lancamento?.cartao ?? '';
-  desenharEscolhaDeCartao();
 
   definirRepeticao($selecao('campo-repeticao').value === 'fixa');
   esconderErro();
@@ -943,8 +969,19 @@ function mostrarErro(texto, campo) {
   if (campo) campo.focus();
 }
 
-$('tipo-entrada').addEventListener('click', () => definirTipo('entrada'));
-$('tipo-saida').addEventListener('click', () => definirTipo('saida'));
+$('tipo-entrada').addEventListener('click', () => definirModo('entrada'));
+$('tipo-saida').addEventListener('click', () => definirModo('saida'));
+$('tipo-cartao').addEventListener('click', () => {
+  const cartoes = cartoesAtivos(estado);
+  if (cartoes.length === 0) {
+    fecharDialogo('dialogo', () => {
+      abrirCartao(null);
+      avisar('Cadastre seu cartão primeiro para anotar compras nele.');
+    });
+    return;
+  }
+  definirModo('cartao');
+});
 $selecao('campo-repeticao').addEventListener('change', () =>
   definirRepeticao($selecao('campo-repeticao').value === 'fixa')
 );
@@ -980,7 +1017,102 @@ function fecharDialogo(idOuElem, aoFechar) {
 }
 
 $('botao-cancelar').addEventListener('click', () => fecharDialogo('dialogo'));
-$('botao-adicionar').addEventListener('click', () => abrirFormulario(null));
+
+/* ---------- Menu flutuante de lançamento rápido ---------- */
+
+let menuFlutuanteAberto = false;
+
+function abrirMenuFlutuante() {
+  if (menuFlutuanteAberto) return;
+  menuFlutuanteAberto = true;
+
+  const btn = $('botao-adicionar');
+  const veu = $('veu-menu-flutuante');
+  const opcoes = $('menu-flutuante-opcoes');
+  const rotulo = btn.querySelector('.rotulo-adicionar');
+
+  btn.setAttribute('aria-expanded', 'true');
+  if (rotulo) rotulo.textContent = 'Fechar';
+
+  veu.hidden = false;
+  void veu.offsetWidth;
+  veu.classList.add('aberto');
+
+  opcoes.hidden = false;
+  opcoes.classList.remove('fechando');
+}
+
+/** @param {() => void} [aoFechar] */
+function fecharMenuFlutuante(aoFechar) {
+  if (!menuFlutuanteAberto) {
+    if (aoFechar) aoFechar();
+    return;
+  }
+  menuFlutuanteAberto = false;
+
+  const btn = $('botao-adicionar');
+  const veu = $('veu-menu-flutuante');
+  const opcoes = $('menu-flutuante-opcoes');
+  const rotulo = btn.querySelector('.rotulo-adicionar');
+
+  btn.setAttribute('aria-expanded', 'false');
+  if (rotulo) rotulo.textContent = 'Adicionar';
+  veu.classList.remove('aberto');
+
+  if (window.matchMedia('(prefers-reduced-motion: reduce)').matches) {
+    veu.hidden = true;
+    opcoes.hidden = true;
+    if (aoFechar) aoFechar();
+    return;
+  }
+
+  opcoes.classList.add('fechando');
+  setTimeout(() => {
+    if (!menuFlutuanteAberto) {
+      opcoes.hidden = true;
+      opcoes.classList.remove('fechando');
+      veu.hidden = true;
+    }
+    if (aoFechar) aoFechar();
+  }, 140);
+}
+
+function alternarMenuFlutuante() {
+  if (menuFlutuanteAberto) {
+    fecharMenuFlutuante();
+  } else {
+    abrirMenuFlutuante();
+  }
+}
+
+$('botao-adicionar').addEventListener('click', alternarMenuFlutuante);
+$('veu-menu-flutuante').addEventListener('click', () => fecharMenuFlutuante());
+
+$('opcao-add-receita').addEventListener('click', () => {
+  fecharMenuFlutuante(() => abrirFormulario(null, 'entrada'));
+});
+
+$('opcao-add-despesa').addEventListener('click', () => {
+  fecharMenuFlutuante(() => abrirFormulario(null, 'saida'));
+});
+
+$('opcao-add-cartao').addEventListener('click', () => {
+  fecharMenuFlutuante(() => {
+    const cartoes = cartoesAtivos(estado);
+    if (cartoes.length === 0) {
+      abrirCartao(null);
+      avisar('Cadastre seu cartão primeiro para anotar compras nele.');
+    } else {
+      abrirFormulario(null, 'cartao');
+    }
+  });
+});
+
+window.addEventListener('keydown', (evento) => {
+  if (evento.key === 'Escape' && menuFlutuanteAberto) {
+    fecharMenuFlutuante();
+  }
+});
 
 /* Tocar fora ou pressionar Esc fecha com animação suave. */
 for (const id of [
@@ -1183,12 +1315,15 @@ $('formulario').addEventListener('submit', (evento) => {
     ehFixa: $selecao('campo-repeticao').value === 'fixa',
     data: $campo('campo-data').value || hojeISO(),
     dia: $campo('campo-dia').value,
-    jaAconteceu: $campo('campo-realizado').checked,
-    cartao: tipoDoFormulario === 'saida' ? $selecao('campo-cartao').value || null : null,
+    jaAconteceu: modoDoFormulario === 'cartao' ? false : $campo('campo-realizado').checked,
+    cartao: modoDoFormulario === 'cartao' ? $selecao('campo-cartao').value || null : null,
   };
 
   if (!alteracao.descricao) return mostrarErro('Falta dizer o que é.', $campo('campo-descricao'));
   if (alteracao.valor <= 0) return mostrarErro('Falta o valor.', $campo('campo-valor'));
+  if (modoDoFormulario === 'cartao' && !alteracao.cartao) {
+    return mostrarErro('Selecione o cartão.', $selecao('campo-cartao'));
+  }
 
   /* A pergunta só aparece quando o VALOR de um fixo que já existia muda. Mudar
      a descrição ou o dia vale para todos os meses sem perguntar: nenhum dos
@@ -2268,13 +2403,10 @@ function anotarCompraNaTelaDetalhe() {
 
   const data = dataPadraoDaFatura(cartao, mesVisivel, hojeISO());
 
-  abrirFormulario(null);
-  definirTipo('saida');
+  abrirFormulario(null, 'cartao', cartaoDetalheId);
   $selecao('campo-repeticao').value = 'avulsa';
   definirRepeticao(false);
   $campo('campo-data').value = data;
-  desenharEscolhaDeCartao();
-  $selecao('campo-cartao').value = cartaoDetalheId;
   atualizarDicaDoCartao();
 }
 

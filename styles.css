@@ -656,18 +656,152 @@ h1 { font-size: 1.75rem; line-height: 1.2; letter-spacing: -.02em; margin: 8px 0
 .lancamento.realizado .lancamento-data { color: var(--tinta-fraca); }
 .lancamento.realizado .lancamento-valor { opacity: .55; }
 
-/* ---------- Botão flutuante ---------- */
+/* ---------- Botão flutuante e menu rápido ---------- */
+
+.veu-menu-flutuante {
+  position: fixed;
+  inset: 0;
+  background: var(--veu);
+  z-index: 30;
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity .2s ease;
+}
+
+.veu-menu-flutuante.aberto {
+  opacity: 1;
+  pointer-events: auto;
+}
 
 /* O botão flutuante só existe no Início. Nas outras telas ele não é sobre o que
    a tela faz (Ajustes e Relatório) ou compete com o botão próprio de adicionar
-   (Cartões e Fatura).
-   Declarar onde ele APARECE, em vez de listar onde ele some, evita que qualquer
-   tela nova no futuro nasça com o botão flutuante vazando por esquecimento. */
-.botao-flutuante {
+   (Cartões e Fatura). */
+.menu-flutuante {
   position: fixed;
   right: var(--respiro);
   bottom: calc(76px + env(safe-area-inset-bottom));
+  z-index: 35;
   display: none;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 12px;
+  pointer-events: none;
+}
+
+body[data-tela="inicio"] .menu-flutuante {
+  display: flex;
+}
+
+.menu-flutuante-opcoes {
+  pointer-events: auto;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 10px;
+}
+
+.menu-flutuante-opcoes[hidden] {
+  display: none;
+}
+
+.opcao-flutuante {
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+  height: 46px;
+  padding: 0 18px 0 14px;
+  border: 1px solid var(--borda);
+  border-radius: 23px;
+  background: var(--superficie);
+  color: var(--tinta);
+  font: inherit;
+  font-size: .875rem;
+  font-weight: 600;
+  box-shadow: var(--sombra-folha);
+  cursor: pointer;
+  -webkit-tap-highlight-color: transparent;
+  transform-origin: right bottom;
+  animation: opcao-entrar .2s cubic-bezier(0.16, 1, 0.3, 1) backwards;
+  transition: transform .12s cubic-bezier(0.16, 1, 0.3, 1), background-color .15s ease;
+}
+
+.opcao-flutuante:hover {
+  background: var(--areia);
+}
+
+.opcao-flutuante:active {
+  transform: scale(.94);
+}
+
+.opcao-flutuante-icone {
+  display: grid;
+  place-items: center;
+  width: 28px;
+  height: 28px;
+  border-radius: 50%;
+}
+
+.opcao-flutuante-icone svg {
+  width: 18px;
+  height: 18px;
+  stroke-width: 2.2;
+}
+
+.opcao-receita .opcao-flutuante-icone {
+  background: var(--verde-fraco);
+  color: var(--verde);
+}
+
+.opcao-despesa .opcao-flutuante-icone {
+  background: var(--coral-fraco);
+  color: var(--coral);
+}
+
+.opcao-cartao .opcao-flutuante-icone {
+  background: rgba(37, 99, 235, 0.12);
+  color: #2563eb;
+}
+
+@media (prefers-color-scheme: dark) {
+  .opcao-cartao .opcao-flutuante-icone {
+    background: rgba(96, 165, 250, 0.18);
+    color: #60a5fa;
+  }
+}
+
+.opcao-flutuante:nth-child(1) { animation-delay: 0.08s; }
+.opcao-flutuante:nth-child(2) { animation-delay: 0.04s; }
+.opcao-flutuante:nth-child(3) { animation-delay: 0s; }
+
+@keyframes opcao-entrar {
+  from {
+    opacity: 0;
+    transform: translateY(12px) scale(.85);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+
+.menu-flutuante-opcoes.fechando .opcao-flutuante {
+  animation: opcao-sair .14s ease-in forwards;
+}
+
+@keyframes opcao-sair {
+  from {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+  to {
+    opacity: 0;
+    transform: translateY(10px) scale(.9);
+  }
+}
+
+.botao-flutuante {
+  pointer-events: auto;
+  display: inline-flex;
   align-items: center;
   gap: 8px;
   height: 54px;
@@ -681,14 +815,20 @@ h1 { font-size: 1.75rem; line-height: 1.2; letter-spacing: -.02em; margin: 8px 0
   box-shadow: var(--sombra-flutuante);
   cursor: pointer;
   -webkit-tap-highlight-color: transparent;
-  transition: transform .14s cubic-bezier(0.16, 1, 0.3, 1), box-shadow .14s ease;
+  transition: transform .14s cubic-bezier(0.16, 1, 0.3, 1), box-shadow .14s ease, background-color .15s ease;
 }
 
-body[data-tela="inicio"] .botao-flutuante {
-  display: flex;
+.botao-flutuante svg {
+  width: 18px;
+  height: 18px;
+  stroke-width: 2.4;
+  transition: transform .22s cubic-bezier(0.16, 1, 0.3, 1);
 }
 
-.botao-flutuante svg { width: 18px; height: 18px; stroke-width: 2.4; }
+.botao-flutuante[aria-expanded="true"] svg {
+  transform: rotate(45deg);
+}
+
 .botao-flutuante:active { transform: scale(.92); }
 
 /* ---------- Navegação ---------- */
@@ -831,6 +971,11 @@ dialog::backdrop { background: var(--veu); }
 
 #tipo-entrada[aria-pressed="true"] { color: var(--verde); }
 #tipo-saida[aria-pressed="true"] { color: var(--coral); }
+#tipo-cartao[aria-pressed="true"] { color: #2563eb; }
+
+@media (prefers-color-scheme: dark) {
+  #tipo-cartao[aria-pressed="true"] { color: #60a5fa; }
+}
 
 .campo { margin-bottom: 14px; }
 .campo label { display: block; font-size: .8125rem; color: var(--tinta-suave); margin-bottom: 5px; }
@@ -1396,7 +1541,7 @@ dialog::backdrop { background: var(--veu); }
     padding: 22px 24px;
   }
 
-  .botao-flutuante { bottom: 24px; right: 24px; }
+  .menu-flutuante { bottom: 24px; right: 24px; }
   .aviso { bottom: 24px; }
 
   /* No desktop a folha vira modal centrado. */
@@ -1455,7 +1600,8 @@ dialog::backdrop { background: var(--veu); }
     transition: none !important;
     animation: none !important;
   }
-  dialog[open], dialog.fechando, .tela:not([hidden]), .aviso:not([hidden]) {
+  dialog[open], dialog.fechando, .tela:not([hidden]), .aviso:not([hidden]),
+  .opcao-flutuante, .menu-flutuante-opcoes.fechando .opcao-flutuante {
     transform: none !important;
     opacity: 1 !important;
   }
