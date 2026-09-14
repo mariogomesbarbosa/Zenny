@@ -598,7 +598,7 @@ function concluirExclusao(transformar, texto) {
 
   const anterior = instantaneo();
   estado = transformar(alvo);
-  $dialogo('dialogo-exclusao').close();
+  fecharDialogo('dialogo-exclusao');
   pendenteDeExclusao = null;
   salvar();
   avisar(texto, () => restaurar(anterior));
@@ -639,7 +639,7 @@ $('excluir-todos').addEventListener('click', () =>
 
 $('excluir-cancelar').addEventListener('click', () => {
   pendenteDeExclusao = null;
-  $dialogo('dialogo-exclusao').close();
+  fecharDialogo('dialogo-exclusao');
 });
 
 /* ---------- Confirmação para ações destrutivas ---------- */
@@ -662,13 +662,14 @@ function pedirConfirmacao({ titulo = 'Tem certeza?', mensagem, textoConfirmar = 
 $('confirmar-acao').addEventListener('click', () => {
   const acao = pendenteDeConfirmacao;
   pendenteDeConfirmacao = null;
-  $dialogo('dialogo-confirmar').close();
-  if (acao) acao();
+  fecharDialogo('dialogo-confirmar', () => {
+    if (acao) acao();
+  });
 });
 
 $('confirmar-cancelar').addEventListener('click', () => {
   pendenteDeConfirmacao = null;
-  $dialogo('dialogo-confirmar').close();
+  fecharDialogo('dialogo-confirmar');
 });
 
 /* ---------- Navegação entre telas ---------- */
@@ -947,13 +948,41 @@ $('tipo-saida').addEventListener('click', () => definirTipo('saida'));
 $selecao('campo-repeticao').addEventListener('change', () =>
   definirRepeticao($selecao('campo-repeticao').value === 'fixa')
 );
-$('botao-cancelar').addEventListener('click', () => $dialogo('dialogo').close());
+/**
+ * Fecha um diálogo com animação suave de saída.
+ * @param {string|HTMLDialogElement} idOuElem
+ * @param {() => void} [aoFechar]
+ */
+function fecharDialogo(idOuElem, aoFechar) {
+  const d = typeof idOuElem === 'string' ? $dialogo(idOuElem) : idOuElem;
+  if (!d.open) {
+    if (aoFechar) aoFechar();
+    return;
+  }
+  if (d.classList.contains('fechando') || window.matchMedia('(prefers-reduced-motion: reduce)').matches) {
+    d.classList.remove('fechando');
+    d.close();
+    if (aoFechar) aoFechar();
+    return;
+  }
+  d.classList.add('fechando');
+  let finalizado = false;
+  const finalizar = () => {
+    if (finalizado) return;
+    finalizado = true;
+    d.classList.remove('fechando');
+    d.removeEventListener('animationend', finalizar);
+    d.close();
+    if (aoFechar) aoFechar();
+  };
+  d.addEventListener('animationend', finalizar, { once: true });
+  setTimeout(finalizar, 220);
+}
+
+$('botao-cancelar').addEventListener('click', () => fecharDialogo('dialogo'));
 $('botao-adicionar').addEventListener('click', () => abrirFormulario(null));
 
-/* Tocar fora fecha. O <dialog> nativo fecha no Esc sozinho, mas ignora o clique
-   no fundo — e sair tocando fora é o gesto que todo mundo tenta primeiro, tanto
-   na folha do celular quanto no modal do desktop. O alvo só é o próprio
-   <dialog> quando o clique caiu fora da caixa. */
+/* Tocar fora ou pressionar Esc fecha com animação suave. */
 for (const id of [
   'dialogo',
   'dialogo-exclusao',
@@ -968,7 +997,12 @@ for (const id of [
   'dialogo-ajuste-fatura',
 ]) {
   $dialogo(id).addEventListener('click', (evento) => {
-    if (evento.target === $dialogo(id)) $dialogo(id).close();
+    if (evento.target === $dialogo(id)) fecharDialogo(id);
+  });
+
+  $dialogo(id).addEventListener('cancel', (evento) => {
+    evento.preventDefault();
+    fecharDialogo(id);
   });
 
   /* A limpeza do estado pendente vive no `close`, e não em cada botão: o Esc
@@ -1176,7 +1210,7 @@ $('formulario').addEventListener('submit', (evento) => {
     }
   }
 
-  $dialogo('dialogo').close();
+  fecharDialogo('dialogo');
   aplicarAlteracao(alteracao, 'inalterado');
 });
 
@@ -1189,7 +1223,7 @@ function concluirMudancaDeValor(modo, texto) {
   const anterior = instantaneo();
   const alteracao = pendenteDeValor;
   pendenteDeValor = null;
-  $dialogo('dialogo-valor').close();
+  fecharDialogo('dialogo-valor');
   aplicarAlteracao(alteracao, modo);
   avisar(texto, () => restaurar(anterior));
 }
@@ -1563,7 +1597,7 @@ $('botao-desconectar-drive')?.addEventListener('click', async () => {
 $('restaurar-confirmar').addEventListener('click', () => {
   const lido = pendenteDeRestauracao;
   pendenteDeRestauracao = null;
-  $dialogo('dialogo-restaurar').close();
+  fecharDialogo('dialogo-restaurar');
   if (!lido) return;
 
   const anterior = instantaneo();
@@ -1601,7 +1635,7 @@ $('restaurar-confirmar').addEventListener('click', () => {
 
 $('restaurar-cancelar').addEventListener('click', () => {
   pendenteDeRestauracao = null;
-  $dialogo('dialogo-restaurar').close();
+  fecharDialogo('dialogo-restaurar');
 });
 
 /* ---------- Apagar tudo ---------- */
@@ -1618,7 +1652,7 @@ function pedirApagamento() {
 }
 
 $('botao-apagar').addEventListener('click', pedirApagamento);
-$('apagar-cancelar').addEventListener('click', () => $dialogo('dialogo-apagar').close());
+$('apagar-cancelar').addEventListener('click', () => fecharDialogo('dialogo-apagar'));
 
 /* A fricção certa não é dificultar o gesto, é resolver o arrependimento antes
    dele acontecer. Guardar a cópia deixa o diálogo aberto de propósito: a pessoa
@@ -1645,7 +1679,7 @@ $('apagar-guardar-antes').addEventListener('click', async (evento) => {
 });
 
 $('apagar-confirmar').addEventListener('click', () => {
-  $dialogo('dialogo-apagar').close();
+  fecharDialogo('dialogo-apagar');
 
   // instantaneo() guarda lançamentos, realizados, categorias e limites — os
   // quatro precisam voltar juntos, senão desfazer devolve os lançamentos com
@@ -1784,7 +1818,7 @@ function selecionarCategoria(id) {
   const anterior = instantaneo();
   aplicarCategoria(alvo.id, id);
 
-  $dialogo('dialogo-categoria').close();
+  fecharDialogo('dialogo-categoria');
   lancamentoParaCategoria = null;
   salvar();
 
@@ -1808,7 +1842,7 @@ $('categoria-criar').addEventListener('click', () => {
 
   const nomeFinal = categoriaPorId(estado, id)?.nome ?? nome;
 
-  $dialogo('dialogo-categoria').close();
+  fecharDialogo('dialogo-categoria');
   lancamentoParaCategoria = null;
   salvar();
   avisar(
@@ -1819,7 +1853,7 @@ $('categoria-criar').addEventListener('click', () => {
 
 $('categoria-cancelar').addEventListener('click', () => {
   lancamentoParaCategoria = null;
-  $dialogo('dialogo-categoria').close();
+  fecharDialogo('dialogo-categoria');
 });
 
 /* ---------- Cartões de crédito (B6) ---------- */
@@ -1960,7 +1994,7 @@ function salvarCartao() {
     : criarCartao(estado, novoId(), nome, limite, fechamento, vencimento);
 
   const criando = !cartaoEmEdicao;
-  $dialogo('dialogo-cartao').close();
+  fecharDialogo('dialogo-cartao');
   salvar();
   avisar(criando ? 'Cartão adicionado.' : 'Cartão salvo.', () => restaurar(anterior));
 }
@@ -2224,7 +2258,7 @@ function abrirDialogoAjusteFatura() {
 }
 
 function fecharDialogoAjusteFatura() {
-  $dialogo('dialogo-ajuste-fatura').close();
+  fecharDialogo('dialogo-ajuste-fatura');
 }
 
 function anotarCompraNaTelaDetalhe() {
@@ -2507,7 +2541,7 @@ $('limite-salvar').addEventListener('click', () => {
 
   estado = { ...estado, limites: definirLimite(estado.limites, limiteEmEdicao.id, valor) };
   salvar();
-  $dialogo('dialogo-limite').close();
+  fecharDialogo('dialogo-limite');
   limiteEmEdicao = null;
   /* O Relatório é uma tela, não um diálogo (decisão 6 do B5, corrigida): ela
      já está visível atrás deste <dialog>, e `salvar()` acabou de redesenhá-la
@@ -2540,7 +2574,7 @@ $('limite-remover').addEventListener('click', () => {
 $('botao-definir-limite').addEventListener('click', abrirEscolhaParaLimite);
 
 $('limite-cancelar').addEventListener('click', () => {
-  $dialogo('dialogo-limite').close();
+  fecharDialogo('dialogo-limite');
 });
 
 /* ---------- Cartões: eventos ---------- */
@@ -2555,7 +2589,7 @@ $('formulario-cartao').addEventListener('submit', (evento) => {
 $('cartao-arquivar').addEventListener('click', arquivarCartaoAberto);
 
 $('cartao-cancelar').addEventListener('click', () => {
-  $dialogo('dialogo-cartao').close();
+  fecharDialogo('dialogo-cartao');
 });
 
 $('cartao-detalhe-voltar').addEventListener('click', fecharDetalheCartao);
@@ -2572,7 +2606,7 @@ $('fatura-salvar').addEventListener('click', salvarValorDaFatura);
 $campo('campo-fatura').addEventListener('input', previverOAjusteDetalhe);
 
 $('fatura-cancelar').addEventListener('click', () => {
-  $dialogo('dialogo-fatura').close();
+  fecharDialogo('dialogo-fatura');
 });
 
 /* ---------- Validação de dia 1–31 (melhoria 5) ----------
