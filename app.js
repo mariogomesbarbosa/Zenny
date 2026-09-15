@@ -37,7 +37,6 @@ import {
   montarBackup,
   nomeDoArquivo,
   lerBackup,
-  textoDoUltimoBackup,
   formatarDataHoraBackup,
   formatarTamanho,
   estadoTemDados,
@@ -1400,10 +1399,14 @@ let pendenteDeRestauracao = null;
 let infoDrive = null;
 
 function desenharAjustes() {
-  $('estado-do-backup').textContent = textoDoUltimoBackup(
-    armazenamento.ler(CHAVE_BACKUP),
-    new Date()
-  );
+  const dataLocal = armazenamento.ler(CHAVE_BACKUP);
+  const estadoBackupEl = $('estado-do-backup');
+  if (estadoBackupEl) {
+    estadoBackupEl.textContent = formatarDataHoraBackup(dataLocal, new Date());
+  }
+
+  const abaSalva = /** @type {'drive'|'local'} */ (localStorage.getItem(CHAVE_ABA_BACKUP) || 'drive');
+  alternarAbaBackup(abaSalva, false);
 
   if (!infoDrive) {
     infoDrive = carregarInfoDriveLocal();
@@ -1628,9 +1631,40 @@ async function arquivoEscolhido(evento) {
   $dialogo('dialogo-restaurar').showModal();
 }
 
-$('botao-guardar').addEventListener('click', guardarCopia);
-$('botao-trazer').addEventListener('click', () => $campo('arquivo-do-backup').click());
-$campo('arquivo-do-backup').addEventListener('change', arquivoEscolhido);
+const CHAVE_ABA_BACKUP = 'zenny-aba-backup';
+
+/**
+ * @param {'drive'|'local'} aba
+ * @param {boolean} [salvarPreferencia=true]
+ */
+function alternarAbaBackup(aba, salvarPreferencia = true) {
+  const btnDrive = $('aba-backup-drive');
+  const btnLocal = $('aba-backup-local');
+  const painelDrive = $('conteudo-backup-drive');
+  const painelLocal = $('conteudo-backup-local');
+
+  if (!btnDrive || !btnLocal || !painelDrive || !painelLocal) return;
+
+  const ehDrive = aba === 'drive';
+  btnDrive.setAttribute('aria-selected', String(ehDrive));
+  btnLocal.setAttribute('aria-selected', String(!ehDrive));
+
+  painelDrive.hidden = !ehDrive;
+  painelLocal.hidden = ehDrive;
+
+  if (salvarPreferencia) {
+    try {
+      localStorage.setItem(CHAVE_ABA_BACKUP, aba);
+    } catch (_) {}
+  }
+}
+
+$('aba-backup-drive')?.addEventListener('click', () => alternarAbaBackup('drive'));
+$('aba-backup-local')?.addEventListener('click', () => alternarAbaBackup('local'));
+
+$('botao-guardar')?.addEventListener('click', guardarCopia);
+$('botao-trazer')?.addEventListener('click', () => $campo('arquivo-do-backup').click());
+$campo('arquivo-do-backup')?.addEventListener('change', arquivoEscolhido);
 
 /** @type {'trazer'|'salvar'|null} */
 let acaoPendenteDrive = null;

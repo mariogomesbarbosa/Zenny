@@ -7,7 +7,7 @@
    ========================================================================= */
 
 const APP_ID = 'zenny';          // <-- em Daysk/sw.js troque para 'daysk'
-const VERSION = 'v7';
+const VERSION = 'v8';
 const CACHE_NAME = `${APP_ID}-${VERSION}`;
 
 // Caminhos relativos ao sw.js, ou seja, relativos à pasta do app.
