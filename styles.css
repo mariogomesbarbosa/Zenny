@@ -318,6 +318,74 @@ h1 { font-size: 1.75rem; line-height: 1.2; letter-spacing: -.02em; margin: 8px 0
    largura inteira o torna fácil de acertar, e a cor já diz o que ele é. */
 .cartao.ajuste .botao.apagado { width: 100%; margin-top: 14px; }
 
+/* Painel de status e metadados de backup (estilo WhatsApp) */
+.painel-backup-status {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  background: var(--areia);
+  border: 1px solid var(--borda-fraca);
+  border-radius: 12px;
+  padding: 14px;
+  margin: 12px 0 16px;
+}
+
+.item-backup-status {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 8px;
+  font-size: .875rem;
+}
+
+.rotulo-status {
+  color: var(--tinta-suave);
+  font-weight: 500;
+  flex-shrink: 0;
+}
+
+.valor-status {
+  color: var(--tinta);
+  font-weight: 600;
+  text-align: right;
+  word-break: break-all;
+}
+
+.item-backup-status.divisor-conta {
+  border-top: 1px solid var(--borda);
+  padding-top: 10px;
+  margin-top: 2px;
+  flex-direction: column;
+  align-items: stretch;
+  gap: 6px;
+}
+
+.info-conta-google {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  gap: 8px;
+}
+
+.email-conta {
+  font-weight: 600;
+  color: var(--verde);
+}
+
+.item-backup-status .botao-texto {
+  align-self: flex-end;
+  padding: 0;
+  min-height: auto;
+  font-size: .75rem;
+  color: var(--tinta-suave);
+  text-decoration: underline;
+  cursor: pointer;
+}
+
+.item-backup-status .botao-texto:hover {
+  color: var(--coral);
+}
+
 /* ---------- Painel do mês ---------- */
 
 .painel { display: grid; gap: 22px; }

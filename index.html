@@ -19,7 +19,7 @@
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
 <meta name="apple-mobile-web-app-title" content="Zenny">
 
-<link rel="stylesheet" href="styles.css?v=6">
+<link rel="stylesheet" href="styles.css?v=7">
 
 <!-- Tema antes da primeira pintura: se isso esperar o app.js, a tela pisca
      branca em quem usa o tema escuro. -->
@@ -314,30 +314,35 @@
     </section>
 
     <section class="cartao ajuste" id="ajuste-drive" aria-labelledby="titulo-do-drive">
-      <h2 id="titulo-do-drive">Cópia no Google Drive</h2>
-      <p class="nota" id="estado-do-drive">—</p>
+      <h2 id="titulo-do-drive">Backup no Google Drive</h2>
+      <p class="nota">
+        Faça backup dos seus dados na nuvem para não perdê-los ao trocar de celular ou aparelho.
+      </p>
 
-      <!-- Estado: não conectado -->
-      <div id="drive-desconectado">
-        <div class="pilha" id="pilha-drive-desconectado">
-          <button type="button" class="botao" id="botao-conectar-trazer-drive">Trazer do Google Drive</button>
-          <button type="button" class="botao contorno" id="botao-conectar-drive">Conectar ao Google Drive</button>
+      <!-- Bloco de informações de backup e conta (estilo WhatsApp) -->
+      <div class="painel-backup-status" id="painel-backup-status">
+        <div class="item-backup-status">
+          <span class="rotulo-status">Último backup:</span>
+          <span class="valor-status tabular" id="drive-ultimo-backup">Nenhum</span>
         </div>
-        <p class="nota">
-          Guarde uma cópia dos seus dados no Google Drive ou recupere suas
-          anotações ao trocar de aparelho. Funciona como no WhatsApp.
-        </p>
+        <div class="item-backup-status" id="item-drive-tamanho">
+          <span class="rotulo-status">Tamanho:</span>
+          <span class="valor-status tabular" id="drive-tamanho-backup">—</span>
+        </div>
+        <div class="item-backup-status divisor-conta" id="item-drive-conta">
+          <div class="info-conta-google">
+            <span class="rotulo-status">Conta do Google:</span>
+            <span class="valor-status email-conta" id="drive-conta-google">Nenhuma conta conectada</span>
+          </div>
+          <button type="button" class="botao-texto menor" id="botao-desconectar-drive" hidden>
+            Trocar conta
+          </button>
+        </div>
       </div>
 
-      <!-- Estado: conectado -->
-      <div id="drive-conectado" hidden>
-        <div class="pilha" id="pilha-drive-conectado">
-          <button type="button" class="botao" id="botao-salvar-drive">Salvar no Drive</button>
-          <button type="button" class="botao contorno" id="botao-trazer-drive">Trazer do Drive</button>
-        </div>
-        <button type="button" class="botao-texto menor" id="botao-desconectar-drive">
-          Desconectar do Google Drive
-        </button>
+      <div class="pilha" id="pilha-acoes-drive">
+        <button type="button" class="botao" id="botao-salvar-drive">Fazer backup no Drive</button>
+        <button type="button" class="botao contorno" id="botao-trazer-drive">Restaurar do Drive</button>
       </div>
     </section>
 
