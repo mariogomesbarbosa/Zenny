@@ -12,7 +12,7 @@
   <img src="https://img.shields.io/badge/Status-Em_constru%C3%A7%C3%A3o-blue?style=for-the-badge" alt="Status">
   <img src="https://img.shields.io/badge/Tecnologias-HTML5_|_CSS3_|_JS-14181C?style=for-the-badge" alt="Tecnologias">
   <img src="https://img.shields.io/badge/Mobile-First-35B37E?style=for-the-badge" alt="Mobile First">
-  <img src="https://img.shields.io/badge/Licen%C3%A7a-MIT-5c6570?style=for-the-badge" alt="Licença MIT">
+  <img src="https://img.shields.io/badge/Licen%C3%A7a-CC_BY--NC--SA_4.0-5c6570?style=for-the-badge" alt="Licença CC BY-NC-SA 4.0">
 </p>
 
 <p align="center">
@@ -91,9 +91,13 @@ npx --yes http-server . -p 8142 -c-1
 
 ## 📄 Licença
 
-[MIT](LICENSE). Você pode usar, copiar, modificar, distribuir e vender este
-código, inclusive dentro de um produto fechado — desde que o aviso de copyright
-e o texto da licença acompanhem o código. Sem garantia de qualquer espécie.
+[CC BY-NC-SA 4.0](LICENSE) (Creative Commons Atribuição-NãoComercial-CompartilhaIgual 4.0 Internacional).
+
+Este projeto é de código aberto e gratuito para uso pessoal e educacional:
+- **Uso livre**: você pode usar, estudar, copiar, modificar e compartilhar o código.
+- **Créditos**: deve dar os devidos créditos ao autor original (**Mário Barbosa**).
+- **Não comercial**: é estritamente proibido vender, comercializar ou utilizar este software (ou versões derivadas) para fins comerciais lucrativos.
+- **Compartilha igual**: qualquer alteração ou obra derivada deve ser distribuída obrigatoriamente de forma gratuita sob esta mesma licença (CC BY-NC-SA 4.0).
 
 ---
 

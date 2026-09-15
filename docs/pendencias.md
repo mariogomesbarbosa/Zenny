@@ -36,7 +36,7 @@ seis meses depois.
 | Editar um lançamento fixo reescrevia o passado | O B3 trocou o valor único do fixo por uma linha do tempo de valores. Registrar um aumento passa a preservar os meses já fechados, e há teste de regressão para isso |
 | O mapa de pagos crescia sem limpeza (herdado do MVP) | O `normalizarEstado` do B2 descarta, na leitura, toda marcação que aponta para um lançamento inexistente |
 | O roteiro de blocos não estava aprovado | Aprovado na prática: o Mário mandou seguir com a implementação, e depois redirecionou o B2 a partir do MVP |
-| Repositório público sem licença | Licença MIT adicionada: qualquer um pode usar, modificar e distribuir, inclusive em produto fechado, desde que o aviso de copyright viaje junto |
+| Repositório público sem licença | Licença CC BY-NC-SA 4.0: uso gratuito, créditos obrigatórios, proibição de comercialização e exigência de manter modificações gratuitas sob os mesmos termos |
 | A compra no cartão ficava inalcançável depois de criada | A segunda versão do B6 deu à compra as mesmas portas do lançamento comum: linha tocável dentro da fatura, com X para apagar, e um botão de anotar. A pendência nasceu e morreu no mesmo bloco, antes de chegar à `main` |
 | A fatura caía no mês seguinte por regra fixa, sem fechamento | A segunda versão do B6 trouxe a data de fechamento. A aproximação M+1 servia enquanto a fatura era um número; parou de servir quando a pessoa passou a lançar compras dentro dela |
 | O total informado da fatura ignorava as compras anotadas depois dele | O valor informado virou um lançamento "Ajuste de fatura", e a fatura voltou a ser sempre a soma dos seus lançamentos. Ver [ajuste-de-fatura.md](ajuste-de-fatura.md) |

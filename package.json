@@ -4,7 +4,7 @@
   "private": true,
   "type": "module",
   "description": "Cuidar do seu dinheiro sem medo. O app nao usa nada disto em runtime: ver docs/tipos-sem-build.md.",
-  "license": "MIT",
+  "license": "CC-BY-NC-SA-4.0",
   "scripts": {
     "tipos": "tsc",
     "testes": "node tests/nucleo.mjs",
