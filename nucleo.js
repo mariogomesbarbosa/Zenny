@@ -2113,6 +2113,34 @@ export function textoDoBackupDrive(iso, bytes, agora) {
 }
 
 /**
+ * Formata a data e horário do backup no formato amigável (ex: "Hoje às 16:40", "Ontem às 09:15").
+ * @param {string|null|undefined} iso
+ * @param {Date} agora
+ * @returns {string}
+ */
+export function formatarDataHoraBackup(iso, agora) {
+  if (!iso) return 'Nenhum backup realizado';
+
+  const data = new Date(iso);
+  if (isNaN(data.getTime())) return 'Nenhum backup realizado';
+
+  const dias = diasEntre(iso, agora);
+  if (dias === null) return 'Nenhum backup realizado';
+
+  const hora = String(data.getHours()).padStart(2, '0');
+  const minuto = String(data.getMinutes()).padStart(2, '0');
+  const horario = `${hora}:${minuto}`;
+
+  if (dias <= 0) return `Hoje às ${horario}`;
+  if (dias === 1) return `Ontem às ${horario}`;
+
+  const dia = String(data.getDate()).padStart(2, '0');
+  const mes = String(data.getMonth() + 1).padStart(2, '0');
+  const ano = data.getFullYear();
+  return `${dia}/${mes}/${ano} às ${horario}`;
+}
+
+/**
  * Indica se o estado possui algum dado cadastrado pelo usuário (lançamentos ou cartões).
  * @param {Estado|null|undefined} estado
  * @returns {boolean}

@@ -66,6 +66,7 @@ import {
   textoDoUltimoBackup,
   formatarTamanho,
   textoDoBackupDrive,
+  formatarDataHoraBackup,
   estadoTemDados,
 } from '../nucleo.js';
 
@@ -2143,6 +2144,35 @@ conferir('formatarTamanho — NaN devolve 0 B', formatarTamanho(NaN), '0 B');
   conferir('textoDoBackupDrive — data futura trata como hoje',
     textoDoBackupDrive('2026-09-12T10:00:00Z', 500, hoje),
     'Última cópia: hoje · 500 B');
+}
+
+/* ---------- formatarDataHoraBackup ---------- */
+{
+  const hoje = new Date('2026-09-11T15:30:00Z');
+
+  conferir('formatarDataHoraBackup — sem backup',
+    formatarDataHoraBackup(null, hoje),
+    'Nenhum backup realizado');
+
+  conferir('formatarDataHoraBackup — undefined',
+    formatarDataHoraBackup(undefined, hoje),
+    'Nenhum backup realizado');
+
+  conferir('formatarDataHoraBackup — hoje',
+    formatarDataHoraBackup('2026-09-11T10:15:00Z', hoje),
+    `Hoje às ${String(new Date('2026-09-11T10:15:00Z').getHours()).padStart(2, '0')}:15`);
+
+  conferir('formatarDataHoraBackup — ontem',
+    formatarDataHoraBackup('2026-09-10T18:45:00Z', hoje),
+    `Ontem às ${String(new Date('2026-09-10T18:45:00Z').getHours()).padStart(2, '0')}:45`);
+
+  conferir('formatarDataHoraBackup — data anterior',
+    formatarDataHoraBackup('2026-09-08T09:00:00Z', hoje),
+    `08/09/2026 às ${String(new Date('2026-09-08T09:00:00Z').getHours()).padStart(2, '0')}:00`);
+
+  conferir('formatarDataHoraBackup — invalida',
+    formatarDataHoraBackup('invalido', hoje),
+    'Nenhum backup realizado');
 }
 
 /* ---------- estadoTemDados ---------- */

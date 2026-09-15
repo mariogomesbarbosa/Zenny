@@ -17,15 +17,21 @@
    JavaScript que o navegador baixa. */
 /** @type {string} */
 const CLIENT_ID = '595876283616-a993k9p6jjmf8mfnbkr9bcf10a7osmnp.apps.googleusercontent.com';
-const ESCOPO = 'https://www.googleapis.com/auth/drive.appdata';
+const ESCOPO = 'https://www.googleapis.com/auth/drive.appdata email';
 const NOME_DO_ARQUIVO = 'zenny-backup.json';
+
+/* Chaves de persistência */
+const CHAVE_TOKEN = 'zenny-drive-token';
+const CHAVE_CONTA = 'zenny-drive-conta';
+const CHAVE_INFO = 'zenny-drive-info';
 
 /* URLs da API */
 const URL_UPLOAD = 'https://www.googleapis.com/upload/drive/v3/files';
 const URL_ARQUIVOS = 'https://www.googleapis.com/drive/v3/files';
 const URL_REVOGAR = 'https://oauth2.googleapis.com/revoke';
+const URL_USERINFO = 'https://www.googleapis.com/oauth2/v3/userinfo';
 
-/* Estado do módulo — vive só em memória */
+/* Estado do módulo */
 
 /** @type {string|null} */
 let token = null;
@@ -33,12 +39,62 @@ let token = null;
 /** @type {any} */
 let tokenClient = null;
 
+// — Persistência Local ——————————————————————————————————————
+
+/** @returns {string|null} */
+function carregarSessao() {
+  try {
+    const bruto = localStorage.getItem(CHAVE_TOKEN);
+    if (!bruto) return null;
+    const sessao = JSON.parse(bruto);
+    if (sessao && sessao.token && sessao.expiraEm > Date.now()) {
+      return sessao.token;
+    }
+  } catch (_) {}
+  return null;
+}
+
+/** @returns {string|null} */
+export function carregarContaLocal() {
+  try {
+    return localStorage.getItem(CHAVE_CONTA) || null;
+  } catch (_) {
+    return null;
+  }
+}
+
+/** @param {string} email */
+export function salvarContaLocal(email) {
+  try {
+    localStorage.setItem(CHAVE_CONTA, email);
+  } catch (_) {}
+}
+
+/** @returns {{ exportadoEm: string, tamanho: number }|null} */
+export function carregarInfoDriveLocal() {
+  try {
+    const bruto = localStorage.getItem(CHAVE_INFO);
+    return bruto ? JSON.parse(bruto) : null;
+  } catch (_) {
+    return null;
+  }
+}
+
+/** @param {{ exportadoEm: string, tamanho: number }} info */
+export function salvarInfoDriveLocal(info) {
+  try {
+    localStorage.setItem(CHAVE_INFO, JSON.stringify(info));
+  } catch (_) {}
+}
+
 // — Inicialização ————————————————————————————————————————
 
 /** Configura o Token Client do GIS. Chamar uma vez, na carga do app.
  *  @param {() => void} aoConectar — callback para quando o token chegar.
  */
 export function inicializarDrive(aoConectar) {
+  token = carregarSessao();
+
   if (CLIENT_ID === '__GOOGLE_CLIENT_ID__') {
     /* Client ID pendente de configuração no Google Cloud Console. */
     return;
@@ -55,47 +111,102 @@ export function inicializarDrive(aoConectar) {
   tokenClient = g.accounts.oauth2.initTokenClient({
     client_id: CLIENT_ID,
     scope: ESCOPO,
-    callback: (/** @type {{ access_token?: string, error?: string }} */ resposta) => {
+    callback: async (/** @type {{ access_token?: string, expires_in?: string, error?: string }} */ resposta) => {
       if (resposta.error || !resposta.access_token) {
         token = null;
         return;
       }
       token = resposta.access_token;
+      const expiraEm = Date.now() + (Number(resposta.expires_in) || 3600) * 1000 - 60000;
+      try {
+        localStorage.setItem(CHAVE_TOKEN, JSON.stringify({ token, expiraEm }));
+      } catch (_) {}
+
+      const email = await obterContaGoogle();
+      if (email) salvarContaLocal(email);
+
       aoConectar();
     },
   });
+
+  if (token) {
+    aoConectar();
+  }
 }
 
 // — Conexão ————————————————————————————————————————————
 
-/** Abre o popup de consentimento do Google. */
-export function conectar() {
+/** Obtém o e-mail da conta conectada via UserInfo ou Drive API.
+ *  @returns {Promise<string|null>}
+ */
+export async function obterContaGoogle() {
+  if (!token) return carregarContaLocal();
+  try {
+    const resp = await fetch(URL_USERINFO, {
+      headers: { Authorization: `Bearer ${token}` },
+    });
+    if (resp.ok) {
+      const dados = await resp.json();
+      if (dados.email) return dados.email;
+    }
+  } catch (_) {}
+
+  try {
+    const respDrive = await fetch(`${URL_ARQUIVOS}/../about?fields=user(emailAddress)`, {
+      headers: { Authorization: `Bearer ${token}` },
+    });
+    if (respDrive.ok) {
+      const dadosDrive = await respDrive.json();
+      if (dadosDrive.user?.emailAddress) return dadosDrive.user.emailAddress;
+    }
+  } catch (_) {}
+
+  return carregarContaLocal();
+}
+
+/** Abre o popup de autorização do Google.
+ *  @param {{ forcarEscolha?: boolean, prompt?: string }} [opcoes]
+ */
+export function conectar(opcoes = {}) {
   if (CLIENT_ID === '__GOOGLE_CLIENT_ID__') {
     throw new Error('Configure o Client ID do Google no drive.js para conectar.');
   }
   if (!tokenClient) {
     throw new Error('O serviço do Google ainda está carregando. Tente novamente em instantes.');
   }
-  /* consent: pede consentimento sempre — mais simples e evita token herdado
-     de sessão anterior. Se a pessoa já autorizou o app, o Google mostra apenas
-     a seleção de conta, sem a tela de permissões. */
-  tokenClient.requestAccessToken({ prompt: 'consent' });
+
+  const emailSalvo = carregarContaLocal();
+  const prompt = opcoes.forcarEscolha ? 'select_account' : (opcoes.prompt ?? '');
+
+  /** @type {any} */
+  const config = { prompt };
+  if (emailSalvo && !opcoes.forcarEscolha) {
+    config.hint = emailSalvo;
+  }
+
+  tokenClient.requestAccessToken(config);
 }
 
 /** Revoga o token e limpa o estado local. */
 export async function desconectar() {
-  if (!token) return;
-  try {
-    await fetch(`${URL_REVOGAR}?token=${token}`, { method: 'POST' });
-  } catch (_) {
-    /* Falhar na revogação remota não é motivo para manter o token local. */
+  if (token) {
+    try {
+      await fetch(`${URL_REVOGAR}?token=${token}`, { method: 'POST' });
+    } catch (_) {
+      /* Falhar na revogação remota não é motivo para manter o token local. */
+    }
   }
   token = null;
+  try {
+    localStorage.removeItem(CHAVE_TOKEN);
+    localStorage.removeItem(CHAVE_CONTA);
+    localStorage.removeItem(CHAVE_INFO);
+  } catch (_) {}
 }
 
 /** @returns {boolean} */
 export function estaConectado() {
-  return token !== null;
+  return token !== null || carregarContaLocal() !== null;
 }
 
 // — Operações no Drive ————————————————————————————————————
@@ -138,10 +249,12 @@ export async function infoDoBackupDrive() {
   const arquivo = await buscarArquivoExistente();
   if (!arquivo) return null;
 
-  return {
+  const info = {
     exportadoEm: arquivo.modifiedTime,
     tamanho: parseInt(arquivo.size, 10) || 0,
   };
+  salvarInfoDriveLocal(info);
+  return info;
 }
 
 /** Sobe o JSON do backup para o appDataFolder. Se já existir, sobrescreve.
@@ -171,10 +284,12 @@ export async function salvarNoDrive(textoJson) {
       throw new Error('Erro ao atualizar a cópia no Drive.');
     }
     const dados = await resposta.json();
-    return {
+    const resultado = {
       exportadoEm: dados.modifiedTime || new Date().toISOString(),
       tamanho: parseInt(dados.size, 10) || textoJson.length,
     };
+    salvarInfoDriveLocal(resultado);
+    return resultado;
   }
 
   /* Cria um arquivo novo via upload multipart. O metadata inclui o nome e
@@ -212,10 +327,12 @@ export async function salvarNoDrive(textoJson) {
   }
 
   const dados = await resposta.json();
-  return {
+  const resultado = {
     exportadoEm: dados.modifiedTime || new Date().toISOString(),
     tamanho: parseInt(dados.size, 10) || textoJson.length,
   };
+  salvarInfoDriveLocal(resultado);
+  return resultado;
 }
 
 /** Baixa o conteúdo do backup do Drive.

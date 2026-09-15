@@ -38,7 +38,8 @@ import {
   nomeDoArquivo,
   lerBackup,
   textoDoUltimoBackup,
-  textoDoBackupDrive,
+  formatarDataHoraBackup,
+  formatarTamanho,
   estadoTemDados,
   sugerirCategoria,
   categoriasDisponiveis,
@@ -70,6 +71,8 @@ import {
   salvarNoDrive,
   buscarDoDrive,
   infoDoBackupDrive,
+  carregarContaLocal,
+  carregarInfoDriveLocal,
 } from './drive.js';
 
 /**
@@ -1402,52 +1405,47 @@ function desenharAjustes() {
     new Date()
   );
 
-  const conectado = estaConectado();
-  const blocoDesconectado = $('drive-desconectado');
-  const blocoConectado = $('drive-conectado');
-  const estadoDrive = $('estado-do-drive');
+  if (!infoDrive) {
+    infoDrive = carregarInfoDriveLocal();
+  }
+  const conta = carregarContaLocal();
 
-  if (blocoDesconectado && blocoConectado && estadoDrive) {
-    blocoDesconectado.hidden = conectado;
-    blocoConectado.hidden = !conectado;
-    estadoDrive.textContent = conectado
-      ? textoDoBackupDrive(infoDrive?.exportadoEm, infoDrive?.tamanho, new Date())
-      : '—';
+  const ultimoBackupEl = $('drive-ultimo-backup');
+  const tamanhoBackupEl = $('drive-tamanho-backup');
+  const contaGoogleEl = $('drive-conta-google');
+  const btnDesconectar = $('botao-desconectar-drive');
 
-    const temDados = estadoTemDados(estado);
+  if (ultimoBackupEl) {
+    ultimoBackupEl.textContent = formatarDataHoraBackup(infoDrive?.exportadoEm, new Date());
+  }
+  if (tamanhoBackupEl) {
+    tamanhoBackupEl.textContent = infoDrive?.tamanho ? formatarTamanho(infoDrive.tamanho) : '—';
+  }
+  if (contaGoogleEl) {
+    contaGoogleEl.textContent = conta || 'Nenhuma conta vinculada';
+  }
+  if (btnDesconectar) {
+    btnDesconectar.hidden = !conta;
+  }
 
-    const btnConectarSalvar = $('botao-conectar-drive');
-    const btnConectarTrazer = $('botao-conectar-trazer-drive');
-    const pilhaDesconectado = $('pilha-drive-desconectado');
-    if (btnConectarSalvar && btnConectarTrazer && pilhaDesconectado) {
-      if (temDados) {
-        btnConectarSalvar.className = 'botao';
-        btnConectarSalvar.textContent = 'Salvar no Google Drive';
-        btnConectarTrazer.className = 'botao contorno';
-        btnConectarTrazer.textContent = 'Trazer do Google Drive';
-        pilhaDesconectado.append(btnConectarSalvar, btnConectarTrazer);
-      } else {
-        btnConectarTrazer.className = 'botao';
-        btnConectarTrazer.textContent = 'Trazer do Google Drive';
-        btnConectarSalvar.className = 'botao contorno';
-        btnConectarSalvar.textContent = 'Conectar ao Google Drive';
-        pilhaDesconectado.append(btnConectarTrazer, btnConectarSalvar);
-      }
-    }
+  const temDados = estadoTemDados(estado);
+  const btnSalvar = $('botao-salvar-drive');
+  const btnTrazer = $('botao-trazer-drive');
+  const pilhaAcoes = $('pilha-acoes-drive');
 
-    const btnSalvar = $('botao-salvar-drive');
-    const btnTrazer = $('botao-trazer-drive');
-    const pilhaConectado = $('pilha-drive-conectado');
-    if (btnSalvar && btnTrazer && pilhaConectado) {
-      if (temDados) {
-        btnSalvar.className = 'botao';
-        btnTrazer.className = 'botao contorno';
-        pilhaConectado.append(btnSalvar, btnTrazer);
-      } else {
-        btnTrazer.className = 'botao';
-        btnSalvar.className = 'botao contorno';
-        pilhaConectado.append(btnTrazer, btnSalvar);
-      }
+  if (btnSalvar && btnTrazer && pilhaAcoes) {
+    if (temDados) {
+      btnSalvar.className = 'botao';
+      btnSalvar.textContent = 'Fazer backup no Drive';
+      btnTrazer.className = 'botao contorno';
+      btnTrazer.textContent = 'Restaurar do Drive';
+      pilhaAcoes.append(btnSalvar, btnTrazer);
+    } else {
+      btnTrazer.className = 'botao';
+      btnTrazer.textContent = 'Restaurar do Drive';
+      btnSalvar.className = 'botao contorno';
+      btnSalvar.textContent = 'Fazer backup no Drive';
+      pilhaAcoes.append(btnTrazer, btnSalvar);
     }
   }
 }
@@ -1641,6 +1639,17 @@ let acaoPendenteDrive = null;
  * Busca o arquivo de backup no Google Drive e exibe o diálogo de restauração.
  */
 async function trazerCopiaDoDrive() {
+  if (!estaConectado()) {
+    try {
+      acaoPendenteDrive = 'trazer';
+      conectar();
+    } catch (e) {
+      acaoPendenteDrive = null;
+      avisar(e instanceof Error ? e.message : 'Não consegui conectar ao Google Drive.');
+    }
+    return;
+  }
+
   const btn = $('botao-trazer-drive');
   if (btn?.hasAttribute('aria-busy')) return;
   btn?.setAttribute('aria-busy', 'true');
@@ -1661,6 +1670,11 @@ async function trazerCopiaDoDrive() {
     $('explicacao-do-restaurar').textContent = explicarRestauracao(lido);
     $dialogo('dialogo-restaurar').showModal();
   } catch (e) {
+    if (e instanceof Error && e.message.includes('Não conectado')) {
+      acaoPendenteDrive = 'trazer';
+      conectar();
+      return;
+    }
     avisar(e instanceof Error ? e.message : 'Não consegui buscar o arquivo do Drive.');
   } finally {
     if (btn) {
@@ -1670,29 +1684,20 @@ async function trazerCopiaDoDrive() {
   }
 }
 
-$('botao-conectar-drive')?.addEventListener('click', () => {
-  try {
-    acaoPendenteDrive = 'salvar';
-    conectar();
-  } catch (e) {
-    acaoPendenteDrive = null;
-    avisar(e instanceof Error ? e.message : 'Não consegui conectar ao Google Drive.');
-  }
-});
-
-$('botao-conectar-trazer-drive')?.addEventListener('click', () => {
-  try {
-    acaoPendenteDrive = 'trazer';
-    conectar();
-  } catch (e) {
-    acaoPendenteDrive = null;
-    avisar(e instanceof Error ? e.message : 'Não consegui conectar ao Google Drive.');
-  }
-});
-
 $('botao-salvar-drive')?.addEventListener('click', async () => {
   const btn = $('botao-salvar-drive');
   if (btn.hasAttribute('aria-busy')) return;
+
+  if (!estaConectado()) {
+    try {
+      acaoPendenteDrive = 'salvar';
+      conectar();
+    } catch (e) {
+      acaoPendenteDrive = null;
+      avisar(e instanceof Error ? e.message : 'Não consegui conectar ao Google Drive.');
+    }
+    return;
+  }
 
   const temDados = estadoTemDados(estado);
   if (!temDados && infoDrive) {
@@ -1710,8 +1715,13 @@ $('botao-salvar-drive')?.addEventListener('click', async () => {
     const texto = JSON.stringify(montarBackup(estado, agora), null, 2);
     infoDrive = await salvarNoDrive(texto);
     desenharAjustes();
-    avisar('Cópia salva no Google Drive.');
+    avisar('Backup salvo no Google Drive.');
   } catch (e) {
+    if (e instanceof Error && e.message.includes('Não conectado')) {
+      acaoPendenteDrive = 'salvar';
+      conectar();
+      return;
+    }
     avisar(e instanceof Error ? e.message : 'Não consegui salvar no Drive.');
     desenharAjustes();
   } finally {
@@ -1722,11 +1732,21 @@ $('botao-salvar-drive')?.addEventListener('click', async () => {
 
 $('botao-trazer-drive')?.addEventListener('click', trazerCopiaDoDrive);
 
-$('botao-desconectar-drive')?.addEventListener('click', async () => {
-  await desconectar();
-  infoDrive = null;
-  desenharAjustes();
-  avisar('Desconectado do Google Drive.');
+$('botao-desconectar-drive')?.addEventListener('click', () => {
+  pedirConfirmacao({
+    titulo: 'Trocar ou desconectar conta?',
+    mensagem: 'A conta atual do Google será desvinculada deste aparelho. Você poderá conectar outra conta quando quiser.',
+    textoConfirmar: 'Trocar conta',
+    aoConfirmar: async () => {
+      await desconectar();
+      infoDrive = null;
+      desenharAjustes();
+      avisar('Conta desvinculada.');
+      try {
+        conectar({ forcarEscolha: true });
+      } catch (_) {}
+    },
+  });
 });
 
 $('restaurar-confirmar').addEventListener('click', () => {
@@ -3019,18 +3039,23 @@ inicializarDrive(async () => {
   try {
     infoDrive = await infoDoBackupDrive();
   } catch (_) {
-    infoDrive = null;
+    infoDrive = carregarInfoDriveLocal();
   }
   desenharAjustes();
-  avisar('Conectado ao Google Drive.');
 
   const acao = acaoPendenteDrive;
   acaoPendenteDrive = null;
 
+  if (acao) {
+    avisar('Conectado ao Google Drive.');
+  }
+
   const temDados = estadoTemDados(estado);
 
-  // Se o usuário tocou para trazer do Drive, ou se esta máquina está vazia e existe cópia no Drive:
-  if (acao === 'trazer' || (!temDados && infoDrive)) {
+  // Se o usuário tocou para salvar ou trazer do Drive, ou se esta máquina está vazia e existe cópia no Drive:
+  if (acao === 'salvar') {
+    $('botao-salvar-drive')?.click();
+  } else if (acao === 'trazer' || (!temDados && infoDrive)) {
     await trazerCopiaDoDrive();
   }
 });
