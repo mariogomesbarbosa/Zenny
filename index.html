@@ -19,7 +19,7 @@
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
 <meta name="apple-mobile-web-app-title" content="Zenny">
 
-<link rel="stylesheet" href="styles.css?v=7">
+<link rel="stylesheet" href="styles.css?v=8">
 
 <!-- Tema antes da primeira pintura: se isso esperar o app.js, a tela pisca
      branca em quem usa o tema escuro. -->
@@ -293,56 +293,81 @@
       <button type="button" class="botao" id="botao-instalar">Instalar o Zenny</button>
     </section>
 
-    <section class="cartao ajuste" aria-labelledby="titulo-da-copia">
-      <h2 id="titulo-da-copia">Uma cópia dos seus dados</h2>
-      <p class="nota" id="estado-do-backup">—</p>
+    <section class="cartao ajuste" id="ajuste-backup" aria-labelledby="titulo-backup">
+      <h2 id="titulo-backup">Backup de dados</h2>
+      <p class="nota">
+        Guarde uma cópia segura dos seus lançamentos na nuvem ou no aparelho para não perdê-los.
+      </p>
 
-      <div class="pilha">
-        <button type="button" class="botao" id="botao-guardar">Guardar uma cópia</button>
-        <button type="button" class="botao contorno" id="botao-trazer">Trazer de volta</button>
+      <!-- Alternador entre Google Drive e Local -->
+      <div class="alternador alternador-backup" role="tablist" aria-label="Destino do backup">
+        <button type="button" id="aba-backup-drive" role="tab" aria-selected="true" aria-controls="conteudo-backup-drive">
+          Google Drive
+        </button>
+        <button type="button" id="aba-backup-local" role="tab" aria-selected="false" aria-controls="conteudo-backup-local">
+          Arquivo local
+        </button>
       </div>
 
-      <p class="nota">
-        A cópia é um arquivo com tudo o que você anotou — inclusive quanto você
-        ganha. Guarde num lugar que só você abre.
-      </p>
-
-      <!-- Fora da tela em vez de hidden: um input escondido com hidden nao abre
-           o seletor em alguns navegadores. -->
-      <input type="file" id="arquivo-do-backup" class="oculto-visualmente"
-             accept="application/json,.json" tabindex="-1" aria-hidden="true">
-    </section>
-
-    <section class="cartao ajuste" id="ajuste-drive" aria-labelledby="titulo-do-drive">
-      <h2 id="titulo-do-drive">Backup no Google Drive</h2>
-      <p class="nota">
-        Faça backup dos seus dados na nuvem para não perdê-los ao trocar de celular ou aparelho.
-      </p>
-
-      <!-- Bloco de informações de backup e conta (estilo WhatsApp) -->
-      <div class="painel-backup-status" id="painel-backup-status">
-        <div class="item-backup-status">
-          <span class="rotulo-status">Último backup:</span>
-          <span class="valor-status tabular" id="drive-ultimo-backup">Nenhum</span>
-        </div>
-        <div class="item-backup-status" id="item-drive-tamanho">
-          <span class="rotulo-status">Tamanho:</span>
-          <span class="valor-status tabular" id="drive-tamanho-backup">—</span>
-        </div>
-        <div class="item-backup-status divisor-conta" id="item-drive-conta">
-          <div class="info-conta-google">
-            <span class="rotulo-status">Conta do Google:</span>
-            <span class="valor-status email-conta" id="drive-conta-google">Nenhuma conta conectada</span>
+      <!-- Painel 1: Google Drive -->
+      <div id="conteudo-backup-drive" role="tabpanel" aria-labelledby="aba-backup-drive">
+        <div class="painel-backup-status" id="painel-backup-status">
+          <div class="item-backup-status">
+            <span class="rotulo-status">Último backup:</span>
+            <span class="valor-status tabular" id="drive-ultimo-backup">Nenhum</span>
           </div>
-          <button type="button" class="botao-texto menor" id="botao-desconectar-drive" hidden>
-            Trocar conta
-          </button>
+          <div class="item-backup-status" id="item-drive-tamanho">
+            <span class="rotulo-status">Tamanho:</span>
+            <span class="valor-status tabular" id="drive-tamanho-backup">—</span>
+          </div>
+          <div class="item-backup-status divisor-conta" id="item-drive-conta">
+            <div class="info-conta-google">
+              <span class="rotulo-status">Conta do Google:</span>
+              <span class="valor-status email-conta" id="drive-conta-google">Nenhuma conta conectada</span>
+            </div>
+            <button type="button" class="botao-texto menor" id="botao-desconectar-drive" hidden>
+              Trocar conta
+            </button>
+          </div>
+        </div>
+
+        <div class="pilha" id="pilha-acoes-drive">
+          <button type="button" class="botao" id="botao-salvar-drive">Fazer backup no Drive</button>
+          <button type="button" class="botao contorno" id="botao-trazer-drive">Restaurar do Drive</button>
         </div>
       </div>
 
-      <div class="pilha" id="pilha-acoes-drive">
-        <button type="button" class="botao" id="botao-salvar-drive">Fazer backup no Drive</button>
-        <button type="button" class="botao contorno" id="botao-trazer-drive">Restaurar do Drive</button>
+      <!-- Painel 2: Arquivo Local -->
+      <div id="conteudo-backup-local" role="tabpanel" aria-labelledby="aba-backup-local" hidden>
+        <div class="painel-backup-status">
+          <div class="item-backup-status">
+            <span class="rotulo-status">Último backup:</span>
+            <span class="valor-status tabular" id="estado-do-backup">Nenhum backup realizado</span>
+          </div>
+          <div class="item-backup-status">
+            <span class="rotulo-status">Formato:</span>
+            <span class="valor-status">Arquivo JSON (.json)</span>
+          </div>
+          <div class="item-backup-status divisor-conta">
+            <div class="info-conta-google">
+              <span class="rotulo-status">Destino:</span>
+              <span class="valor-status">Armazenamento deste aparelho</span>
+            </div>
+          </div>
+        </div>
+
+        <div class="pilha">
+          <button type="button" class="botao" id="botao-guardar">Guardar uma cópia</button>
+          <button type="button" class="botao contorno" id="botao-trazer">Trazer de volta</button>
+        </div>
+
+        <p class="nota">
+          A cópia é um arquivo com tudo o que você anotou — inclusive quanto você
+          ganha. Guarde num lugar seguro.
+        </p>
+
+        <input type="file" id="arquivo-do-backup" class="oculto-visualmente"
+               accept="application/json,.json" tabindex="-1" aria-hidden="true">
       </div>
     </section>
 

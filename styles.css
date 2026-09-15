@@ -1067,9 +1067,15 @@ dialog::backdrop { background: var(--veu); }
 
 .alternador button:active { transform: scale(.96); }
 
-.alternador button[aria-pressed="true"] {
+.alternador button[aria-pressed="true"],
+.alternador button[aria-selected="true"] {
   background: var(--superficie);
   box-shadow: var(--sombra-sutil);
+  color: var(--tinta);
+}
+
+.alternador-backup {
+  margin: 12px 0 16px;
 }
 
 #tipo-entrada[aria-pressed="true"] { color: var(--verde); }
