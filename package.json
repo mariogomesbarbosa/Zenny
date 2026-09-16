@@ -1,6 +1,6 @@
 {
   "name": "zenny",
-  "version": "0.0.0",
+  "version": "1.0.0",
   "private": true,
   "type": "module",
   "description": "Cuidar do seu dinheiro sem medo. O app nao usa nada disto em runtime: ver docs/tipos-sem-build.md.",
