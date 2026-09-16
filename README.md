@@ -9,7 +9,7 @@
 </p>
 
 <p align="center">
-  <img src="https://img.shields.io/badge/Status-Em_constru%C3%A7%C3%A3o-blue?style=for-the-badge" alt="Status">
+  <img src="https://img.shields.io/badge/Vers%C3%A3o-v1.0-blue?style=for-the-badge" alt="Versão v1.0">
   <img src="https://img.shields.io/badge/Tecnologias-HTML5_|_CSS3_|_JS-14181C?style=for-the-badge" alt="Tecnologias">
   <img src="https://img.shields.io/badge/Mobile-First-35B37E?style=for-the-badge" alt="Mobile First">
   <img src="https://img.shields.io/badge/Licen%C3%A7a-CC_BY--NC--SA_4.0-5c6570?style=for-the-badge" alt="Licença CC BY-NC-SA 4.0">
