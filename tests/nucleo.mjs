@@ -68,6 +68,10 @@ import {
   textoDoBackupDrive,
   formatarDataHoraBackup,
   estadoTemDados,
+  deslocarDataMes,
+  calcularParcelas,
+  gerarLancamentosParcelados,
+  excluirParcelas,
 } from '../nucleo.js';
 
 /* Fuso fixo, e de proposito um em que a data local difere da UTC por boa parte
@@ -2187,6 +2191,139 @@ conferir('estadoTemDados — com cartao', estadoTemDados({
   ...estadoVazio(),
   cartoes: [{ id: 'c1', nome: 'Nubank', limite: 1000, fechamento: 1, vencimento: 10, arquivado: false }],
 }), true);
+
+/* ---------- Compras parceladas ---------- */
+
+/* 1. deslocarDataMes */
+conferir('deslocarDataMes — 0 passos mantem a data', deslocarDataMes('2026-10-15', 0), '2026-10-15');
+conferir('deslocarDataMes — 1 mes no mesmo ano', deslocarDataMes('2026-10-15', 1), '2026-11-15');
+conferir('deslocarDataMes — virada de ano', deslocarDataMes('2026-11-20', 3), '2027-02-20');
+conferir('deslocarDataMes — dia 31 em mes de 30 dias vai para 30', deslocarDataMes('2026-10-31', 1), '2026-11-30');
+conferir('deslocarDataMes — dia 31 em fevereiro comum vai para 28', deslocarDataMes('2026-10-31', 4), '2027-02-28');
+conferir('deslocarDataMes — dia 31 em fevereiro bissexto vai para 29', deslocarDataMes('2028-01-31', 1), '2028-02-29');
+
+/* 2. calcularParcelas — invariante da soma e distribuicao de centavos */
+conferir('calcularParcelas — 1 parcela devolve valor total', calcularParcelas(15000, 1), [15000]);
+conferir('calcularParcelas — divisao exata 2x', calcularParcelas(10000, 2), [5000, 5000]);
+conferir('calcularParcelas — 100 reais em 3x distribui 1 centavo na primeira', calcularParcelas(10000, 3), [3334, 3333, 3333]);
+conferir('calcularParcelas — 10 reais em 6x distribui resto de 4 centavos', calcularParcelas(1000, 6), [167, 167, 167, 167, 166, 166]);
+conferir('calcularParcelas — valor zero', calcularParcelas(0, 4), [0, 0, 0, 0]);
+conferir('calcularParcelas — 1 centavo em 3 parcelas', calcularParcelas(1, 3), [1, 0, 0]);
+
+// Testa invariante da soma para várias combinações
+for (const v of [99, 100, 101, 350, 999, 1000, 33333, 99999]) {
+  for (const n of [1, 2, 3, 5, 6, 7, 10, 12, 18, 24]) {
+    const partes = calcularParcelas(v, n);
+    const soma = partes.reduce((a, b) => a + b, 0);
+    if (soma !== v) {
+      throw new Error(`Invariante quebrou: soma ${soma} != total ${v} para ${n} parcelas`);
+    }
+  }
+}
+conferir('calcularParcelas — invariante da soma validada para multiplos casos', true, true);
+
+/* 3. gerarLancamentosParcelados */
+{
+  let idCounter = 1;
+  const gerarId = () => `id_${idCounter++}`;
+  /** @type {{ tipo: import('../nucleo.js').TipoDeLancamento, descricao: string, cartao: string, categoria: string }} */
+  const base = { tipo: 'saida', descricao: 'Smartphone', cartao: 'c1', categoria: 'tecnologia' };
+
+  // 1 parcela
+  const simples = gerarLancamentosParcelados({
+    base,
+    valorTotal: 50000,
+    totalParcelas: 1,
+    dataInicial: '2026-10-15',
+    gerarId,
+  });
+  conferir('gerarLancamentosParcelados — 1 parcela gera 1 registro sem sufixo', simples.length, 1);
+  conferir('gerarLancamentosParcelados — descricao sem sufixo em 1x', simples[0].descricao, 'Smartphone');
+  conferir('gerarLancamentosParcelados — sem parcelamento em 1x', simples[0].parcelamento, undefined);
+  conferir('gerarLancamentosParcelados — valor integral em 1x', simples[0].valor, 50000);
+
+  // 3 parcelas
+  const parcelados = gerarLancamentosParcelados({
+    base,
+    valorTotal: 10000,
+    totalParcelas: 3,
+    dataInicial: '2026-10-31',
+    parcelamentoId: 'parc_teste',
+    gerarId,
+  });
+  conferir('gerarLancamentosParcelados — 3 parcelas geram 3 registros', parcelados.length, 3);
+  conferir('gerarLancamentosParcelados — descricao da parcela 1', parcelados[0].descricao, 'Smartphone (1/3)');
+  conferir('gerarLancamentosParcelados — descricao da parcela 2', parcelados[1].descricao, 'Smartphone (2/3)');
+  conferir('gerarLancamentosParcelados — descricao da parcela 3', parcelados[2].descricao, 'Smartphone (3/3)');
+
+  conferir('gerarLancamentosParcelados — data parcela 1', parcelados[0].data, '2026-10-31');
+  conferir('gerarLancamentosParcelados — data parcela 2 (ajustada para 30 dias)', parcelados[1].data, '2026-11-30');
+  conferir('gerarLancamentosParcelados — data parcela 3', parcelados[2].data, '2026-12-31');
+
+  conferir('gerarLancamentosParcelados — valores com centavo na primeira', [parcelados[0].valor, parcelados[1].valor, parcelados[2].valor], [3334, 3333, 3333]);
+  conferir('gerarLancamentosParcelados — metadados parcela 1', parcelados[0].parcelamento, { id: 'parc_teste', parcela: 1, total: 3 });
+  conferir('gerarLancamentosParcelados — metadados parcela 2', parcelados[1].parcelamento, { id: 'parc_teste', parcela: 2, total: 3 });
+}
+
+/* 4. excluirParcelas */
+{
+  /** @type {Lancamento[]} */
+  const lista = [
+    { id: 'p1', tipo: 'saida', descricao: 'Tenis (1/3)', fixo: false, valor: 34, data: '2026-10-01', parcelamento: { id: 'grupo_a', parcela: 1, total: 3 } },
+    { id: 'p2', tipo: 'saida', descricao: 'Tenis (2/3)', fixo: false, valor: 33, data: '2026-11-01', parcelamento: { id: 'grupo_a', parcela: 2, total: 3 } },
+    { id: 'p3', tipo: 'saida', descricao: 'Tenis (3/3)', fixo: false, valor: 33, data: '2026-12-01', parcelamento: { id: 'grupo_a', parcela: 3, total: 3 } },
+    { id: 'avulso_outro', tipo: 'saida', descricao: 'Cafe', fixo: false, valor: 500, data: '2026-10-01' },
+  ];
+
+  const soEsta = excluirParcelas(lista, 'grupo_a', 'esta', 2);
+  conferir('excluirParcelas — soEsta remove apenas parcela 2', soEsta.map((l) => l.id), ['p1', 'p3', 'avulso_outro']);
+
+  const daquiEmDiante = excluirParcelas(lista, 'grupo_a', 'daqui', 2);
+  conferir('excluirParcelas — daquiEmDiante remove parcelas 2 e 3', daquiEmDiante.map((l) => l.id), ['p1', 'avulso_outro']);
+
+  const todas = excluirParcelas(lista, 'grupo_a', 'todas', 2);
+  conferir('excluirParcelas — todas remove todas do grupo', todas.map((l) => l.id), ['avulso_outro']);
+}
+
+/* 5. normalizarEstado com parcelamento */
+{
+  const normalizado = normalizarEstado({
+    lancamentos: [
+      {
+        id: 'valido',
+        tipo: 'saida',
+        descricao: 'Compra',
+        data: '2026-10-01',
+        valor: 1000,
+        parcelamento: { id: 'g1', parcela: 1, total: 3 },
+      },
+      {
+        id: 'invalido_parcela_maior',
+        tipo: 'saida',
+        descricao: 'Compra torta',
+        data: '2026-10-01',
+        valor: 1000,
+        parcelamento: { id: 'g1', parcela: 4, total: 3 },
+      },
+      {
+        id: 'invalido_sem_id',
+        tipo: 'saida',
+        descricao: 'Compra sem id',
+        data: '2026-10-01',
+        valor: 1000,
+        parcelamento: { id: '', parcela: 1, total: 3 },
+      },
+    ],
+  });
+
+  const l0 = /** @type {import('../nucleo.js').Avulso} */ (normalizado.lancamentos[0]);
+  const l1 = /** @type {import('../nucleo.js').Avulso} */ (normalizado.lancamentos[1]);
+  const l2 = /** @type {import('../nucleo.js').Avulso} */ (normalizado.lancamentos[2]);
+
+  conferir('normalizarEstado — preserva parcelamento valido', l0.parcelamento, { id: 'g1', parcela: 1, total: 3 });
+  conferir('normalizarEstado — descarta parcelamento com parcela > total', l1.parcelamento, undefined);
+  conferir('normalizarEstado — descarta parcelamento sem id de grupo', l2.parcelamento, undefined);
+}
 
 /* ---------- resultado ---------- */
 
