@@ -54,6 +54,13 @@
  * `null` do mesmo jeito: "o app não sabe". */
 
 /**
+ * @typedef {object} Parcelamento
+ * @property {string} id
+ * @property {number} parcela
+ * @property {number} total
+ */
+
+/**
  * @typedef {object} Avulso
  * @property {string} id
  * @property {TipoDeLancamento} tipo
@@ -61,6 +68,7 @@
  * @property {string|null} [categoria] Id de categoria, ou `null` para sem categoria.
  * @property {string|null} [cartao] Id do cartão em que foi pago, ou `null`.
  * @property {string} [criadoEm] Timestamp ISO de quando o lançamento foi anotado.
+ * @property {Parcelamento} [parcelamento] Metadados de compra parcelada, se houver.
  * @property {false} fixo
  * @property {number} valor Em centavos.
  * @property {Data} data
@@ -74,6 +82,7 @@
  * @property {string|null} [categoria] Id de categoria, ou `null` para sem categoria.
  * @property {string|null} [cartao] Id do cartão em que é pago, ou `null`.
  * @property {string} [criadoEm] Timestamp ISO de quando o lançamento foi anotado.
+ * @property {undefined} [parcelamento]
  * @property {true} fixo
  * @property {number} dia
  * @property {Mes} inicio
@@ -359,6 +368,22 @@ export function rotuloDoMes(mes) {
  */
 export function diaDe(data) {
   return Number(String(data).slice(8, 10));
+}
+
+/**
+ * Desloca uma data em N meses preservando o dia, limitado ao total de dias do novo mês.
+ * @param {Data} data 'AAAA-MM-DD'
+ * @param {number} passos
+ * @returns {Data}
+ */
+export function deslocarDataMes(data, passos) {
+  if (passos === 0) return data;
+  const mesAtual = mesDe(data);
+  const dia = diaDe(data);
+  const novoMes = deslocarMes(mesAtual, passos);
+  const maxDias = diasNoMes(novoMes);
+  const novoDia = Math.min(dia, maxDias);
+  return novoMes + '-' + String(novoDia).padStart(2, '0');
 }
 
 /* ---------- Estado ----------
@@ -995,6 +1020,18 @@ export function normalizarEstado(bruto) {
       });
     } else {
       if (!ehData(cru.data) || valorSolto <= 0) continue;
+
+      /** @type {Parcelamento|undefined} */
+      let parcelamento = undefined;
+      if (cru.parcelamento && typeof cru.parcelamento === 'object') {
+        const pid = String(cru.parcelamento.id ?? '').trim();
+        const pNum = Math.trunc(Number(cru.parcelamento.parcela));
+        const pTot = Math.trunc(Number(cru.parcelamento.total));
+        if (pid && pNum >= 1 && pTot >= 1 && pNum <= pTot) {
+          parcelamento = { id: pid, parcela: pNum, total: pTot };
+        }
+      }
+
       lancamentos.push({
         ...base,
         categoria,
@@ -1002,6 +1039,7 @@ export function normalizarEstado(bruto) {
         fixo: false,
         valor: valorSolto,
         data: cru.data,
+        ...(parcelamento ? { parcelamento } : {}),
       });
     }
   }
@@ -1907,6 +1945,130 @@ export function pularMes(lancamentos, id, mes) {
 export function encerrarFixo(lancamentos, id, mes) {
   const fim = deslocarMes(mes, -1);
   return lancamentos.map((l) => (l.id === id && l.fixo ? { ...l, fim } : l));
+}
+
+/* ---------- Compras parceladas ---------- */
+
+/**
+ * Divide um valor total em centavos pelo número de parcelas.
+ * Garante que a soma das parcelas seja exatamente igual ao valor total,
+ * distribuindo eventuais centavos restantes nas primeiras parcelas.
+ *
+ * @param {number} valorTotal Em centavos.
+ * @param {number} totalParcelas
+ * @returns {number[]} Array com o valor em centavos de cada parcela.
+ */
+export function calcularParcelas(valorTotal, totalParcelas) {
+  const n = Math.max(1, Math.floor(totalParcelas));
+  const total = Math.max(0, Math.floor(valorTotal));
+  if (n === 1) return [total];
+
+  const base = Math.floor(total / n);
+  const resto = total % n;
+
+  /** @type {number[]} */
+  const parcelas = [];
+  for (let i = 0; i < n; i++) {
+    parcelas.push(i < resto ? base + 1 : base);
+  }
+  return parcelas;
+}
+
+/**
+ * @typedef {object} OpcoesParcelamento
+ * @property {{ tipo: TipoDeLancamento, descricao: string, categoria?: string|null, cartao?: string|null, criadoEm?: string }} base
+ * @property {number} valorTotal Em centavos.
+ * @property {number} totalParcelas
+ * @property {Data} dataInicial
+ * @property {string} [parcelamentoId]
+ * @property {() => string} [gerarId]
+ */
+
+/**
+ * Gera os lançamentos avulsos para uma compra parcelada no cartão.
+ * Se totalParcelas <= 1, devolve um único lançamento avulso.
+ *
+ * @param {OpcoesParcelamento} opcoes
+ * @returns {Avulso[]}
+ */
+export function gerarLancamentosParcelados({
+  base,
+  valorTotal,
+  totalParcelas,
+  dataInicial,
+  parcelamentoId,
+  gerarId = () => Math.random().toString(36).slice(2, 9),
+}) {
+  const n = Math.max(1, Math.floor(totalParcelas));
+  if (n === 1) {
+    return [
+      {
+        id: gerarId(),
+        tipo: base.tipo,
+        descricao: base.descricao,
+        categoria: base.categoria ?? null,
+        cartao: base.cartao ?? null,
+        criadoEm: base.criadoEm,
+        fixo: false,
+        valor: valorTotal,
+        data: dataInicial,
+      },
+    ];
+  }
+
+  const valores = calcularParcelas(valorTotal, n);
+  const idGrupo = parcelamentoId || ('parc_' + Date.now() + '_' + gerarId());
+
+  /** @type {Avulso[]} */
+  const resultado = [];
+  for (let i = 0; i < n; i++) {
+    const num = i + 1;
+    resultado.push({
+      id: gerarId(),
+      tipo: base.tipo,
+      descricao: `${base.descricao} (${num}/${n})`,
+      categoria: base.categoria ?? null,
+      cartao: base.cartao ?? null,
+      criadoEm: base.criadoEm,
+      fixo: false,
+      valor: valores[i],
+      data: deslocarDataMes(dataInicial, i),
+      parcelamento: {
+        id: idGrupo,
+        parcela: num,
+        total: n,
+      },
+    });
+  }
+
+  return resultado;
+}
+
+/**
+ * Exclui parcelas de um grupo de parcelamento conforme o modo escolhido.
+ * - 'esta': remove apenas a parcela número `parcelaNumero`.
+ * - 'daqui': remove as parcelas a partir de `parcelaNumero` em diante.
+ * - 'todas': remove todas as parcelas do grupo.
+ *
+ * @param {Lancamento[]} lancamentos
+ * @param {string} parcelamentoId
+ * @param {'esta'|'daqui'|'todas'} modo
+ * @param {number} [parcelaNumero]
+ * @returns {Lancamento[]}
+ */
+export function excluirParcelas(lancamentos, parcelamentoId, modo, parcelaNumero) {
+  if (modo === 'todas') {
+    return lancamentos.filter((l) => l.fixo || !l.parcelamento || l.parcelamento.id !== parcelamentoId);
+  }
+  if (modo === 'daqui') {
+    const num = parcelaNumero ?? 1;
+    return lancamentos.filter(
+      (l) => l.fixo || !l.parcelamento || l.parcelamento.id !== parcelamentoId || l.parcelamento.parcela < num
+    );
+  }
+  return lancamentos.filter(
+    (l) => l.fixo || !l.parcelamento || l.parcelamento.id !== parcelamentoId || l.parcelamento.parcela !== parcelaNumero
+  );
 }
 
 /* ---------- Backup ----------
