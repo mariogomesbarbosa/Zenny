@@ -19,7 +19,7 @@
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
 <meta name="apple-mobile-web-app-title" content="Zenny">
 
-<link rel="stylesheet" href="styles.css?v=8">
+<link rel="stylesheet" href="styles.css?v=9">
 
 <!-- Tema antes da primeira pintura: se isso esperar o app.js, a tela pisca
      branca em quem usa o tema escuro. -->
@@ -508,6 +508,27 @@
       <p class="dica" id="dica-do-cartao" hidden></p>
     </div>
 
+    <div class="campo" id="campo-do-parcelamento" hidden>
+      <label for="campo-parcelas">Parcelas</label>
+      <select id="campo-parcelas">
+        <option value="1">1x (à vista)</option>
+        <option value="2">2x</option>
+        <option value="3">3x</option>
+        <option value="4">4x</option>
+        <option value="5">5x</option>
+        <option value="6">6x</option>
+        <option value="7">7x</option>
+        <option value="8">8x</option>
+        <option value="9">9x</option>
+        <option value="10">10x</option>
+        <option value="11">11x</option>
+        <option value="12">12x</option>
+        <option value="18">18x</option>
+        <option value="24">24x</option>
+      </select>
+      <p class="dica" id="dica-das-parcelas" hidden></p>
+    </div>
+
     <label class="marcador" id="campo-do-realizado">
       <input type="checkbox" id="campo-realizado">
       <span id="rotulo-realizado">Já recebi</span>
@@ -533,6 +554,20 @@
       <button type="button" class="botao contorno" id="excluir-daqui">Encerrar deste mês em diante</button>
       <button type="button" class="botao contorno" id="excluir-todos">Excluir de todos os meses</button>
       <button type="button" class="botao apagado" id="excluir-cancelar">Cancelar</button>
+    </div>
+  </div>
+</dialog>
+
+<dialog id="dialogo-exclusao-parcela" aria-labelledby="titulo-da-exclusao-parcela">
+  <div class="pegador" aria-hidden="true"></div>
+  <div class="folha">
+    <h2 id="titulo-da-exclusao-parcela">Excluir compra parcelada</h2>
+    <p class="dica" id="explicacao-da-exclusao-parcela">Esta compra tem parcelas em outros meses. O que você quer fazer?</p>
+    <div class="pilha">
+      <button type="button" class="botao contorno" id="excluir-parcela-so-esta">Excluir só esta parcela</button>
+      <button type="button" class="botao contorno" id="excluir-parcela-daqui">Excluir desta em diante</button>
+      <button type="button" class="botao contorno" id="excluir-parcela-todas">Excluir todas as parcelas</button>
+      <button type="button" class="botao apagado" id="excluir-parcela-cancelar">Cancelar</button>
     </div>
   </div>
 </dialog>

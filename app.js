@@ -60,6 +60,9 @@ import {
   dataPadraoDaFatura,
   idDaFatura,
   situacaoDoLimite,
+  calcularParcelas,
+  gerarLancamentosParcelados,
+  excluirParcelas,
 } from './nucleo.js';
 
 import {
@@ -105,6 +108,7 @@ import {
  * @property {string|number} dia
  * @property {boolean} jaAconteceu
  * @property {string|null} cartao Id do cartão em que foi pago, ou `null`.
+ * @property {number} [totalParcelas]
  */
 
 /**
@@ -263,6 +267,8 @@ let tipoDoFormulario = 'entrada';
 let modoDoFormulario = 'entrada';
 /** @type {LancamentoDoMes|null} */
 let pendenteDeExclusao = null;
+/** @type {LancamentoDoMes|null} */
+let pendenteDeExclusaoParcela = null;
 /** @type {(() => void)|null} */
 let desfazer = null;
 /** @type {ReturnType<typeof setTimeout>|null} */
@@ -575,6 +581,20 @@ function pedirExclusao(lancamento) {
     return;
   }
 
+  if (lancamento.parcelamento) {
+    const parc = lancamento.parcelamento;
+    const outras = estado.lancamentos.filter(
+      (l) => !l.fixo && l.parcelamento && l.parcelamento.id === parc.id && l.id !== lancamento.id
+    );
+    if (outras.length > 0) {
+      pendenteDeExclusaoParcela = lancamento;
+      $('explicacao-da-exclusao-parcela').textContent =
+        `Esta compra é a parcela ${parc.parcela} de ${parc.total}. O que você quer fazer?`;
+      $dialogo('dialogo-exclusao-parcela').showModal();
+      return;
+    }
+  }
+
   pedirConfirmacao({
     titulo: 'Excluir lançamento?',
     mensagem: `O lançamento "${lancamento.descricao}" será removido.`,
@@ -644,6 +664,56 @@ $('excluir-todos').addEventListener('click', () =>
 $('excluir-cancelar').addEventListener('click', () => {
   pendenteDeExclusao = null;
   fecharDialogo('dialogo-exclusao');
+});
+
+/**
+ * @param {'esta'|'daqui'|'todas'} modo
+ * @param {string} texto
+ */
+function concluirExclusaoParcela(modo, texto) {
+  const alvo = pendenteDeExclusaoParcela;
+  if (!alvo || !alvo.parcelamento) return;
+
+  const anterior = instantaneo();
+  const grupoId = alvo.parcelamento.id;
+  const num = alvo.parcelamento.parcela;
+
+  const excluidos = estado.lancamentos.filter((l) => {
+    if (l.fixo || !l.parcelamento || l.parcelamento.id !== grupoId) return false;
+    if (modo === 'todas') return true;
+    if (modo === 'daqui') return l.parcelamento.parcela >= num;
+    return l.parcelamento.parcela === num;
+  });
+
+  let realizados = estado.realizados;
+  for (const exc of excluidos) {
+    realizados = limparRealizadosDe(realizados, exc.id);
+  }
+
+  const lancamentos = excluirParcelas(estado.lancamentos, grupoId, modo, num);
+
+  estado = { ...estado, lancamentos, realizados };
+  fecharDialogo('dialogo-exclusao-parcela');
+  pendenteDeExclusaoParcela = null;
+  salvar();
+  avisar(texto, () => restaurar(anterior));
+}
+
+$('excluir-parcela-so-esta').addEventListener('click', () =>
+  concluirExclusaoParcela('esta', 'Parcela removida.')
+);
+
+$('excluir-parcela-daqui').addEventListener('click', () =>
+  concluirExclusaoParcela('daqui', 'Parcelas deste mês em diante foram removidas.')
+);
+
+$('excluir-parcela-todas').addEventListener('click', () =>
+  concluirExclusaoParcela('todas', 'Todas as parcelas foram removidas.')
+);
+
+$('excluir-parcela-cancelar').addEventListener('click', () => {
+  pendenteDeExclusaoParcela = null;
+  fecharDialogo('dialogo-exclusao-parcela');
 });
 
 /* ---------- Confirmação para ações destrutivas ---------- */
@@ -829,6 +899,7 @@ function definirModo(modo, cartaoId) {
 
   $('rotulo-realizado').textContent = modo === 'entrada' ? 'Já recebi' : 'Já paguei';
   desenharEscolhaDeCartao(cartaoId);
+  atualizarVisibilidadeParcelas();
 }
 
 
@@ -899,12 +970,60 @@ function atualizarDicaDoCartao() {
   dica.textContent = 'Entra na fatura de ' + rotuloDoMes(faturaDaCompra(cartao, data)) + '.';
 }
 
+function atualizarVisibilidadeParcelas() {
+  const campoParcelas = $('campo-do-parcelamento');
+  if (!campoParcelas) return;
+
+  const ehCartao = modoDoFormulario === 'cartao';
+  const ehAvulsa = $selecao('campo-repeticao').value === 'avulsa';
+  const podeParcelar = ehCartao && ehAvulsa && !editando;
+
+  campoParcelas.hidden = !podeParcelar;
+  if (!podeParcelar) {
+    $('dica-das-parcelas').hidden = true;
+    $('dica-das-parcelas').textContent = '';
+  } else {
+    atualizarDicaDasParcelas();
+  }
+}
+
+function atualizarDicaDasParcelas() {
+  const dica = $('dica-das-parcelas');
+  if (!dica) return;
+
+  const totalParcelas = parseInt($selecao('campo-parcelas').value, 10) || 1;
+  if (totalParcelas <= 1) {
+    dica.hidden = true;
+    dica.textContent = '';
+    return;
+  }
+
+  const valorDigitado = $campo('campo-valor').value.trim();
+  const centavos = valorDigitado ? analisarValor(valorDigitado) : 0;
+  if (!centavos || centavos <= 0) {
+    dica.hidden = false;
+    dica.textContent = `${totalParcelas} parcelas no cartão.`;
+    return;
+  }
+
+  const parcelas = calcularParcelas(centavos, totalParcelas);
+  const primeira = parcelas[0];
+  const demaisIguais = parcelas.slice(1).every((p) => p === parcelas[1]);
+  dica.hidden = false;
+  if (primeira === parcelas[1] && demaisIguais) {
+    dica.textContent = `${totalParcelas}x de ${formatarDinheiro(primeira)}.`;
+  } else {
+    dica.textContent = `1ª de ${formatarDinheiro(primeira)} e ${totalParcelas - 1}x de ${formatarDinheiro(parcelas[1])}.`;
+  }
+}
+
 /** @param {boolean} ehFixa */
 function definirRepeticao(ehFixa) {
   $('campo-da-data').hidden = ehFixa;
   $('campo-do-dia').hidden = !ehFixa;
   $('dica-da-repeticao').hidden = !ehFixa;
   $('dica-mes').textContent = rotuloDoMes(editando && editando.fixo ? editando.inicio : mesVisivel);
+  atualizarVisibilidadeParcelas();
 }
 
 /**
@@ -927,6 +1046,7 @@ function abrirFormulario(lancamento, modoInicial, cartaoInicial) {
   $campo('campo-descricao').value = lancamento ? lancamento.descricao : '';
   $campo('campo-valor').value = lancamento ? valorParaCampo(lancamento.valor) : '';
   $selecao('campo-repeticao').value = lancamento && lancamento.fixo ? 'fixa' : 'avulsa';
+  $selecao('campo-parcelas').value = '1';
 
   // Ao adicionar, a data padrão é hoje se o mês visível é o atual; senão, o dia
   // 1 do mês que a pessoa está olhando — que é o que ela quis dizer ao navegar
@@ -945,6 +1065,7 @@ function abrirFormulario(lancamento, modoInicial, cartaoInicial) {
   $('botao-excluir').hidden = !lancamento;
 
   definirRepeticao($selecao('campo-repeticao').value === 'fixa');
+  atualizarVisibilidadeParcelas();
   esconderErro();
   $dialogo('dialogo').showModal();
 
@@ -987,6 +1108,8 @@ $('tipo-cartao').addEventListener('click', () => {
 $selecao('campo-repeticao').addEventListener('change', () =>
   definirRepeticao($selecao('campo-repeticao').value === 'fixa')
 );
+$selecao('campo-parcelas').addEventListener('change', atualizarDicaDasParcelas);
+$campo('campo-valor').addEventListener('input', atualizarDicaDasParcelas);
 /**
  * Fecha um diálogo com animação suave de saída.
  * @param {string|HTMLDialogElement} idOuElem
@@ -1129,6 +1252,7 @@ for (const id of [
   'dialogo-cartao',
   'dialogo-fatura',
   'dialogo-ajuste-fatura',
+  'dialogo-exclusao-parcela',
 ]) {
   $dialogo(id).addEventListener('click', (evento) => {
     if (evento.target === $dialogo(id)) fecharDialogo(id);
@@ -1146,6 +1270,7 @@ for (const id of [
      próximo diálogo. */
   $dialogo(id).addEventListener('close', () => {
     if (id === 'dialogo-exclusao') pendenteDeExclusao = null;
+    if (id === 'dialogo-exclusao-parcela') pendenteDeExclusaoParcela = null;
     if (id === 'dialogo-confirmar') pendenteDeConfirmacao = null;
     if (id === 'dialogo-valor') pendenteDeValor = null;
     if (id === 'dialogo-restaurar') pendenteDeRestauracao = null;
@@ -1229,7 +1354,36 @@ function categoriaParaAlteracao(descricao) {
  * @param {'daqui'|'sempre'|'inalterado'} modo
  */
 function aplicarAlteracao(alteracao, modo) {
-  const { descricao, valor, ehFixa, data, dia, jaAconteceu, cartao } = alteracao;
+  const { descricao, valor, ehFixa, data, dia, jaAconteceu, cartao, totalParcelas = 1 } = alteracao;
+
+  if (!editando && totalParcelas > 1 && cartao) {
+    const novos = gerarLancamentosParcelados({
+      base: {
+        tipo: 'saida',
+        descricao,
+        categoria: categoriaParaAlteracao(descricao),
+        cartao,
+        criadoEm: new Date().toISOString(),
+      },
+      valorTotal: valor,
+      totalParcelas,
+      dataInicial: data,
+      gerarId: novoId,
+    });
+
+    const lancamentos = [...estado.lancamentos, ...novos];
+    const cartaoDoRegistro = cartaoPorId(estado, cartao);
+    const mesParaOlhar = cartaoDoRegistro
+      ? faturaDaCompra(cartaoDoRegistro, novos[0].data)
+      : mesDe(novos[0].data);
+
+    estado = { ...estado, lancamentos };
+    mesVisivel = mesParaOlhar;
+    editando = null;
+    salvar();
+    return;
+  }
+
   const antigo = fixoEmEdicao();
   const base = {
     id: editando ? editando.id : novoId(),
@@ -1257,7 +1411,15 @@ function aplicarAlteracao(alteracao, modo) {
       valores: linhaDoTempoDoFixo(valor, inicio, modo),
     };
   } else {
-    novo = { ...base, fixo: false, valor, data };
+    novo = {
+      ...base,
+      fixo: false,
+      valor,
+      data,
+      ...(editando && !editando.fixo && editando.parcelamento
+        ? { parcelamento: editando.parcelamento }
+        : {}),
+    };
   }
 
   const lancamentos = editando
@@ -1311,6 +1473,11 @@ function aplicarAlteracao(alteracao, modo) {
 $('formulario').addEventListener('submit', (evento) => {
   evento.preventDefault();
 
+  const totalParcelas =
+    modoDoFormulario === 'cartao' && !editando && $selecao('campo-repeticao').value === 'avulsa'
+      ? parseInt($selecao('campo-parcelas').value, 10) || 1
+      : 1;
+
   const alteracao = {
     descricao: $campo('campo-descricao').value.trim(),
     valor: analisarValor($campo('campo-valor').value),
@@ -1319,6 +1486,7 @@ $('formulario').addEventListener('submit', (evento) => {
     dia: $campo('campo-dia').value,
     jaAconteceu: modoDoFormulario === 'cartao' ? false : $campo('campo-realizado').checked,
     cartao: modoDoFormulario === 'cartao' ? $selecao('campo-cartao').value || null : null,
+    totalParcelas,
   };
 
   if (!alteracao.descricao) return mostrarErro('Falta dizer o que é.', $campo('campo-descricao'));
