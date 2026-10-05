@@ -47,13 +47,16 @@ tutorial.
 - 🎯 **Valor antes de configuração** — abre útil. Registrar o primeiro gasto não
   exige criar conta, categoria nem saldo inicial.
 - 👆 **Três toques** — valor, categoria, pronto. O resto tem padrão inteligente.
+- 💳 **Cartão de crédito sem sustos** — compras à vista e parceladas com divisão
+  exata no centavo nos meses seguintes, e acompanhamento da fatura em tempo real.
 - 🗣️ **Linguagem de gente** — "o que sobrou", não "saldo disponível".
 - 📚 **Educação no contexto** — a explicação nasce onde a dúvida aparece, não
   numa aba de artigos que ninguém lê.
 - 🤝 **Sem culpa** — estourar um limite gera informação, não bronca.
 - 📱 **Mobile first e instalável** — funciona como app no celular, e abre sem
   internet.
-- 🔒 **Seus dados são seus** — ficam no aparelho. Sem login obrigatório.
+- 🔒 **Seus dados são seus** — ficam no aparelho, com backup local ou no Google
+  Drive. Sem login obrigatório.
 
 E o que ele deliberadamente **não** faz: sincronizar com banco, recomendar
 investimento, comparar você com outras pessoas, ou gerar relatório de doze
@@ -83,6 +86,7 @@ npx --yes http-server . -p 8142 -c-1
 |---|---|
 | [CLAUDE.md](CLAUDE.md) | O contrato de trabalho: princípios, regras técnicas e o fluxo de PR |
 | [docs/conceito.md](docs/conceito.md) | A régua do projeto: problema, público, promessa, não-objetivos e roteiro |
+| [docs/compras-parceladas.md](docs/compras-parceladas.md) | Compras parceladas no cartão: modelo, divisão no centavo e exclusão |
 | [docs/mescla-com-o-mvp.md](docs/mescla-com-o-mvp.md) | Por que o Zenny é um planejador e não um diário |
 | [docs/](docs/) | Um documento por bloco, com as decisões e o porquê de cada uma |
 | [docs/pendencias.md](docs/pendencias.md) | Ressalvas conhecidas |
