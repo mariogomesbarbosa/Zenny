@@ -196,7 +196,7 @@ Qual das duas é decisão a tomar na implementação.
 
 ## 7. As listas do Início começam pelo lançamento mais antigo
 
-**Status:** 🟡 Em andamento — [issue #45](https://github.com/mariogomesbarbosa/Zenny/issues/45)
+**Status:** 🟢 Feita — [PR #49](https://github.com/mariogomesbarbosa/Zenny/pull/49), a partir da [issue #45](https://github.com/mariogomesbarbosa/Zenny/issues/45)
 **Onde:** `app.js`, `desenharGrupo`
 **Pedido:** inverter a ordem de Receitas e Despesas, para que os mais recentes
 fiquem no topo, visíveis sem rolar.
@@ -229,5 +229,6 @@ critério, para que as duas listas não se contradigam.
 - **4. Os campos de valor precisam de máscara** — [PR #26](https://github.com/mariogomesbarbosa/Zenny/pull/26)
 - **5. O limite de 1 a 31 nos dias não é respeitado** — [PR #26](https://github.com/mariogomesbarbosa/Zenny/pull/26)
 - **6. Card de compras do cartão e confirmação para ações destrutivas** — [PR #30](https://github.com/mariogomesbarbosa/Zenny/pull/30)
+- **7. As listas do Início começam pelo lançamento mais antigo** — [PR #49](https://github.com/mariogomesbarbosa/Zenny/pull/49)
 
 As melhorias que entraram antes desta lista existir estão na seção "Resolvidas" de [pendencias.md](pendencias.md).
