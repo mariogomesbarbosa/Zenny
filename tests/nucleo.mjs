@@ -72,6 +72,8 @@ import {
   calcularParcelas,
   gerarLancamentosParcelados,
   excluirParcelas,
+  contasAPagar,
+  vaiDar,
 } from '../nucleo.js';
 
 /* Fuso fixo, e de proposito um em que a data local difere da UTC por boa parte
@@ -2323,6 +2325,66 @@ conferir('calcularParcelas — invariante da soma validada para multiplos casos'
   conferir('normalizarEstado — preserva parcelamento valido', l0.parcelamento, { id: 'g1', parcela: 1, total: 3 });
   conferir('normalizarEstado — descarta parcelamento com parcela > total', l1.parcelamento, undefined);
   conferir('normalizarEstado — descarta parcelamento sem id de grupo', l2.parcelamento, undefined);
+}
+
+/* ---------- vai dar? ---------- */
+
+{
+  const VAI_DAR = normalizarEstado({
+    versao: 6,
+    cartoes: [{ id: 'c1', nome: 'Nubank', limite: 0, fechamento: 30, vencimento: 15 }],
+    lancamentos: [
+      { id: 'sal', tipo: 'entrada', descricao: 'Salário', cartao: null, valor: 300000, data: '2026-10-05' },
+      { id: 'net', tipo: 'saida', descricao: 'Internet', cartao: null, valor: 9900, data: '2026-10-20' },
+      { id: 'alu', tipo: 'saida', descricao: 'Aluguel', cartao: null, valor: 120000, data: '2026-10-10' },
+      { id: 'aca', tipo: 'saida', descricao: 'Academia', cartao: null, valor: 8900, data: '2026-10-05' },
+      // Compra de setembro: vira a fatura de outubro.
+      { id: 'mer', tipo: 'saida', descricao: 'Mercado', cartao: 'c1', valor: 64000, data: '2026-09-12' },
+      // Compra de outubro: só pesa na fatura de novembro.
+      { id: 'uber', tipo: 'saida', descricao: 'Uber', cartao: 'c1', valor: 2500, data: '2026-10-08' },
+    ],
+  });
+
+  const pendentes = contasAPagar(VAI_DAR, '2026-10');
+  conferir('contasAPagar traz as saidas do mes, fatura junto, em ordem de dia',
+    pendentes.map((i) => [i.descricao, i.dia]),
+    [['Academia', 5], ['Aluguel', 10], ['Fatura do Nubank', 15], ['Internet', 20]]);
+  conferir('a fatura entra com a soma do ciclo',
+    pendentes.find((i) => i.ehFatura)?.valor, 64000);
+  conferir('receita nao e conta a pagar',
+    pendentes.some((i) => i.tipo === 'entrada'), false);
+  conferir('compra no cartao feita no mes nao vira conta do mes',
+    pendentes.some((i) => i.id === 'uber'), false);
+
+  /** @type {Realizados} */
+  const pagos = {
+    [chaveDeRealizado('aca', '2026-10')]: true,
+    [chaveDeRealizado(idDaFatura('c1'), '2026-10')]: true,
+  };
+  conferir('o que ja foi marcado como pago sai da lista, fatura inclusive',
+    contasAPagar({ ...VAI_DAR, realizados: pagos }, '2026-10').map((i) => i.id),
+    ['alu', 'net']);
+
+  conferir('mes sem nada a pagar devolve lista vazia',
+    contasAPagar(VAI_DAR, '2026-08'), []);
+
+  /* Decisao 4 do plano: o que ficou pendente num mes nao vaza para o seguinte.
+     A academia de outubro, nunca paga, nao aparece em novembro como atrasada —
+     so a fatura de novembro, que e conta do proprio mes. */
+  conferir('pendencia de outubro nao aparece em novembro',
+    contasAPagar(VAI_DAR, '2026-11').map((i) => i.descricao), ['Fatura do Nubank']);
+
+  conferir('vaiDar soma as contas e tira do saldo',
+    vaiDar(243000, [120000, 64000, 9900]), { aPagar: 193900, sobra: 49100 });
+  conferir('sem conta marcada, a sobra e o proprio saldo',
+    vaiDar(243000, []), { aPagar: 0, sobra: 243000 });
+  conferir('a sobra sai negativa quando nao da, e nao achatada em zero',
+    vaiDar(100000, [120000, 9900]), { aPagar: 129900, sobra: -29900 });
+  conferir('saldo zero com contas e falta do total',
+    vaiDar(0, [8900]), { aPagar: 8900, sobra: -8900 });
+  /* Centavos sao inteiros: 0,10 + 0,20 da 0,30, e nao 0,30000000000000004. */
+  conferir('soma de centavos nao tem erro de ponto flutuante',
+    vaiDar(100, [10, 20]), { aPagar: 30, sobra: 70 });
 }
 
 /* ---------- resultado ---------- */
