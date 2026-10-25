@@ -424,7 +424,9 @@ function forte(texto) {
 function desenharGrupo(nome, lancamentos, lado, verbo) {
   const lista = $('lista-' + nome);
   lista.textContent = '';
-  for (const lancamento of lancamentos) lista.appendChild(linhaDoLancamento(lancamento));
+  for (const lancamento of [...lancamentos].sort(ordemDoInicio)) {
+    lista.appendChild(linhaDoLancamento(lancamento));
+  }
 
   $('vazio-' + nome).hidden = lancamentos.length > 0;
   $('total-' + nome).textContent = formatarDinheiro(lado.previsto);
@@ -434,6 +436,27 @@ function desenharGrupo(nome, lancamentos, lado, verbo) {
   $('pe-' + nome + '-realizado').textContent = lancamentos.length
     ? verbo + ' ' + formatarDinheiro(lado.realizado)
     : '';
+}
+
+/* O mais recente no topo, visível sem rolar (issue #45). O critério é o mesmo
+ * da fatura do cartão: o dia primeiro e, no mesmo dia, o que foi anotado por
+ * último. Duas listas do mesmo app ordenando de jeitos diferentes ensinariam a
+ * pessoa a desconfiar das duas.
+ *
+ * Mora aqui, e não no `itensDoMes`, porque é escolha desta tela: o "Vai dar?"
+ * usa a mesma lista na ordem crescente, que é a ordem em que as contas vencem.
+ *
+ * Compara pelo `dia`, e não pelo `momentoDoLancamento` da tela do cartão,
+ * porque esta lista tem faturas — e fatura não tem data nem hora de anotação. */
+/**
+ * @param {ItemDoMes} a
+ * @param {ItemDoMes} b
+ * @returns {number}
+ */
+function ordemDoInicio(a, b) {
+  /** @param {ItemDoMes} item */
+  const anotadoEm = (item) => (item.ehFatura ? 0 : timestampDeCriacao(item));
+  return b.dia - a.dia || anotadoEm(b) - anotadoEm(a) || b.id.localeCompare(a.id);
 }
 
 /** @param {ItemDoMes} lancamento @returns {HTMLLIElement} */
