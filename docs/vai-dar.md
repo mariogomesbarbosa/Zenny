@@ -114,7 +114,7 @@ São escolhas que o plano faz por padrão e que valem confirmação antes do có
 | # | Pergunta | Padrão proposto | Por quê |
 |---|---|---|---|
 | 1 | Receita que ainda não entrou conta? | **Não entra na sobra.** Aparece numa linha à parte: "e ainda entra R$ X" (`faltaEntrar`, que o resumo já calcula) | O vale do dia 20 pode atrasar. A resposta conservadora é a que não decepciona |
-| 2 | Qual mês? | **O mês aberto no seletor**, com o nome do mês no título | Quem recebe no dia 30 abre o mês seguinte para ver as contas dele. Travar no mês corrente quebraria esse caso |
+| 2 | Qual mês? | **O mês aberto no seletor**, com o nome do mês no título quando ele não é o mês de hoje | Quem recebe no dia 30 abre o mês seguinte para ver as contas dele. Travar no mês corrente quebraria esse caso. No mês de hoje o nome seria ruído, e por isso só aparece fora dele — ajuste feito na implementação |
 | 3 | Conta atrasada, com dia já passado e não paga | **Entra na lista**, como qualquer pendente | Se não foi marcada, para o app ela ainda não foi paga. A caixa resolve se foi |
 | 4 | Conta pendente de mês anterior | **Não entra** | O app não tem a noção de "atrasada de outro mês" hoje, e inventá-la aqui é escopo de outro bloco |
 | 5 | O saldo digitado fica salvo? | **Não.** Fechou, zerou | Saldo é foto de um instante. Gravado, ele vira o palpite errado da semana que vem. E não guardar dispensa migração de esquema |

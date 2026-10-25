@@ -63,6 +63,8 @@ import {
   calcularParcelas,
   gerarLancamentosParcelados,
   excluirParcelas,
+  contasAPagar,
+  vaiDar,
 } from './nucleo.js';
 
 import {
@@ -389,6 +391,10 @@ function desenharPainel(resumo) {
       forte(formatarDinheiro(resumo.faltaSair))
     );
   }
+
+  /* Mês sem nada registrado não tem conta a pagar nem palpite para desconfiar:
+     o botão ali seria uma pergunta sem assunto. */
+  $('botao-vai-dar').hidden = resumo.vazio;
 
   $('valor-entradas').textContent = formatarDinheiro(resumo.entradas.previsto);
   $('valor-despesas').textContent = formatarDinheiro(resumo.despesas.previsto);
@@ -1253,6 +1259,7 @@ for (const id of [
   'dialogo-fatura',
   'dialogo-ajuste-fatura',
   'dialogo-exclusao-parcela',
+  'dialogo-vai-dar',
 ]) {
   $dialogo(id).addEventListener('click', (evento) => {
     if (evento.target === $dialogo(id)) fecharDialogo(id);
@@ -1280,6 +1287,7 @@ for (const id of [
     }
     if (id === 'dialogo-limite') limiteEmEdicao = null;
     if (id === 'dialogo-cartao') cartaoEmEdicao = null;
+    if (id === 'dialogo-vai-dar') limparVaiDar();
   });
 }
 
@@ -3135,6 +3143,175 @@ $('fatura-cancelar').addEventListener('click', () => {
   fecharDialogo('dialogo-fatura');
 });
 
+/* ---------- Vai dar? ----------
+ *
+ * O saldo real contra as contas que faltam. Ver docs/vai-dar.md.
+ *
+ * Nada daqui toca o `estado`: desmarcar uma conta não a marca como paga, e a
+ * conta avulsa não vira lançamento. A tela lê o DOM, entrega os números ao
+ * núcleo e escreve a resposta — a soma é do `vaiDar`, nunca desta camada. */
+
+/* Quanto ainda deve entrar no mês, guardado na abertura. Ele não muda com o que
+   se faz na folha, e recalcular o resumo a cada tecla seria trabalho à toa. */
+let vaiDarAindaEntra = 0;
+
+function abrirVaiDar() {
+  const contas = contasAPagar(estado, mesVisivel);
+  const resumo = resumoDoMes(estado.lancamentos, estado.realizados, mesVisivel, faturasDoMes(estado, mesVisivel));
+  vaiDarAindaEntra = resumo.faltaEntrar;
+
+  const lista = $('lista-vai-dar');
+  lista.replaceChildren(...contas.map(linhaDaContaVaiDar));
+
+  const vazio = contas.length === 0;
+  $('vazio-vai-dar').hidden = !vazio;
+  $('dica-das-contas-vai-dar').hidden = vazio;
+
+  /* O mês vai no título só quando não é o corrente: é o caso de quem recebe no
+     dia 30 e abre o mês seguinte (decisão 2), e é onde a dúvida "de que mês são
+     essas contas?" aparece. No mês de hoje, ele seria ruído. */
+  $('titulo-das-contas-vai-dar').textContent =
+    mesVisivel === mesDe(new Date())
+      ? 'Ainda falta pagar'
+      : 'Ainda falta pagar em ' + rotuloDoMes(mesVisivel);
+
+  recalcularVaiDar();
+  $dialogo('dialogo-vai-dar').showModal();
+  setTimeout(() => $campo('campo-saldo').focus(), 50);
+}
+
+/**
+ * @param {import('./nucleo.js').ItemDoMes} conta
+ * @returns {HTMLLIElement}
+ */
+function linhaDaContaVaiDar(conta) {
+  const li = document.createElement('li');
+
+  const rotulo = document.createElement('label');
+  rotulo.className = 'conta-vai-dar';
+
+  const caixa = document.createElement('input');
+  caixa.type = 'checkbox';
+  caixa.checked = true;
+  /* O valor viaja em centavos, como o núcleo o entregou. Ler de volta o texto
+     formatado da linha seria reconverter dinheiro na camada errada. */
+  caixa.dataset.valor = String(conta.valor);
+
+  const nome = document.createElement('span');
+  nome.className = 'conta-vai-dar-nome';
+  nome.textContent = conta.descricao;
+
+  const dia = document.createElement('span');
+  dia.className = 'conta-vai-dar-dia';
+  dia.textContent = 'dia ' + String(conta.dia).padStart(2, '0');
+
+  const valor = document.createElement('span');
+  valor.className = 'conta-vai-dar-valor tabular';
+  valor.textContent = formatarDinheiro(conta.valor);
+
+  rotulo.append(caixa, nome, dia, valor);
+  li.append(rotulo);
+  return li;
+}
+
+function anotarOutraContaVaiDar() {
+  const li = document.createElement('li');
+  li.className = 'outra-conta-vai-dar';
+
+  const campo = document.createElement('input');
+  campo.type = 'text';
+  campo.inputMode = 'decimal';
+  campo.enterKeyHint = 'done';
+  campo.placeholder = '0,00';
+  campo.className = 'tabular';
+  campo.autocomplete = 'off';
+  campo.setAttribute('aria-label', 'Valor da outra conta');
+  registrarMascaraDeValor(campo);
+
+  const remover = document.createElement('button');
+  remover.type = 'button';
+  remover.className = 'botao-texto menor';
+  remover.textContent = 'Tirar';
+  remover.setAttribute('aria-label', 'Tirar esta conta');
+  remover.addEventListener('click', () => {
+    li.remove();
+    recalcularVaiDar();
+  });
+
+  li.append(campo, remover);
+  $('lista-vai-dar-outras').append(li);
+  campo.focus();
+}
+
+function recalcularVaiDar() {
+  const campoSaldo = $campo('campo-saldo');
+  const temSaldo = campoSaldo.value.trim() !== '';
+
+  /** @type {number[]} */
+  const valores = [];
+  for (const caixa of /** @type {NodeListOf<HTMLInputElement>} */ (
+    $('lista-vai-dar').querySelectorAll('input[type="checkbox"]')
+  )) {
+    caixa.closest('label')?.classList.toggle('desmarcada', !caixa.checked);
+    if (caixa.checked) valores.push(Number(caixa.dataset.valor));
+  }
+  for (const campo of /** @type {NodeListOf<HTMLInputElement>} */ (
+    $('lista-vai-dar-outras').querySelectorAll('input')
+  )) {
+    valores.push(analisarValor(campo.value));
+  }
+
+  const { aPagar, sobra } = vaiDar(analisarValor(campoSaldo.value), valores);
+
+  const rotulo = $('vai-dar-rotulo');
+  const valor = $('vai-dar-valor');
+  const detalhe = $('vai-dar-detalhe');
+  detalhe.textContent = '';
+
+  /* Antes de o saldo existir, a resposta é só o total a pagar, em cor neutra.
+     Tratar o campo vazio como zero mostraria "Faltam R$ X" em coral para quem
+     ainda nem digitou — uma bronca antes da pergunta. */
+  if (!temSaldo) {
+    rotulo.textContent = 'Falta pagar';
+    valor.textContent = formatarDinheiro(aPagar);
+    valor.classList.remove('negativo');
+    detalhe.append('Digite quanto tem na conta para ver quanto sobra.');
+  } else {
+    const negativa = sobra < 0;
+    rotulo.textContent = negativa ? 'Para pagar tudo, faltam' : 'Depois de pagar tudo, sobram';
+    valor.textContent = formatarDinheiro(Math.abs(sobra));
+    valor.classList.toggle('negativo', negativa);
+    detalhe.append(forte(formatarDinheiro(aPagar)), ' em contas.');
+  }
+
+  /* A receita que não caiu fica FORA da conta (decisão 1): o vale do dia 20
+     pode atrasar. Ela aparece para a pessoa saber que o app não a esqueceu. */
+  if (vaiDarAindaEntra > 0) {
+    detalhe.append(
+      ' Ainda deve entrar ',
+      forte(formatarDinheiro(vaiDarAindaEntra)),
+      ', que ficou de fora para não contar com dinheiro que não caiu.'
+    );
+  }
+}
+
+/* Fechou, zerou (decisão 5). Saldo guardado viraria o palpite errado da semana
+   que vem — justo o problema que esta tela veio resolver. */
+function limparVaiDar() {
+  $campo('campo-saldo').value = '';
+  $('lista-vai-dar').replaceChildren();
+  $('lista-vai-dar-outras').replaceChildren();
+  vaiDarAindaEntra = 0;
+}
+
+$('botao-vai-dar').addEventListener('click', abrirVaiDar);
+$('vai-dar-outra').addEventListener('click', anotarOutraContaVaiDar);
+$('vai-dar-fechar').addEventListener('click', () => fecharDialogo('dialogo-vai-dar'));
+/* Um ouvinte só na folha cobre as caixas, o saldo e as contas avulsas — que
+   nascem depois da abertura e não existiam quando o ouvinte foi registrado. */
+$dialogo('dialogo-vai-dar').addEventListener('input', recalcularVaiDar);
+$dialogo('dialogo-vai-dar').addEventListener('change', recalcularVaiDar);
+
 /* ---------- Validação de dia 1–31 (melhoria 5) ----------
  *
  * Registrado antes dos listeners de dica, para que quando atualizarDicaDoCiclo
@@ -3155,13 +3332,15 @@ $selecao('campo-repeticao').addEventListener('change', atualizarDicaDoCartao);
 
 /* ---------- Máscara de valor (melhoria 4) ----------
  *
- * Os 5 campos de dinheiro do app. A ordem aqui é apenas conveniência de leitura;
- * o que importa é que nenhum fique de fora. */
+ * Os 6 campos fixos de dinheiro do app. A ordem aqui é apenas conveniência de
+ * leitura; o que importa é que nenhum fique de fora. As contas avulsas do "Vai
+ * dar?" nascem depois e registram a máscara ao nascer. */
 registrarMascaraDeValor($campo('campo-valor'));
 registrarMascaraDeValor($campo('campo-limite-do-cartao'));
 registrarMascaraDeValor($campo('campo-fatura'));
 registrarMascaraDeValor($campo('campo-limite'));
 registrarMascaraDeValor($campo('campo-fatura-detalhe'));
+registrarMascaraDeValor($campo('campo-saldo'));
 
 /* ---------- Instalar o app ---------- */
 

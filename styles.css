@@ -1796,6 +1796,92 @@ dialog::backdrop { background: var(--veu); }
 
 #fatura-adicionar { margin-bottom: 14px; }
 
+/* ---------- Vai dar? ---------- */
+
+/* Contorno, e não sólido: o botão verde cheio da tela é o de anotar, e duas
+   chamadas do mesmo peso no topo disputariam o dedo. Largura do próprio texto,
+   porque o `.botao` esticaria em toda a linha. */
+.botao-vai-dar {
+  flex: none;
+  margin-top: 12px;
+  padding-inline: 18px;
+}
+
+.vai-dar-titulo {
+  font-size: .9375rem;
+  font-weight: 600;
+  margin: 18px 0 8px;
+}
+
+.vai-dar-contas {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+
+/* Nome, dia e valor na mesma linha em 360px. O nome é quem cede: ele quebra
+   antes de o valor sair da tela, porque o valor é a resposta. */
+.conta-vai-dar {
+  display: grid;
+  grid-template-columns: 22px minmax(0, 1fr) auto auto;
+  align-items: center;
+  gap: 10px;
+  min-height: var(--alvo);
+  border-bottom: 1px solid var(--borda-fraca);
+  font-size: .9375rem;
+  cursor: pointer;
+}
+
+.conta-vai-dar input { width: 22px; height: 22px; margin: 0; accent-color: var(--verde); }
+.conta-vai-dar-nome { overflow-wrap: anywhere; }
+.conta-vai-dar-dia { font-size: .78125rem; color: var(--tinta-fraca); }
+.conta-vai-dar-valor { font-weight: 600; }
+
+/* Desmarcada quer dizer "já paguei": ela sai da conta, e o risco mostra isso
+   sem esconder a linha — tirar a linha da tela tiraria o jeito de voltar atrás. */
+.conta-vai-dar.desmarcada .conta-vai-dar-nome,
+.conta-vai-dar.desmarcada .conta-vai-dar-valor {
+  color: var(--tinta-fraca);
+  text-decoration: line-through;
+}
+
+.vai-dar-vazio { margin: 0 0 8px; font-size: .9375rem; color: var(--tinta-suave); }
+
+.outra-conta-vai-dar {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 6px 0;
+  border-bottom: 1px solid var(--borda-fraca);
+}
+
+.outra-conta-vai-dar input {
+  flex: 1;
+  min-width: 0;
+  min-height: var(--alvo);
+  padding: 0 12px;
+  border: 1px solid var(--borda);
+  border-radius: 12px;
+  background: var(--superficie);
+  color: var(--tinta);
+  font-family: inherit;
+  /* 16px pela mesma razão do `.campo input`: abaixo disso o iOS dá zoom. */
+  font-size: 16px;
+}
+
+.outra-conta-vai-dar input:focus { outline: 2px solid var(--verde); outline-offset: -1px; border-color: var(--verde); }
+
+#vai-dar-outra { margin: 4px 0 0 -10px; }
+
+.vai-dar-resultado {
+  margin: 18px 0 16px;
+  padding: 16px;
+  border-radius: 14px;
+  background: var(--areia);
+}
+
+.vai-dar-resultado .detalhe { margin-top: 8px; }
+
 /* ---------- Aviso temporário ---------- */
 
 .aviso {
