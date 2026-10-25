@@ -194,6 +194,31 @@ Qual das duas é decisão a tomar na implementação.
 - Exibir a hora de lançamento junto à data e ordenar a lista de compras em ordem decrescente (mais recente no topo).
 - Adicionar confirmação modal para ações destrutivas (exclusão de lançamentos avulsos e compras, arquivamento de cartão e remoção de limites).
 
+## 7. As listas do Início começam pelo lançamento mais antigo
+
+**Status:** 🟡 Em andamento — [issue #45](https://github.com/mariogomesbarbosa/Zenny/issues/45)
+**Onde:** `app.js`, `desenharGrupo`
+**Pedido:** inverter a ordem de Receitas e Despesas, para que os mais recentes
+fiquem no topo, visíveis sem rolar.
+
+A ordem vinha do `itensDoMes`, que ordena pelo dia do mês em ordem crescente. A
+tela do cartão já tinha resolvido a mesma queixa na melhoria 6, com dia
+decrescente e desempate pela hora de anotação. O Início passa a usar esse mesmo
+critério, para que as duas listas não se contradigam.
+
+**O que não mudou, de propósito:**
+
+- **O `itensDoMes` continua crescente.** Ele também alimenta o "Vai dar?", e lá
+  a ordem certa é a de vencimento: a conta que vence primeiro aparece primeiro.
+  Por isso a inversão mora na tela do Início, e não no núcleo.
+- **"Mais recente" quer dizer o dia do mês, e não a hora de anotação.** Num
+  planejador, um fixo do dia 28 aparece acima do mercado anotado hoje, dia 25,
+  embora ainda não tenha acontecido. A alternativa — ordenar só pela hora em
+  que cada coisa foi anotada — jogaria para o fundo, para sempre, os fixos
+  cadastrados meses atrás, e a lista deixaria de ler como calendário. Se o uso
+  mostrar que os planejados do fim do mês atrapalham, a próxima pergunta é
+  separar o que já aconteceu do que ainda vem, e não trocar o critério.
+
 ---
 
 ## Feitas
