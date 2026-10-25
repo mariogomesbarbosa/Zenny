@@ -85,6 +85,10 @@
         <span class="rotulo" id="rotulo-da-sobra">Sobra prevista no mês</span>
         <strong class="valor" id="valor-da-sobra">R$ 0,00</strong>
         <p class="detalhe" id="detalhe-da-sobra">Nada registrado neste mês ainda.</p>
+        <!-- Botão, e não o "Na conta agora" tocável: a porta do Relatório
+             começou como texto no painel e ninguém percebia que era porta.
+             Ver docs/vai-dar.md. -->
+        <button type="button" class="botao contorno botao-vai-dar" id="botao-vai-dar" hidden>Vai dar?</button>
       </div>
 
       <div class="painel-fluxo">
@@ -771,6 +775,39 @@
     <div class="pilha">
       <button type="button" class="botao" id="dialogo-ajuste-salvar">Salvar ajuste</button>
       <button type="button" class="botao apagado" id="dialogo-ajuste-cancelar">Cancelar</button>
+    </div>
+  </div>
+</dialog>
+
+<!-- Uma conta de padaria, e nada mais: o que se marca, desmarca ou soma aqui
+     não é gravado. Ver docs/vai-dar.md. -->
+<dialog id="dialogo-vai-dar" aria-labelledby="titulo-do-vai-dar">
+  <div class="pegador" aria-hidden="true"></div>
+  <div class="folha">
+    <h2 id="titulo-do-vai-dar">Vai dar para pagar tudo?</h2>
+
+    <div class="campo">
+      <label for="campo-saldo">Quanto tem na conta agora?</label>
+      <input type="text" id="campo-saldo" inputmode="decimal" enterkeyhint="done"
+             placeholder="0,00" class="tabular" autocomplete="off">
+      <p class="dica">Confira no app do banco. O Zenny não guarda este número.</p>
+    </div>
+
+    <h3 class="vai-dar-titulo" id="titulo-das-contas-vai-dar">Ainda falta pagar</h3>
+    <p class="dica" id="dica-das-contas-vai-dar">Desmarque o que você já pagou.</p>
+    <ul class="vai-dar-contas" id="lista-vai-dar" aria-labelledby="titulo-das-contas-vai-dar"></ul>
+    <p class="vai-dar-vazio" id="vazio-vai-dar" hidden>Nada para pagar neste mês.</p>
+    <ul class="vai-dar-contas" id="lista-vai-dar-outras" aria-label="Outras contas"></ul>
+    <button type="button" class="botao-texto" id="vai-dar-outra">+ outra conta</button>
+
+    <div class="vai-dar-resultado" role="status" aria-live="polite">
+      <span class="rotulo" id="vai-dar-rotulo">Falta pagar</span>
+      <strong class="valor" id="vai-dar-valor">R$ 0,00</strong>
+      <p class="detalhe" id="vai-dar-detalhe"></p>
+    </div>
+
+    <div class="pilha">
+      <button type="button" class="botao contorno" id="vai-dar-fechar">Fechar</button>
     </div>
   </div>
 </dialog>

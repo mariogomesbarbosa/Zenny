@@ -1741,6 +1741,48 @@ export function proporcoesDasBarras(resumo) {
   };
 }
 
+/* ---------- Vai dar? ---------- */
+
+/* O que ainda falta pagar no mês: as saídas que não foram marcadas como pagas,
+ * faturas incluídas, na ordem do dia. Ver docs/vai-dar.md.
+ *
+ * Parte de `itensDoMes`, e não de `lancamentosDoMes`, por dois motivos que são
+ * o mesmo: a compra no cartão não sai da conta no mês em que foi feita, e a
+ * fatura sai. Usar a lista que a tela do mês já desenha garante que o "Vai
+ * dar?" e a lista do Início nunca discordem sobre o que é conta a pagar.
+ *
+ * Conta atrasada, com o dia já passado, entra: se não foi marcada, para o app
+ * ela não foi paga (decisão 3). A caixa da tela é quem resolve. */
+/**
+ * @param {Estado} estado
+ * @param {Mes} mes
+ * @returns {ItemDoMes[]}
+ */
+export function contasAPagar(estado, mes) {
+  return itensDoMes(estado, mes).filter(
+    (item) => item.tipo === 'saida' && !estaRealizado(estado.realizados, item.id, mes)
+  );
+}
+
+/* O saldo real contra as contas que a pessoa deixou marcadas.
+ *
+ * Recebe só os valores, e não os itens: quem decide o que entra é a pessoa,
+ * desmarcando o que já pagou e somando o que não estava no plano, e a conta
+ * avulsa não tem id nem dia. A função não precisa saber de onde veio cada
+ * número — precisa só não errar a soma.
+ *
+ * A sobra pode sair negativa, e sai: é o "Faltam R$ X" da tela. Achatar em
+ * zero esconderia justo a resposta que a pessoa veio buscar. */
+/**
+ * @param {number} saldo Centavos na conta agora, lidos no banco.
+ * @param {number[]} valores Centavos de cada conta marcada.
+ * @returns {{ aPagar: number, sobra: number }}
+ */
+export function vaiDar(saldo, valores) {
+  const aPagar = valores.reduce((total, valor) => total + valor, 0);
+  return { aPagar, sobra: saldo - aPagar };
+}
+
 /* ---------- Para onde o dinheiro foi, e os limites ---------- */
 
 /* A quebra do mês, do maior para o menor.
